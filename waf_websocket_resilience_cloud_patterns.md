@@ -1,7 +1,7 @@
 # WebSocket Resilience Through Enterprise WAF and Load-Balancer Tiers
 
 **Status:** Design guidance / architecture decision record  
-**Last reviewed:** 2026-09-28  
+**Last reviewed:** 2026-09-29  
 **Scope:** Dual-site Enterprise WAF architecture supporting HTTP/HTTPS and WebSocket traffic
 
 ## Related repository documents
@@ -499,6 +499,23 @@ Distinguish three recovery cases:
 Aim for effectively-once **business effects** through durable deduplication and reconciliation; a live WebSocket transport does not guarantee exactly-once delivery.
 
 Azure Web PubSub's reliable protocol is a concrete provider example of this pattern: connection identifiers, reconnection tokens, acknowledgement IDs and sequence acknowledgements are used to recover logical connection/message state after a network interruption.
+
+## 9.1 Verified financial-services WebSocket examples
+
+These are provider-authored WebSocket API specifications or samples. They describe consumer-facing behavior; they do **not** establish how a provider's internal WAF, load balancer, or cross-site connection failover works.
+
+| Provider and verified WebSocket evidence | Documented recovery behavior | Requirement illustrated |
+|---|---|---|
+| **Coinbase Exchange:** [WebSocket feed overview](https://docs.cdp.coinbase.com/exchange/websocket-feed/overview) gives `wss://` endpoints, subscribe messages, per-product sequence numbers and a heartbeat channel. | A sequence gap can arise upstream despite TCP delivery to the client; consumers detect gaps/out-of-order updates or select a delivery-guaranteed channel such as `level2`. | **WS-006/007/008:** restore subscriptions, check completeness with sequence numbers, monitor stream health. |
+| **Coinbase Prime:** [market-data guide](https://docs.cdp.coinbase.com/prime/concepts/trading/market-data) explicitly identifies its WebSocket `l2_data` stream. | It instructs clients to reconnect for a fresh order-book snapshot on a sequence gap and to reconnect if subscribed heartbeats stop. | **WS-001/007/008:** reconnect after a dead path, reject an incomplete book, rebuild from an authoritative snapshot. This is snapshot recovery, not a promise of message replay. |
+| **LSEG/Refinitiv:** [WebSocket API](https://developers.lseg.com/en/api-catalog/real-time-opnsrc/websocket-api) and its [official Java RTO example](https://github.com/Refinitiv/websocket-api/blob/master/Applications/Examples/RTO/java/MarketPriceRTOClientCredAuth/src/main/java/org/example/MarketPriceRTOClientCredAuth.java) use WebSocket connections to discovered real-time endpoints. | The example illustrates endpoint discovery, optional dual hot-standby connections, login, token renewal and reconnect. LSEG explicitly warns that its examples are illustrative and that production applications must implement **item and connection recovery** themselves. | **WS-001/004/006/007:** rediscover, authenticate, restore item requests and validate state after reconnect; do not treat sample code as a production retry policy. |
+| **Alpaca:** [trading WebSocket stream](https://docs.alpaca.markets/us/docs/websocket-streaming) documents `wss://` endpoints, authentication, `trade_updates` subscriptions and order lifecycle events. Its [order lookup by client order ID](https://docs.alpaca.markets/us/reference/getorderbyclientorderid) is an HTTP recovery path. | Following an ambiguous disconnect, restore the subscription and query authoritative order state by `client_order_id` before deciding whether an order needs further action. The cited WebSocket page does not promise gap-free replay. | **WS-006/007/007A:** restore subscriptions and reconcile orders and fills; an order ID enables lookup but does not itself prove retry idempotency. |
+| **Interactive Brokers:** [Web API WebSocket topics](https://ibkrcampus.com/docs/web-api/v1/ws/introduction) explicitly list market data (`smd`), order updates (`sor`) and trades (`str`) and require an active brokerage session for these topics. | Re-establish the brokerage session and relevant subscriptions after a dropped connection; consult authoritative order/trade endpoints to reconcile a gap. These latter steps are design inferences, not a documented IBKR replay guarantee. | **WS-004/006/007:** session validity, topic recovery and authoritative reconciliation. |
+| **CME Group:** [Real-Time Futures & Options Data API](https://www.cmegroup.com/market-data/market-data-api.html) explicitly identifies a WebSocket API carrying JSON market data. | The public product description establishes protocol use, but does not specify cursor replay, missed-message guarantees or failover behavior. | **Evidence boundary:** define and test those guarantees in the application contract; WebSocket adoption alone does not supply them. |
+
+**Nasdaq qualification:** [Nasdaq's hackathon repository](https://github.com/Nasdaq/hackathons) contains an explicit WebSocket client example, but it is a hackathon demo using an unencrypted `ws://` sample endpoint and is **not** evidence of a production architecture or recovery guarantee. Nasdaq's [Data Link Streaming API Java SDK](https://github.com/Nasdaq/NasdaqCloudDataService-SDK-Java) documents Kafka configuration (`bootstrap.servers` on port 9094), so that product should not be cited as a WebSocket example. Do not use the hackathon endpoint in an enterprise reference architecture.
+
+**Design implication:** Market-data views may be rebuilt from a fresh snapshot after a gap (Coinbase Prime). Order submissions, fills, cancellations and balances need reconciliation against authoritative business state before any retry (Alpaca/IBKR). Specify separately for each stream whether replay exists, how long it lasts, the scope of its sequence or cursor, and the result when recovery is impossible.
 
 ---
 
