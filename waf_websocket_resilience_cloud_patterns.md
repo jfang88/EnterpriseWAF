@@ -43,47 +43,31 @@ F5 connection mirroring remains an available additional protection where preserv
 The enterprise topology is assumed to contain:
 
 - two sites operating primarily active/passive;
-- BIG-IP DNS / GTM for site selection;
-- external clients connected through private-network services;
+- a GTM/BIG-IP DNS service at each site, reached through clients' recursive DNS;
+- external clients, their firewalls/proxies and DNS connected through private-network services;
 - four physical/logical ingress circuits;
+- two enterprise firewall HA pairs total (one per site for this analysis); actual circuit/firewall mapping to be verified;
 - two WAF appliances in each site;
-- an optional LTM HA pair in front of the WAF tier;
 - either:
-  - WAF active/standby clustering, or
-  - multiple independently active WAF nodes behind LTM;
-- an enterprise private-cloud ELB behind the WAF tier;
-- Kubernetes clusters with ingress/load-balancing and application Pods; and/or
-- virtual-machine applications behind a platform/application load balancer;
+  - **Design A:** a WAF active/standby cluster owning the site external VIP, without a separate ingress LTM, or
+  - **Design B:** an ingress LTM HA pair owning the site external VIP and balancing independent active WAFs;
+- an on-premises application ELB internal VIP behind the WAF, operating as L3/L4 forwarder/TCP passthrough or L7 terminating proxy;
+- DCS (Huawei VMware) VM applications, and/or HCS (Huawei private cloud) VM applications or Kubernetes ingress/Services/Pods;
 - applications using a mixture of HTTPS and secure WebSockets.
 
-Representative flow:
+Representative flow at either site:
 
 ~~~text
-Private client
-      |
-Corporate DNS
-      |
-GTM / BIG-IP DNS
-      |
-Site ingress VIP
-      |
-LTM HA pair
-      |
-+-------------------------+
-|                         |
-WAF-1                   WAF-2
-|                         |
-+-----------+-------------+
-            |
-     Private-cloud ELB
-            |
-   +--------+---------+
-   |                  |
-Kubernetes          VM Load
-Ingress/LB          Balancer
-   |                  |
-Pods                 VMs
+External client -> client DNS/firewall/proxy -> four private circuits/VPN (as routed)
+  -> enterprise site firewall HA -> site external VIP
+
+A: external VIP on WAF active/standby cluster -> application ELB internal VIP
+B: external VIP on LTM HA -> independent WAF pool -> application ELB internal VIP
+
+ELB -> DCS VMware VM pool OR HCS VM pool OR HCS Kubernetes ingress -> Pods
 ~~~
+
+See the [full logical flow and two-design comparison](./waf_architecture_options_cross_site_resilience.md#24-explicit-end-to-end-topology-and-ownership). The other site's GTM and VIP provide an alternate only when the client can reach that site and its application/data services are ready.
 
 ---
 
@@ -293,7 +277,7 @@ Load-balancer availability and connection availability are different things. A l
 
 # 6. Recommended enterprise pattern
 
-For a normal WebSocket application, prefer:
+For a normal WebSocket application, **Design B is preferred when the additional ingress LTM and independent WAF pool are justified, healthy, fully monitored and capacity-tested**. Design A remains valid for a WAF cluster with an external VIP and no ingress LTM:
 
 ~~~text
                          GTM
@@ -335,7 +319,7 @@ This allows:
 
 ## End-to-end reliability controls
 
-The WAF design is one part of the application delivery service. Each layer must restore **new connections** after its own failure; no layer should promise to preserve an established socket through every possible fault.
+The WAF design is one part of the application delivery service. Each layer must restore **new connections** after its own failure; no layer should promise to preserve an established socket through every possible fault. Design A has WAF cluster HA with no separate ingress LTM; Design B has LTM HA in front of independent WAFs. The [full fault analysis](./waf_architecture_options_cross_site_resilience.md#16a-end-to-end-failure-analysis-for-designs-a-and-b) models both.
 
 | Layer / failure domain | Reliability control | Recovery boundary and verification |
 |---|---|---|
@@ -366,7 +350,7 @@ Possible reasons include:
 In that case:
 
 ~~~text
-                     LTM / AWAF HA
+                      WAF HA pair
                   active <====> standby
                          state
                        mirroring
@@ -737,6 +721,8 @@ Capacity testing must therefore measure both:
 
 # 15. Failure scenarios and expected WebSocket impact
 
+This concise table applies to both topologies. For node-versus-entire-pair failures, the two site firewall HA pairs, client DNS/circuits, DCS/HCS backends, application ELB L3/L4 versus L7 behavior and proposed recovery-time bands, use the [complete two-design failure analysis](./waf_architecture_options_cross_site_resilience.md#16a-end-to-end-failure-analysis-for-designs-a-and-b). Design A has no ingress LTM; its WAF HA cluster owns the external VIP. Design B has an LTM HA external VIP and independent WAF members.
+
 | Failure | Existing HTTP | Existing WebSocket | Recovery / mitigation |
 |---|---|---|---|
 | Browser tab/device sleeps, restarts or changes network | Requests resume when client returns | Socket may close or silently stall | Detect on resume/heartbeat; reconnect, restore credentials/cursor or fetch snapshot |
@@ -771,17 +757,17 @@ Capacity testing must therefore measure both:
 
 # 16. Architecture decision: clustered WAF versus load-balanced WAF
 
-## Option A - WAF active/standby with connection mirroring
+## Option A - WAF active/standby cluster owning external VIP
 
 ~~~text
-LTM
- |
-WAF active <==== mirrored state ====> WAF standby
- |
-ELB
- |
-Application
+Client -> site firewall HA -> external VIP on WAF active <====> WAF standby
+                                              |
+                                     application ELB internal VIP
+                                              |
+                                     DCS/HCS VM or HCS Kubernetes
 ~~~
+
+Connection mirroring is optional and conditional on the supported F5 version, profiles, license and tested topology. This design has **no ingress LTM**. Loss of both WAF members removes the external VIP; remote WAF capacity requires an explicitly engineered alternate ingress or other-site VIP.
 
 ### Advantages
 
@@ -800,10 +786,12 @@ Application
 ## Option B - LTM-balanced active WAF pool
 
 ~~~text
-                 +--> WAF-1 --+
-LTM HA pair -----+            +--> ELB --> application
-                 +--> WAF-2 --+
+                                    +--> WAF-1 --+
+Client -> site firewall -> LTM HA --+            +--> ELB internal VIP --> DCS/HCS app
+                                    +--> WAF-2 --+
 ~~~
+
+The LTM HA pair owns the external VIP. Its pool monitors must withdraw a broken WAF or WAF-to-ELB path. Loss of the complete LTM pair removes ingress even when both WAFs are healthy; loss of the complete WAF pool makes the application unavailable unless a separately approved remote WAF path exists.
 
 ### Advantages
 
@@ -822,7 +810,7 @@ LTM HA pair -----+            +--> ELB --> application
 
 ## Recommended decision rule
 
-Use **load-balanced active WAFs** as the preferred general architecture when applications implement robust WebSocket recovery.
+Use **load-balanced active WAFs** as the preferred general architecture when the extra ingress LTM tier, through-path health, capacity, policy consistency and applications' WebSocket recovery are justified and verified. Design A remains a valid simpler ingress design when the cluster failure domain and single-event mirroring limitations are acceptable. See the [comparison and failure-time model](./waf_architecture_options_cross_site_resilience.md#16a-end-to-end-failure-analysis-for-designs-a-and-b).
 
 Use **connection mirroring** where a documented business/technical requirement justifies the extra complexity and testing.
 
@@ -878,6 +866,10 @@ Planned application shutdown should use an orderly WebSocket close where practic
 
 Infrastructure and application deployment procedures shall drain long-lived connections during planned maintenance where supported.
 
+## WS-011 - Full-stack recovery and business state
+
+Application recovery shall be tested after client/DNS/firewall, circuit, full WAF HA pair or WAF pool, full LTM HA pair (Design B), application ELB L3/L4 or L7, DCS VM/cluster, HCS VM/cluster, Kubernetes ingress/Pod/node/cluster and full-site failures. HTTP clients must distinguish safe retries from ambiguous writes and use authoritative result lookup. WebSocket clients must not infer message delivery or order outcome from a successful reconnect. Measure the recovery-time components and proposed acceptance bands in [Section 16A of the main paper](./waf_architecture_options_cross_site_resilience.md#16a-end-to-end-failure-analysis-for-designs-a-and-b).
+
 ---
 
 # 18. Minimum infrastructure requirements
@@ -911,8 +903,7 @@ Maintain a documented table of:
 - client-side proxy and firewall session timeouts;
 - enterprise firewall TCP idle timeout and maximum session age;
 - private circuit/VPN recovery and route convergence;
-
-- LTM TCP idle timeout;
+- LTM TCP idle timeout (Design B only);
 - WAF WebSocket/TCP timeout;
 - platform ELB timeout;
 - ingress-controller timeout;
@@ -941,6 +932,10 @@ Capture:
 - authentication failures during reconnect;
 - WAF-node connection counts;
 - message replay/duplicate counts where applicable.
+
+## INF-009 - Application ELB mode and backend failure domains
+
+Document whether the on-premises ELB forwards at L3/L4 with a selected TCP flow or terminates at L7 and creates a new HTTP/TLS/backend connection. Pure L3 IP routing alone is not application load balancing. Validate TLS/mTLS termination and re-encryption, original-client trust, NAT and return symmetry, health, WebSocket upgrade, idle/maximum connection age and draining. DCS VMware VMs, HCS VMs and HCS Kubernetes ingress/Services/Pods must be monitored and failed independently; losing an ELB, ingress, VM or Pod can still destroy an established socket. See the [mode-specific failure rows](./waf_architecture_options_cross_site_resilience.md#16a3-ingress-waf-and-application-elb).
 
 ---
 
@@ -1011,7 +1006,7 @@ The following wording can be used as an architecture requirement:
 
 # 21. Design conclusion for EnterpriseWAF
 
-For this environment, the default strategic design for applications that require WebSocket should be:
+For this environment, the strategic design for applications that require WebSocket is **Design B where its extra tier is justified and validated**; otherwise Design A uses a WAF cluster VIP without ingress LTM. The Design B path is:
 
 ~~~text
 GTM
@@ -1045,7 +1040,7 @@ with:
 - capacity testing for failover reconnect storms;
 - explicit failure testing of all stateful tiers.
 
-Use a mirrored active/standby WAF design only where preserving an individual socket across the first supported WAF failover has enough value to justify the HA/mirroring complexity and documented limitations.
+Use Design A where its simpler ingress and HA operational model fit the requirements. Enable connection mirroring only where preserving a socket across a supported single WAF failover has enough value to justify its documented limitations and exact-version tests. Both designs require client reconnection and business-state recovery.
 
 ---
 
