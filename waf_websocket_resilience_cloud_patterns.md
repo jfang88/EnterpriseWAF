@@ -335,6 +335,44 @@ Set explicit targets for **detect → DNS/routing convergence → reconnect → 
 
 ---
 
+## Application state placement and recovery contract
+
+A WAF HA pair can protect the **WAF service VIP** and, for a supported and tested mirroring event, may preserve some connections through one WAF member failure. It cannot preserve a socket through an application ELB failure, Pod or VM termination, client/firewall path loss or a full site failure. The selected backend owns a live TCP/WebSocket endpoint. After that endpoint disappears, the application must accept a new connection on another healthy instance and reconstruct the logical session.
+
+| State | Normal owner and durability | Required recovery behavior |
+|---|---|---|
+| TCP/WebSocket transport, TLS, firewall/NAT/LTM/WAF/ELB connection tables | Ephemeral state on the selected path; optional device-specific mirroring has a narrow failure scope | Assume the old socket is lost after a stateful hop or backend fails. A new connection selects a healthy path. Do not use a live socket as the only record of a business action. |
+| Authentication and authorization | Available identity service or portable, verifiable token; revocation/expiry policy shared with the DR site | Reauthenticate or renew on every new connection and reauthorize each subscription/command. Reconnect must work on another Pod/VM and at the ready DR site. |
+| Logical user/session and workflow state | Shared or replicated session store and authoritative database, not only app-process or WAF memory | Rebuild by stable session/user identifier. Define expiry, write consistency and the data recovery point for the passive site. |
+| Desired subscriptions and per-connection routing | Client retains desired topics (or a recoverable subscription store); a broker/connection registry may hold transient delivery mappings | Client resubscribes after authentication. Server rejects unauthorized topics. A new backend builds fresh connection mappings and resumes from the agreed cursor. |
+| Server-to-client events and cursor | Durable event log or authoritative snapshot per stream/partition; client stores last **safely processed** cursor | Replay within documented retention; deduplicate and detect gaps. If cursor expired or cross-site log lags, return an explicit gap response and fetch/reconcile a snapshot. |
+| Client commands and business outcome | Authoritative transaction store plus durable operation-ID/idempotency record, ideally committed atomically with the business effect | A lost acknowledgement is ambiguous. Query by operation ID; retry with the same ID within its defined scope/window and return the recorded outcome. Never blindly submit a second order/payment. |
+
+The state services themselves need HA, capacity and cross-site consistency appropriate to each application's RTO/RPO. A shared cache is not automatically durable; specify persistence, replication and recovery after loss of that cache. A passive site's WAF and ELB being healthy is insufficient if its identity, event log or authoritative data is not ready. Avoid dual writers or split-brain during promotion and failback.
+
+### Application-team implementation sequence
+
+1. **Before failure:** Identify every WebSocket stream and command, its ordering scope, replay retention, maximum tolerable gap and authoritative lookup. Persist the cursor only after the consumer has safely applied the event. Keep an operation ID through client retries. Store recoverable session/workflow data outside a single Pod or VM.
+2. **Detect:** Handle close/error, browser resume and network changes. Use heartbeat or an application message deadline for silent blackholes. Set activity/heartbeat periods against the shortest intended idle timeout across client proxy, firewall, LTM, WAF, ELB and ingress; do not assume protocol Ping/Pong is accessible from browser JavaScript.
+3. **Reconnect:** Use one bounded reconnect loop per logical session with exponential backoff and jitter. Re-resolve the service when possible, reconnect only to a ready endpoint, refresh credentials and cap concurrent handshakes. Avoid retry storms and unbounded in-memory queues.
+4. **Restore:** Authenticate, restore the logical session, reauthorize and recreate subscriptions, then request replay from the last safely processed cursor. If replay is unavailable, fetch an authoritative snapshot and reconcile before showing the view as current.
+5. **Reconcile writes:** For commands whose acknowledgement was lost, query authoritative outcome by operation ID. Retry only according to the operation's idempotency contract, with the same key. A new socket or a successful subscription does not settle a pending business transaction.
+6. **Resume and observe:** Expose a clear catching-up/degraded state while replay or snapshot runs. Record disconnect cause, detect-to-connect and connect-to-consistent-state times, gaps, duplicates, pending commands and peak reconnects per second.
+
+### What an ELB or application-node failure means
+
+| Fault | New path selected by infrastructure | Application responsibility |
+|---|---|---|
+| One application ELB member/proxy process fails | Its HA peer or surviving ELB path takes new connections if healthy. L3/L4 pass-through and L7 proxy modes have different termination, timeout and drain behavior. | Treat affected sockets and in-flight HTTP writes as lost or ambiguous. Reconnect to a healthy backend, restore state and look up uncertain write outcomes. |
+| Whole application ELB tier fails | No new backend connection until its own HA/recovery or an approved alternate application path is ready; WAF VIP health alone must not advertise the app. | Retry with jitter within client limits, surface unavailable/degraded status, retain cursor/operation IDs and reconcile when service returns. |
+| Pod, Kubernetes node, VM or app process fails | ELB/ingress withdraws unhealthy target for new connections; replicas take new connections after readiness. | Recover on a different instance. Recreate subscriptions and replay/snapshot. Graceful shutdown drains or closes sockets; abrupt failure still requires the same client recovery contract. |
+| Identity, session, event or authoritative store fails | An ingress path may remain green while application recovery is impossible. | Fail readiness where required, avoid pretending a reconnected socket is consistent, and enter the documented degraded mode until the state service is available. |
+| Site 1 becomes unavailable | GTM may advertise Site 2 only after application, state and dependencies are ready and client networks can reach its VIP. | New connection, reauthentication, resubscription and replay/snapshot against Site 2's consistent state; reconcile pending commands before retry. |
+
+Application teams should demonstrate these behaviors with a real long-lived socket while abruptly terminating the selected ELB path and selected Pod/VM, not just by taking a backend out of rotation. Repeat with graceful drain, a silent blackhole, expired replay cursor, lost command acknowledgement, passive-site promotion and a mass reconnect. Measure both **time to reconnect** and **time to correct business state**. See [Section 17](#17-minimum-application-requirements-for-resilient-websockets), [Section 19](#19-testing-plan) and the [main paper's end-to-end failure table](./waf_architecture_options_cross_site_resilience.md#16a-end-to-end-failure-analysis-for-designs-a-and-b).
+
+---
+
 # 7. When F5 connection mirroring is still justified
 
 Connection mirroring can still be valuable when losing even one established flow creates unusually high impact.
