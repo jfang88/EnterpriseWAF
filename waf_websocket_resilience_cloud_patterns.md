@@ -359,6 +359,45 @@ The state services themselves need HA, capacity and cross-site consistency appro
 5. **Reconcile writes:** For commands whose acknowledgement was lost, query authoritative outcome by operation ID. Retry only according to the operation's idempotency contract, with the same key. A new socket or a successful subscription does not settle a pending business transaction.
 6. **Resume and observe:** Expose a clear catching-up/degraded state while replay or snapshot runs. Record disconnect cause, detect-to-connect and connect-to-consistent-state times, gaps, duplicates, pending commands and peak reconnects per second.
 
+### VM affinity and durable state
+
+For a VM pool behind an application ELB, each established WebSocket is tied to the backend VM selected for that connection. This is **connection affinity for its lifetime**: messages on that socket reach the same application process while the path is alive. AWS ALB describes upgraded WebSockets as persistent connections to the selected target and calls them inherently sticky. The on-premises ELB's exact L3/L4 or L7 behavior must be verified, rather than inferred from AWS.
+
+A *new* WebSocket, separate HTTP request, or reconnect can land on a different VM. If the application needs multiple independent requests to reach one VM during a transition, configure and test the appropriate ELB persistence mechanism, cookie/affinity scope and expiry. Do not rely on stickiness as the only copy of session or subscription state: it cannot route to a dead VM. The same principle applies to Pod affinity. On VM/process loss, the ELB withdraws the target for new connections; existing sockets anchored there fail, and another VM reconstructs the session from the shared/replicated store or from client resubscription. Backend health/readiness and drain determine when targets receive new sockets.
+
+**Source boundary:** [AWS ALB listeners](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-listeners.html) describe the persistent upgraded connection; [AWS ALB target attributes](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-target-group-attributes.html) describe inherent WebSocket stickiness. These illustrate the connection principle; test the actual on-premises Huawei/application ELB and any Kubernetes ingress.
+
+### Concrete reconnect and catch-up protocol
+
+The following is an **illustrative application protocol**, not a WebSocket standard. Agree its fields, ordering scope, retention and error responses per application. A bare “current sequence number” identifies a gap but cannot supply the missing messages.
+
+1. **Track state while connected:** For each stream/partition and generation (epoch), retain the last sequence safely *applied* by the client, not merely received. If the consumer must survive a browser/app restart, persist the cursor appropriately. Treat duplicate event IDs as harmless. Keep pending commands and their operation IDs until the authoritative result is known.
+2. **Detect and schedule:** On close, error, missed heartbeat/deadline, browser resume or network change, close the stale transport and run **one** reconnect attempt at a time. An example full-jitter delay is `random(0, min(cap, base × 2^attempt))`, with illustrative base 0.5–1 second and cap 30 seconds. Set a per-attempt connection timeout; cap concurrency and queued commands. Use the application's measured RTO, fleet size and authentication capacity to tune the values. Continue controlled retries for a transient outage, respect server retry guidance, and stop or prompt for a permanent authorization/policy error. Reset escalation after a stable session, not every brief handshake.
+3. **Resolve and authenticate:** Re-resolve the endpoint where the client platform permits. Obtain a fresh, short-lived credential when expired and authenticate the new `wss://` upgrade. A valid portable token or server-side session may permit fast authentication, but the new endpoint must validate identity, expiry and authorization again. Browser WebSocket APIs cannot set arbitrary request headers; use an approved secure cookie or a short-lived ticket obtained via HTTPS as appropriate. Do not embed reusable bearer secrets in a URL. If a token refresh fails, do not spin on failed upgrades.
+4. **Resume request:** After authentication, send the logical session ID, desired subscriptions and a cursor for each stream such as `{stream, epoch, lastAppliedSeq}`. The server checks authorization and replies with its stream epoch, `headSeq` (current high-water mark), `firstAvailableSeq` (earliest retained), and either replay acceptance or an explicit snapshot-required response. These names are examples; avoid trusting client-supplied cursors for access to another tenant's events.
+5. **Replay and verify:** If epoch matches and `lastAppliedSeq + 1 >= firstAvailableSeq`, replay events from `lastAppliedSeq + 1` through the agreed catch-up boundary. Client verifies each next per-stream sequence or detects a gap, applies events in order, deduplicates overlap and advances its durable cursor **after** applying. Buffer or sequence live events during catch-up so none fall between replay and live mode; bound the buffer and signal overflow.
+6. **Snapshot fallback:** If the cursor is too old, the epoch changed, or replay cannot bridge a replication gap, return a versioned authoritative snapshot with an associated sequence/epoch. Apply the snapshot and then events after its boundary, or perform an atomic snapshot-to-live handoff. Do not silently jump the cursor to `headSeq` and call the view recovered.
+7. **Reconcile commands:** Query uncertain command outcome by operation ID against the authoritative store. A retry uses the same key only under a documented idempotency window and scope. The service persists the deduplication/result record with the business effect where possible. Mark the UI consistent only after event catch-up and pending business outcomes are resolved.
+
+Illustrative exchange for one ordered stream:
+
+~~~text
+Client reconnects and authenticates over a new WebSocket
+Client: RESUME {stream:"orders:123", epoch:"e7", lastAppliedSeq:1042}
+Server: RESUME_OK {epoch:"e7", firstAvailableSeq:1000, headSeq:1045}
+Server: EVENT {seq:1043, id:"..."}
+Server: EVENT {seq:1044, id:"..."}
+Server: EVENT {seq:1045, id:"..."}
+Client: ACK {stream:"orders:123", appliedThrough:1045}
+Server: LIVE {nextSeq:1046}
+
+If firstAvailableSeq were 1050, or epoch differed:
+Server: SNAPSHOT_REQUIRED {currentEpoch:"e8", headSeq:1100}
+Client: fetch an authorized snapshot and resume after its consistent boundary
+~~~
+
+Sequence numbers are scoped to a named stream/partition and epoch; independent streams do not have a single global sequence. Define what happens when two sites disagree about the head or event-log replication lags. Authentication on reconnect and replay access checks must run before sending any retained messages. Azure Web PubSub's [reliable WebSocket subprotocol](https://learn.microsoft.com/en-us/azure/azure-web-pubsub/reference-json-reliable-webpubsub-subprotocol) demonstrates reconnection tokens, sequence acknowledgements and replay-oriented recovery, but these fields and guarantees are **service-specific**, not native WebSocket behavior.
+
 ### What an ELB or application-node failure means
 
 | Fault | New path selected by infrastructure | Application responsibility |
