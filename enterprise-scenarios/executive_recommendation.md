@@ -22,7 +22,18 @@ Therefore the target is not "one monolithic shared WAF policy." It is:
 
 See [high_level_architecture.md](./high_level_architecture.md) for the canonical entity/relationship view.
 
-If applications consolidate into common private-cloud platforms, reassess whether historic tenant boundaries still justify separate LTM/WAF stacks. Prefer sharing boundaries based on **security/trust zone, criticality, capacity and acceptable blast radius**, while keeping Internet and Intranet/Extranet runtime failure domains separate unless there is a strong reason not to.
+The current architecture focus is the **four-tenant extranet estate**. Retain the existing GTM and tenant LTM boundaries in the current target recommendation. Consolidating GTM/LTM may be a valid future optimisation if applications converge onto common private-cloud platforms, but it requires participation from the GTM/LTM/network owners and is not assumed by this WAF analysis.
+
+### Ownership constraint
+
+This WAF architecture can recommend WAF topology, capacity, policy isolation and recovery behavior, but it cannot unilaterally commit:
+
+- GTM/LTM redesign;
+- cross-site LTM steering;
+- firewall/routing/NAT changes;
+- DNS/GTM health-policy changes.
+
+X2A/X2B are therefore **candidate target capabilities** until the owning teams validate them. See [high_level_architecture.md](./high_level_architecture.md) for the ownership-boundary diagram.
 
 There is no single topology that guarantees 99.95% availability. The target is credible only when:
 
@@ -44,8 +55,8 @@ The shorthand is used only to keep the comparison tables compact. Read the descr
 | **W2** | **WAF HA/DSC cluster**, optionally behind an LTM | One WAF owns a traffic group; peer is HA standby for that traffic group | Simple HA and possible connection mirroring, but pair/cluster is a hard local boundary |
 | **W3** | **Tenant LTM pair + tenant-preferred WAFs + shared reserve WAFs** | Preferred WAFs serve normally; shared reserve is contingency capacity | Keeps normal-state tenant separation but introduces shared reserve governance/contention |
 | **W4** | **Asymmetric cluster design**: Site 1 WAF HA cluster + extra WAF; Site 2 cluster only | Site 1 has extra local capacity; Site 2 has only the cluster | Stronger Site 1 resilience but asymmetric DR/maintenance |
-| **S1** | **Tenant-specific LTM pairs feeding one shared independent active WAF pool** | Four tenant LTM pairs share a horizontally active WAF pool | Best cost/resilience candidate if aggregate capacity and tenant policy isolation are strong |
-| **S2** | **Shared LTM pair + shared independent active WAF pool** | Tenants share both ingress LTM and WAF capacity | Lowest device count among active-pool options, but much larger common failure/change domain |
+| **S1** | **Existing tenant-specific LTM pairs feeding one shared independent active WAF pool** | The current four extranet tenant LTM pairs remain; WAF capacity is shared behind them | Best shared-WAF candidate without redesigning LTM/GTM ownership boundaries |
+| **S2** | **Shared LTM pair + shared independent active WAF pool** | Tenants share both ingress LTM and WAF capacity | Comparison only; LTM consolidation is outside current scope and has a much larger common failure/change domain |
 
 ### W1 — dedicated independent WAF pool
 
