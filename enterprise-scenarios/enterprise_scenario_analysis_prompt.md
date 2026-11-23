@@ -69,6 +69,22 @@ Also distinguish:
 - X1 — local-only dataplane routing;
 - X2 — controlled cross-site contingency where technically applicable.
 
+
+## Mandatory cross-site recovery study
+
+Also read and regenerate/update when relevant:
+
+- [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md)
+
+Distinguish these mechanisms:
+
+- **X2A:** surviving local LTM borrows remote WAF and routes back to the primary application;
+- **X2B:** remote site's firewall/LTM/WAF becomes the front end and routes back to the healthy primary-site application;
+- **X2C:** conventional full application/site failover;
+- **XD1:** App A remains local and uses remote App B through a health-aware service VIP/service-discovery layer.
+
+Do not describe them all simply as "cross-site routing". Their detection, DNS dependency, latency, capacity and failure modes differ materially.
+
 ## Mandatory actor/path dimensions
 
 Analyse:
