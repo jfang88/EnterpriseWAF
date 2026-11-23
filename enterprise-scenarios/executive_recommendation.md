@@ -7,6 +7,23 @@
 
 # 1. Executive decision
 
+## 1.0 Architectural principle — shared WAF runtime, application-coupled policy
+
+The WAF should not be treated as identical to a generic router or firewall.
+
+Use this distinction:
+
+- **WAF runtime/enforcement capacity** may be shared within an approved cloud/security zone;
+- **WAF policy** is tightly coupled to the protected application/API and should have application-specific ownership, testing, canary/staging and rollback.
+
+Therefore the target is not "one monolithic shared WAF policy." It is:
+
+> **shared WAF enforcement capacity with application-isolated policies and change blast radius.**
+
+See [high_level_architecture.md](./high_level_architecture.md) for the canonical entity/relationship view.
+
+If applications consolidate into common private-cloud platforms, reassess whether historic tenant boundaries still justify separate LTM/WAF stacks. Prefer sharing boundaries based on **security/trust zone, criticality, capacity and acceptable blast radius**, while keeping Internet and Intranet/Extranet runtime failure domains separate unless there is a strong reason not to.
+
 There is no single topology that guarantees 99.95% availability. The target is credible only when:
 
 - common failures recover locally and automatically;
