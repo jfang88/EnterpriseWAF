@@ -1,7 +1,10 @@
 # Common Failure Matrix — Enterprise WAF Topology Options
 
-**Analysis lens:** Failure/recovery (Lens 1)  
+**Role:** Technical component-level appendix for Failure/Recovery Lens 1  
+**Primary service/user outcome:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)  
 **Separate Lens 2:** [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md)
+
+> This matrix explains how infrastructure components detect and recover from failures. It is **not** the primary service story. Use the end-to-end service impact analysis for external-user, external-system/API, internal-user, App A/B/C, outage-time and recoverability conclusions.
 
 **Inputs**
 
