@@ -76,6 +76,8 @@ The baseline currently models:
 - separate external and internal DNS namespaces;
 - internal users/applications using internal enterprise DNS, with selected internal service names optionally delegated/forwarded to GTM;
 - internal users potentially bypassing WAF;
+- internal users/desktops, internal DNS and internal service/LTM VIPs outside the private-cloud boundary;
+- a distinct **internal firewall** between the enterprise internal network and private-cloud CFW;
 - a distinct platform/cloud firewall (CFW) layer in front of private-cloud ELB/service endpoints;
 - on-prem, VM, Kubernetes and PaaS application hosting;
 - App A -> App B -> App C and shared-dependency chains.
