@@ -40,7 +40,8 @@ Change this file when testing a different topology, health-check strategy, capac
 
 Regenerate/update:
 
-- **Lens 1 — failure/recovery:** [common_failure_matrix.md](./common_failure_matrix.md)
+- **Lens 1 — primary end-to-end service impact/recovery:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)
+- **Lens 1 technical appendix:** [common_failure_matrix.md](./common_failure_matrix.md)
 - **Lens 2 — maintainability/change safety:** [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md)
 
 Both are **derived outputs**. They should be regenerated when the invariant file or analysis-variable file changes.
@@ -132,6 +133,37 @@ Distinguish these mechanisms:
 
 Do not describe them all simply as "cross-site routing". Their detection, DNS dependency, latency, capacity and failure modes differ materially.
 
+## Mandatory end-to-end service outcome
+
+The primary failure/recovery output is **not** a WAF or F5 component matrix.
+
+For every failure scenario, finish the analysis by stating:
+
+- impact to external human users;
+- impact to external systems/API clients;
+- impact to internal users/systems;
+- impact to App A -> App B -> App C or other dependency chains;
+- user-visible outage/degradation duration;
+- whether recovery is automatic, manual, partial or unavailable;
+- local-only result versus cross-site-enabled result;
+- application retry/reconnect/re-auth/state/replay requirements;
+- whether the business service has actually recovered after infrastructure recovery.
+
+Use the service RTO measure:
+
+> time from fault to successful business transaction for each affected actor.
+
+Do not use "device green" or "WAF recovered" as the final success criterion.
+
+Classify recoverability where useful:
+
+- **R0** — no user impact;
+- **R1** — automatic local recovery;
+- **R2** — automatic cross-site component/dependency recovery;
+- **R3** — automatic site/application recovery;
+- **R4** — manual recovery;
+- **R5** — not recoverable with current design.
+
 ## Mandatory actor/path dimensions
 
 Analyse:
@@ -139,7 +171,7 @@ Analyse:
 - external users over private leased-line paths;
 - external systems/API clients;
 - internal users that may bypass WAF and connect directly to ELB/service endpoints;
-- Application A -> Application B dependencies;
+- Application A -> Application B -> Application C and shared-dependency chains;
 - non-web services that bypass WAF.
 
 ## Mandatory application types
@@ -277,9 +309,11 @@ If these are absent, explicitly mark the application **not end-to-end resilient*
 
 # Required output structure
 
-## Lens 1 — failure/recovery
+## Lens 1 — end-to-end service impact/recovery
 
-Regenerate the failure matrix with:
+First regenerate [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md) as the primary output. It must lead with actor impact, service outage time and recoverability.
+
+Then regenerate [common_failure_matrix.md](./common_failure_matrix.md) as the technical component appendix with:
 
 1. topology shorthand;
 2. timing model;
@@ -349,8 +383,9 @@ Before changing any analysis:
    - Yes -> update variables.
    - No -> leave variables untouched.
 
-3. Regenerate the failure matrix from those inputs.
-4. Regenerate the maintainability/change-safety analysis from the same inputs.
-5. Keep findings in their derived lens; promote a fact into invariants or variables only when it is genuinely a reusable input.
+3. Regenerate the end-to-end service impact/recoverability analysis.
+4. Regenerate the technical common failure matrix that supports it.
+5. Regenerate the maintainability/change-safety analysis from the same inputs.
+6. Keep findings in their derived lens; promote a fact into invariants or variables only when it is genuinely a reusable input.
 
 This separation is intended to prevent the baseline from drifting every time a new WAF option or failure scenario is considered.
