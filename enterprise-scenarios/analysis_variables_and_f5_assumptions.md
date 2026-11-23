@@ -413,7 +413,34 @@ Therefore GTM failover is not a single product failover number.
 
 A manual passive-site application startup can dominate the total RTO even when GTM detects the failure quickly.
 
-## T5 — failback
+## T5 — warm/cold/manual recovery
+
+Use T5 where recovery depends on:
+
+- operator action;
+- application or service startup;
+- loading configuration/policy onto a spare;
+- network/routing repair;
+- rollback from a bad change;
+- other warm/cold activation steps.
+
+T5 is intentionally not assigned a fixed F5 product time. It may be minutes or longer and must be measured from the actual operational procedure.
+
+## T6 — application recovery
+
+Use T6 for application-specific recovery after the infrastructure path is available, including:
+
+- request retry;
+- reconnect/re-resolution;
+- re-authentication;
+- session/state restoration;
+- subscription restoration;
+- sequence/gap detection;
+- replay/reconciliation.
+
+T6 can dominate user-visible RTO even when F5 failover has already completed.
+
+## T7 — failback
 
 F5 traffic-group auto-failback supports configurable delay; F5 documentation shows a default of 60 seconds when auto-failback is enabled and notes 40–60 seconds can allow state mirroring to re-establish.
 
