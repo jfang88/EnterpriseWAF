@@ -51,38 +51,51 @@ The WAF architecture can still progress independently by comparing:
 - WAF HA clusters;
 - cross-site WAF contingency where upstream owners later validate the required routing/LTM behavior.
 
-# 3. Architecture ownership boundary
+# 3. Architecture ownership and security boundaries
 
-The architecture is intentionally split into ownership domains.
+The architecture has **two different firewall/security boundaries** that must not be collapsed in diagrams:
+
+1. the **enterprise internal firewall**, which separates desktops/internal networks from the private-cloud boundary; and
+2. the **private-cloud/platform firewall (CFW)**, which is inside the private-cloud delivery path immediately before the ELB/service tier.
+
+Internal users, internal enterprise DNS and the internal LTM/service VIP are **outside** the private cloud.
 
 ~~~mermaid
-flowchart TB
+flowchart LR
 
-  subgraph EXT[Joint / external-owner infrastructure]
-    DNS[External + internal DNS / GTM]
+  subgraph EXT[External / extranet infrastructure]
+    EDNS[External DNS / GTM]
     NET[Leased line / VPN / routing]
-    FW[Edge firewall / VIP / NAT]
-    LTM[LTM HA / service VIPs]
-    DNS --> NET --> FW --> LTM
+    EFW[Edge firewall / VIP / NAT]
+    TLTM[Tenant LTM HA]
+    EDNS --> NET --> EFW --> TLTM
   end
 
   subgraph WAFS[EnterpriseWAF scope]
-    WR[WAF runtime / enforcement capacity]
-    WP[Application-specific WAF policies]
-    WC[WAF capacity, HA, change, rollback, monitoring]
-    LTM --> WR
-    WR --> WP
-    WP --> WC
+    WR[WAF runtime / enforcement]
+    WP[Application-specific WAF policy]
+    TLTM --> WR --> WP
   end
 
-  subgraph PLATFORM[Platform / application-owner scope]
-    CFW[Platform/cloud firewall - CFW]
+  subgraph INT[Enterprise internal network - outside private cloud]
+    IU[Internal users / desktops / systems]
+    IDNS[Internal enterprise DNS]
+    IGTM[Optional internal GTM / service-name resolution]
+    ILTM[Internal LTM / service VIP]
+    IFW[Internal firewall]
+    IU --> IDNS --> IGTM --> ILTM --> IFW
+  end
+
+  subgraph CLOUD[Private cloud]
+    CFW[Private-cloud / platform firewall - CFW]
     ELB[ELB / service / ingress]
     APP[Applications A/B/C/D]
-    STATE[State / database / identity / event services]
-    WC --> CFW --> ELB --> APP
-    APP --> STATE
+    STATE[State / DB / identity / event services]
+    CFW --> ELB --> APP --> STATE
   end
+
+  WP --> CFW
+  IFW --> CFW
 ~~~
 
 ## 3.1 What this WAF work can decide
@@ -167,8 +180,9 @@ A shared WAF pool must **not** imply one monolithic security policy or one globa
 |---|---|---|---|
 | External/internal DNS, GTM | endpoint selection / namespace control | low-medium | other team / joint |
 | Leased line / VPN / routing | reachability | low | other team |
-| Edge firewall / VIP / NAT | network/security ingress | low-medium | other team |
+| Edge firewall / VIP / NAT | external network/security ingress | low-medium | other team |
 | LTM / service VIP | delivery, health, load balancing | medium | other team / retained |
+| **Internal firewall** | separates enterprise internal desktops/networks from the private-cloud boundary | medium | network/security |
 | **WAF enforcement platform** | shared application-security execution capacity | medium as infrastructure | **EnterpriseWAF** |
 | **WAF policy** | application/API-specific protection | **high application coupling** | **EnterpriseWAF + application/security** |
 | Platform/cloud firewall (CFW) | cloud security boundary | medium | platform/network |
@@ -178,89 +192,68 @@ A shared WAF pool must **not** imply one monolithic security policy or one globa
 
 # 6. Canonical end-to-end extranet topology
 
-This is the primary high-level entity/relationship diagram for the four-tenant extranet design.
+This is the primary high-level entity/relationship diagram. The **enterprise internal network is outside the private cloud** and crosses a distinct internal firewall before reaching the private-cloud CFW.
 
 ~~~mermaid
-flowchart TB
+flowchart LR
 
   EU[External partner / customer users]
   ES[External systems / API clients]
-  IU[Internal users / systems]
-
   EDNS[External / customer DNS]
-  IDNS[Internal enterprise DNS]
   GTM[Enterprise BIG-IP DNS / GTM]
+  EXTNET[Private leased line / VPN]
+  EFW[Edge firewall / application VIP]
+  TLTM[Tenant LTM HA]
+  WAF[WAF enforcement tier]
 
-  EXTNET[Private leased line / VPN / extranet network]
-  EFW[Edge firewall / external application VIP]
+  subgraph INTNET[Enterprise internal network - outside private cloud]
+    IU[Internal users / desktops / systems]
+    IDNS[Internal enterprise DNS]
+    IGTM[Optional internal GTM / service-name resolution]
+    ILTM[Internal LTM / service VIP]
+    IFW[Internal firewall]
+    IU --> IDNS --> IGTM --> ILTM --> IFW
+  end
 
-  T1LTM[Tenant 1 LTM HA]
-  T2LTM[Tenant 2 LTM HA]
-  T3LTM[Tenant 3 LTM HA]
-  T4LTM[Tenant 4 LTM HA]
+  subgraph PCLOUD[Private cloud]
+    CFW[Private-cloud / platform firewall - CFW]
+    ELB[ELB / service tier]
+    A[Application A]
+    B[B service VIP / service discovery]
+    B1[App B - Site 1 preferred]
+    B2[App B - Site 2 fallback]
+    C[Application C / shared dependencies]
+    D[Application D]
+    STATE[Session / state / DB / identity / event services]
 
-  WAF[WAF runtime / enforcement platform]
-  POL[Application-specific WAF policies]
-
-  ILTM[Internal LTM / service VIP]
-  CFW[Private-cloud CFW]
-  ELB[Private-cloud ELB / service tier]
-
-  A[Application A]
-  B[Application B]
-  C[Application C]
-  D[Application D]
-
-  STATE[Session / state / DB / identity / event services]
+    CFW --> ELB --> A
+    ELB --> D
+    A --> B
+    D --> B
+    B --> B1
+    B --> B2
+    B1 --> C
+    B2 --> C
+    A --> STATE
+    B1 --> STATE
+    B2 --> STATE
+    C --> STATE
+    D --> STATE
+  end
 
   EU --> EDNS
   ES --> EDNS
-  EDNS --> GTM
-  GTM --> EXTNET
-  EXTNET --> EFW
-
-  EFW --> T1LTM
-  EFW --> T2LTM
-  EFW --> T3LTM
-  EFW --> T4LTM
-
-  T1LTM --> WAF
-  T2LTM --> WAF
-  T3LTM --> WAF
-  T4LTM --> WAF
-
-  WAF --> POL
-  POL --> CFW
-  CFW --> ELB
-
-  ELB --> A
-  ELB --> B
-  ELB --> C
-  ELB --> D
-
-  IU --> IDNS
-  IDNS --> ILTM
-  ILTM --> CFW
-
-  A --> IDNS
-  D --> IDNS
-  IDNS --> ILTM
-  ILTM --> B
-  B --> C
-
-  A --> STATE
-  B --> STATE
-  C --> STATE
-  D --> STATE
+  EDNS --> GTM --> EXTNET --> EFW --> TLTM --> WAF --> CFW
+  IFW --> CFW
 ~~~
 
 ## 6.1 How to read the diagram
 
-- the **four tenant LTM HA services remain in place** in the current target model;
-- the WAF may be dedicated per tenant or shared across tenant LTMs depending the chosen W1/W2/W3/S1 pattern;
-- the WAF runtime can be shared while application policies remain isolated;
-- private-cloud applications sit behind CFW and ELB/service tiers;
-- internal users use internal DNS/service paths and may bypass the external WAF;
+- external partner/customer traffic reaches the private cloud through edge firewall -> tenant LTM -> WAF -> **private-cloud CFW**;
+- internal users/desktops/systems and internal enterprise DNS remain in the **enterprise internal network outside the private cloud**;
+- internal access crosses **internal LTM/service VIP -> internal firewall -> private-cloud CFW -> ELB/service**;
+- the internal firewall and the CFW are separate products/security domains and separate failure/maintenance domains;
+- the WAF may be dedicated per tenant or shared across tenant LTMs depending on W1/W2/W3/S1;
 - App A/B/C/D dependencies use internal service discovery/VIPs rather than being assumed to traverse the external WAF;
 - GTM/LTM consolidation is not assumed.
 
@@ -294,12 +287,13 @@ Internal user/system
   -> internal enterprise DNS
   -> optional delegation/conditional forward to GTM
   -> internal LTM/service VIP
-  -> CFW
+  -> internal firewall
+  -> private-cloud CFW
   -> ELB/service
   -> application
 ~~~
 
-Internal traffic does **not** automatically traverse the external/extranet WAF tier.
+Internal traffic does **not** automatically traverse the external/extranet WAF tier. Internal users remain outside the private-cloud boundary until they cross the **internal firewall**, after which they traverse the distinct **private-cloud CFW**.
 
 # 9. Application-to-application dependency path
 
@@ -470,7 +464,7 @@ Before target-state approval, answer:
 2. Are application WAF policies independently versioned, canaried and rolled back?
 3. What is the maximum acceptable common WAF runtime blast radius?
 4. Can one tenant/application traffic surge exhaust another tenant?
-5. Is CFW/ELB health included in end-to-end readiness?
+5. Are the internal firewall, CFW and ELB represented as separate health/failure domains in end-to-end readiness?
 6. Can App A/C/D use B2 safely when B1 fails?
 7. What cross-site routing capability is technically possible?
 8. Which cross-site capabilities require LTM/GTM/network/firewall-owner approval?
