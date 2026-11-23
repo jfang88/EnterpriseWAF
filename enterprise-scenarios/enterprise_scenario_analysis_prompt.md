@@ -462,34 +462,134 @@ Use this pattern when analysing cascading-failure reduction.
 
 Change these deliberately and record the selected value before analysis.
 
-## Decision W - WAF model
+## Decision W - WAF topology model
 
-### W1 - clustered WAF
+The WAF topology is an explicit architecture variable. Use one of the following models, or declare another model before running the failure matrix.
 
-```text
-Firewall VIP
-   |
-LTM
-   |
-WAF HA cluster
-   |
-application
-```
-
-### W2 - LTM-balanced active WAF nodes
+### W1 - LTM-fronted scalable independent WAF pool
 
 ```text
-Firewall VIP
-   |
-LTM
-   |
-+---- WAF1
-+---- WAF2
-   |
-application
+Firewall-owned VIP
+      |
+   LTM HA pair
+      |
+ +----+----+----+
+ |    |    |    |
+WAF1 WAF2 WAF3 ... WAFn
+      |
+ protected application path
 ```
 
-WAF policies/configuration must remain synchronised even if the dataplane nodes are independently active.
+- Start with 2 WAF pool members and scale to 3 or more as capacity/resilience requires.
+- The WAFs are independent dataplane pool members rather than a fixed active/standby WAF cluster.
+- LTM health monitoring removes unhealthy WAF members.
+- Size the surviving pool for the required degraded-mode load.
+
+### W2 - WAF HA cluster, with or without an LTM in front
+
+Variant W2a:
+
+```text
+Firewall-owned VIP
+      |
+ WAF HA cluster
+      |
+ application
+```
+
+Variant W2b:
+
+```text
+Firewall-owned VIP
+      |
+   LTM HA pair
+      |
+ WAF HA cluster
+      |
+ application
+```
+
+- Treat the WAF cluster as one HA service/failure domain.
+- Analyse one WAF member failure separately from loss of the entire WAF cluster.
+- If an LTM is present, also analyse LTM-node and LTM-pair failure independently.
+
+### W3 - Tenant-preferred WAF pool with shared enterprise reserve WAFs
+
+```text
+Tenant LTM HA pair
+      |
+      +---- preferred tenant WAF1
+      +---- preferred tenant WAF2
+      |
+      +==== shared reserve WAF-R1
+      +==== shared reserve WAF-R2
+```
+
+- Each tenant normally uses its preferred/local WAF members.
+- A small shared reserve pool, for example two WAFs, can provide contingency capacity to more than one tenant.
+- Shared reserve members should only be activated for a tenant when required.
+- Analyse simultaneous failures, reserve exhaustion, policy/configuration isolation, routing reachability and cross-tenant blast radius.
+- Do not assume two reserve WAFs can cover every tenant simultaneously; capacity must be explicitly modelled.
+
+### W4 - Local WAF cluster plus local active-spare, with second-site WAF cluster
+
+Example:
+
+```text
+Site 1
+Firewall VIP
+   |
+LTM HA pair
+   |
+   +---- WAF HA cluster (2 nodes)
+   |
+   +==== local spare WAF
+
+Site 2
+Firewall VIP
+   |
+LTM HA pair
+   |
+   +---- WAF HA cluster (2 nodes)
+```
+
+- The local cluster handles normal traffic.
+- A third local WAF provides additional contingency/capacity if the cluster is degraded or unavailable, subject to configuration and routing design.
+- The second-site WAF cluster provides site-level recovery.
+- Analyse whether the spare is hot, warm or cold and how quickly it can safely accept tenant traffic.
+
+### W5 - Per-site scalable WAF pools with site-level GTM failover
+
+Candidate topology for comparison:
+
+```text
+                  GTM / DNS
+                 /         \
+              Site 1       Site 2
+                |             |
+            LTM HA pair   LTM HA pair
+                |             |
+            WAF pool      WAF pool
+             2..N          2..N
+                |             |
+             App1           App2
+```
+
+- Each site has enough local WAF capacity to survive expected member failures.
+- Normal dataplane traffic does not borrow individual WAFs across sites.
+- GTM/site selection is used when an entire local service/site is unavailable.
+- This provides strong site isolation and simpler routing than cross-site WAF borrowing, at the cost of maintaining sufficient capacity in both sites.
+
+For every WAF model, explicitly record:
+
+- minimum and degraded-mode capacity;
+- member/cluster health-check method;
+- policy/configuration synchronisation;
+- persistence/connection implications;
+- maintenance/drain procedure;
+- tenant isolation;
+- whether cross-site routing is required;
+- blast radius of bad configuration or shared infrastructure.
 
 ---
 
@@ -771,9 +871,9 @@ For every scenario, produce a table with:
 | Failed component | Exact component/tier |
 | Detection layer | Firewall/LTM/WAF/GTM/ELB/app |
 | What remains healthy | Explicitly state unaffected components |
-| Option 1 behaviour | Clustered WAF + local-only |
-| Option 2 behaviour | LB WAF + local-only |
-| Option 3 behaviour | LB WAF + cross-site contingency |
+| W1 result | Scalable independent WAF pool |
+| W2 result | WAF HA cluster |
+| W3-W5 result | Compare the remaining candidate WAF topologies |
 | Convergence | Detection + routing/failover assumptions |
 | Existing sessions | survive, reset, retry, reconnect |
 | Internal-user impact | if different from external |
