@@ -643,6 +643,59 @@ Treat these separately in every failure scenario:
 
 This is why a 30-second DNS TTL does **not** mean "30-second site failover" and does **not** cap the outage of an existing connection.
 
+## T9 — platform/cloud firewall (CFW) recovery
+
+CFW recovery is a separate timing domain from F5 LTM/WAF and application ELB recovery.
+
+No numeric default is assumed because the platform firewall product, HA mode, state synchronization, route convergence and health integration are deployment-specific.
+
+Analyse three distinct cases:
+
+### T9A — one CFW HA member fails
+
+If the CFW HA service keeps the same logical path/VIP and state/routing converges correctly:
+
+- **no DNS TTL should be involved**;
+- new connections should continue through the surviving CFW member;
+- existing TCP/WebSocket connections may survive only if firewall/NAT/session state is preserved;
+- otherwise add T6 reconnect/re-auth/replay.
+
+Target: keep this as a **local seconds-scale HA event**, but use measured CFW data rather than inventing a default.
+
+### T9B — entire local CFW context/service fails
+
+If the CFW is the only path to the local ELB/application:
+
+- the local application can be healthy but unreachable;
+- X2A remote-WAF route-back does **not** help if traffic must still traverse the failed Site 1 CFW;
+- recovery requires an alternate local CFW path, alternate application/site path, or CFW restoration.
+
+If site failover is required and CFW failure is promptly reflected in the GTM/application health state:
+
+- use the existing **~46s + T6 illustrative fast-health case** or **up to ~150s + T6 direct-GTM-default case**;
+- add T5 if the alternate application/site is not ready.
+
+### T9C — CFW false green
+
+This is the critical case:
+
+```text
+GTM/LTM/WAF healthy
+        |
+        v
+CFW path broken
+        |
+        v
+ELB/app unreachable
+```
+
+If monitoring stops at the WAF/front-end, the bad site can remain advertised and recovery can be **unbounded until another monitor or operator detects the problem**.
+
+Recommendation:
+
+- application/site readiness must prove reachability through the CFW to the ELB/application, or otherwise consume an authoritative signal that represents that full path;
+- internal service health must also include CFW reachability where internal App A -> B/C traffic traverses the same CFW.
+
 # 6. F5 connection mirroring implications
 
 F5 recommends connection mirroring where failover would significantly disrupt a long-lived session, and generally does not recommend it for short-lived HTTP/UDP because of performance overhead.
