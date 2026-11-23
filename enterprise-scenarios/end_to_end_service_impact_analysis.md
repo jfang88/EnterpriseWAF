@@ -43,6 +43,7 @@ Every infrastructure failure must therefore be translated into:
       -> edge firewall / application VIP
       -> LTM where present
       -> WAF where applicable
+      -> platform/cloud firewall (CFW) where private-cloud hosted
       -> application ELB/service
       -> VM / Kubernetes / PaaS workload
       -> dependencies such as App B / App C
@@ -53,7 +54,9 @@ Every infrastructure failure must therefore be translated into:
     internal user/system
       -> internal enterprise DNS
       -> optional delegation/conditional forward to GTM
-      -> internal LTM/ELB/service VIP
+      -> internal LTM/service VIP
+      -> platform/cloud firewall (CFW) where private-cloud hosted
+      -> ELB/service VIP
       -> application
       -> dependencies such as App B / App C
       -> data/state services
@@ -64,6 +67,8 @@ Every infrastructure failure must therefore be translated into:
       -> internal enterprise DNS
       -> optional GTM lookup for internal B service
       -> B service VIP / endpoint
+      -> platform/cloud firewall (CFW) where B is private-cloud hosted
+      -> B ELB/service endpoint
       -> App B
       -> optional internal DNS/GTM lookup for C
       -> App C
@@ -260,6 +265,8 @@ The table below intentionally describes the **service/user outcome first**.
 | **Local LTM + WAF tier fails; application healthy** | External users lose primary front-end | Same | Internal may remain healthy | App A/B/C may continue internally | X2B = T4+T6; full DR may add T5 | **Conditional**: remote front-end route-back or full site recovery |
 | **Bad WAF policy pushed to all WAFs** | External application may appear fully down although hardware is healthy | Same | Internal users may remain healthy if bypassing WAF | Internal dependencies may remain healthy | rollback/change recovery = T5, not device failover | **Only by policy rollback/independent unaffected path** |
 | **Application VM/pod fails** | Usually brief/transient if ELB has healthy members | Same | Same | Downstream callers retry another instance | backend monitor + T6 | **Yes** if app is horizontally resilient |
+| **One CFW member/node fails but CFW HA survives** | Usually transient/no impact if platform firewall HA/state/routing converges correctly | Same | Internal calls traversing CFW may see same transient impact | App A/B/C calls through the CFW may retry | **CFW HA/route convergence + T6; product/config specific, measure** | **Yes** if CFW HA is correctly designed |
+| **Whole local CFW service/context fails; ELB/app healthy** | External app path fails after WAF even though app is healthy | Same | Internal users/apps traversing the same CFW also fail | Several apps/dependencies behind the CFW can fail together | local CFW restoration or cross-site/site recovery; **TBD/T5/T4 + T6** depending design | **Conditional**; this can be a tenant/platform-wide blast radius |
 | **Application ELB/service tier fails** | Application unavailable through that site/path | Same | Internal users may also fail if same ELB used | Dependent apps may fail/cascade | alternate ELB/site + T4/T6 | **Conditional** on redundant application service path |
 | **App is listener-up but business-not-ready** | Users get errors/hangs despite green infrastructure | Same | Same | Dependencies may propagate failure | potentially unbounded if only IP/port health is used | **No reliable auto recovery** without application-readiness health |
 | **Session/state store fails** | Users may be logged out, lose workflow or receive errors | Same | Same | Multiple apps may fail together if store shared | data/state recovery + T6; often much longer than F5 failover | **Not by WAF/LTM/GTM alone** |
@@ -340,6 +347,7 @@ This can convert a roughly **16-second-class local pool withdrawal** into a **~4
 | B2 exists but no route from A1 | route can use B2 if approved | B2 is unusable despite being healthy | no benefit from remote capacity; A outage persists |
 | Site 1 WAF maintenance with local capacity exhausted | temporary remote WAF capacity | maintenance can consume last local redundancy | planned change plus one fault becomes outage |
 | Site 1 application member fails | local ELB/member recovery | local ELB/member recovery | no cross-site required if local app capacity remains |
+| Whole Site 1 CFW fails; ELB/app healthy | alternate CFW/site path if engineered | healthy ELB/app becomes unreachable; GTM may move whole application/site | **CFW failure amplification:** shared CFW outage can make many apps look failed and trigger multiple site moves |
 | Whole Site 1 fails | full Site 2 recovery | same full Site 2 recovery | cross-site route-back cannot help a lost site |
 
 The design objective is therefore to prevent **failure-domain escalation**:
