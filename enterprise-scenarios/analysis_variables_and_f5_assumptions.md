@@ -471,3 +471,215 @@ Official F5 references reviewed for this analysis:
 - Connection mirroring: https://techdocs.f5.com/en-us/bigip-14-1-0/big-ip-device-service-clustering-administration-14-1-0/managing-connection-mirroring.html
 - Advanced WAF/ASM connection-mirroring limitations (21.1): https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-asm-implementations/connection-mirroring-with-asm/connection-mirroring-limitations.html
 - Advanced WAF/ASM config synchronization: https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-asm-implementations/automatically-synchronizing-application-security-configurations.html
+
+
+# 10. Maintainability and change-management variables
+
+These variables are intentionally separate from the stable baseline so different operating models can be compared without changing the enterprise facts.
+
+## M1 — change-management authority
+
+Compare:
+
+- native BIG-IP configuration management only;
+- BIG-IQ Centralized Management as the deployment/source-of-truth layer;
+- external infrastructure/configuration-as-code tooling where supported by enterprise standards.
+
+For BIG-IQ-managed environments, evaluate:
+
+- pre-deployment evaluation;
+- snapshots;
+- object-level/partial deployment;
+- scheduled deployment;
+- audit history;
+- rollback from a known snapshot;
+- drift caused by direct local BIG-IP changes.
+
+Do not mix multiple sources of truth without an explicit ownership model.
+
+## M2 — configuration synchronization mode
+
+For LTM/GTM/WAF device groups, record:
+
+- automatic sync;
+- manual sync;
+- Sync-Failover;
+- Sync-Only;
+- no native config sync / externally managed.
+
+Important design consideration:
+
+- automatic synchronization improves consistency but can propagate a bad configuration rapidly;
+- manual/staged synchronization creates a validation gate but increases operational effort and drift risk;
+- all members of a BIG-IP device group used for config sync must be version-compatible according to the deployed F5 release.
+
+## M3 — WAF policy deployment strategy
+
+Compare:
+
+### M3A — direct synchronized production change
+
+Change policy on the authoritative device/tool and synchronize to all production WAFs.
+
+- simplest;
+- fastest consistency;
+- highest common-mode change blast radius.
+
+### M3B — WAF staging / enforcement-readiness
+
+Use Advanced WAF staging for new/changed entities/signatures so matching traffic is observed without immediately blocking it.
+
+- reduces false-positive outage risk;
+- requires observation and an explicit promotion/enforcement process.
+
+### M3C — policy blue-green / canary
+
+Maintain a current production policy and a candidate policy.
+
+Use Policy Diff, inactive/staging policy copies, a dedicated WAF member/pool or limited test/canary traffic where the topology permits.
+
+Promote only after:
+
+- configuration diff review;
+- functional test;
+- security test;
+- traffic observation;
+- false-positive review;
+- rollback validation.
+
+## M4 — firmware/software upgrade strategy
+
+BIG-IP software/firmware upgrades should be treated as node-out-of-service operations unless the version-specific F5 procedure explicitly states otherwise.
+
+### HA pair / cluster
+
+Use a release-specific F5-supported rolling sequence, typically based on:
+
+1. verify config sync/HA health;
+2. back up configuration;
+3. move or drain traffic away from the node being changed;
+4. upgrade the non-serving/standby node first where supported;
+5. validate device, interfaces, monitors, policies and application path;
+6. move traffic to the upgraded node;
+7. observe;
+8. upgrade the former active node;
+9. resynchronize only using the version-supported process;
+10. validate failover/failback.
+
+Do not assume prolonged mixed-version operation inside one sync/failover group is supported.
+
+### Independent WAF pool
+
+Possible rolling pattern:
+
+1. disable/drain one WAF pool member;
+2. confirm active/persistent connections drain or hit the agreed maximum drain time;
+3. upgrade the node;
+4. validate policy/config/version;
+5. re-enable with small/canary load if possible;
+6. observe;
+7. repeat one node at a time.
+
+This is operationally easier when N-1 capacity is sufficient.
+
+## M5 — LTM/GTM stagger strategy
+
+Do not change both members of an HA pair or both sites concurrently for routine maintenance.
+
+Preferred sequence:
+
+- one node/device at a time;
+- one site at a time;
+- observe before continuing;
+- retain the other site as an unmodified fallback where feasible.
+
+For BIG-IP DNS/GTM synchronization groups, use the version-specific F5 upgrade procedure because software compatibility and probing/synchronization behavior can constrain how long versions may differ.
+
+## M6 — drain policy
+
+Define a maximum drain policy per application class.
+
+### Stateless web
+
+- stop new connections/requests to the member;
+- allow short in-flight requests to complete;
+- force-close only after a bounded drain period.
+
+### Stateful web
+
+- preserve persistence/session routing while draining where required;
+- verify session state is portable before final removal.
+
+### Socket/WebSocket
+
+- stop accepting new sockets;
+- allow existing sockets to drain for a bounded period where business-appropriate;
+- if the maintenance window cannot wait, trigger graceful reconnect behavior;
+- confirm clients reconnect/re-authenticate/replay correctly.
+
+### Non-web / L4
+
+- use protocol-specific drain behavior;
+- document whether existing long-lived connections can be terminated safely.
+
+F5 LTM supports a disabled member state in which new general traffic is stopped while active/persistent connections can continue, which should be considered for planned drain workflows.
+
+## M7 — maintenance capacity policy
+
+For each topology define:
+
+- minimum serving capacity during one-node maintenance;
+- whether one additional failure can still be tolerated while maintenance is in progress;
+- whether N-1 is enough or N-2 is required;
+- whether cross-site capacity may be used during maintenance;
+- whether maintenance is prohibited when the remote site/reserve is already degraded.
+
+A component may be "highly available" in steady state but fail the maintainability objective if taking one node down leaves no headroom for another fault.
+
+## M8 — change wave policy
+
+Use independent waves such as:
+
+1. non-production/test;
+2. canary node/pool where topology permits;
+3. one production node;
+4. remaining nodes in the same site;
+5. observation period;
+6. second site.
+
+For WAF security changes, attack-signature updates and policy changes may use a separate staging/promotion timeline from device firmware.
+
+## M9 — rollback requirement
+
+Before each material change identify:
+
+- configuration snapshot/UCS backup;
+- prior software boot volume/image;
+- prior WAF policy;
+- previous LTM/GTM config;
+- rollback trigger;
+- maximum time to decide rollback;
+- who has authority to roll back.
+
+Rollback should be tested, not only documented.
+
+## M10 — monitoring/observability requirement
+
+At minimum monitor:
+
+- HA active/standby/traffic-group state;
+- config-sync status;
+- device CPU/memory/interface health;
+- pool/member/virtual-server health;
+- WAF policy/sync status;
+- WAF violations/false-positive indicators;
+- GTM wide-IP/pool/virtual availability;
+- DNS probe/iQuery health;
+- connection counts and drain progress;
+- cross-site contingency activation;
+- shared-reserve utilization;
+- application readiness;
+- end-to-end synthetic transactions;
+- external versus internal user path health.
+
+Prefer service-level dashboards that show both **component state** and **actual end-to-end application availability**.
