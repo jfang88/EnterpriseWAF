@@ -220,21 +220,21 @@ The question is not "Is Site 1 down?" The question is "Which layer failed, and c
 
 ## 7. Cross-site benefit by WAF topology
 
-W1-W4 are assumed to exist with the same logical topology in both sites.
+W1-W3 are assumed to exist with the same logical topology in both sites. W4 is intentionally asymmetric: Site 1 has the WAF cluster plus an extra active/spare WAF; Site 2 has only the WAF cluster.
 
 | Topology | Benefit from route-back | Main drawback |
 |---|---|---|
 | W1 - independent WAF pool in each site | High. A Site 1 LTM can use a Site 2 WAF as lower-priority contingency if routing/policy allow it | Connection reset on failed member; routing/capacity complexity |
 | W2 - WAF HA cluster in each site | Medium. Most useful after whole local cluster loss | First failure already handled locally; remote transition is larger |
 | W3 - preferred WAFs + shared reserves in each site | Very high. Reserve WAF can be local or remote | Reserve exhaustion and cross-tenant policy/capacity risk |
-| W4 - cluster + local spare in each site | High, but local spare should normally be used before remote capacity | More recovery tiers and more testing |
+| W4 - Site 1 cluster + extra WAF; Site 2 cluster only | High while Site 1 is active because the extra WAF provides another local recovery tier | Site 2 has less local headroom during DR/site failover; asymmetry complicates capacity and testing |
 
 Practical interpretation:
 
 - W1 and W3 benefit most from X2A.
-- W4 should normally consume its local spare before crossing sites.
+- W4 should normally consume the extra Site 1 WAF before crossing sites when Site 1 is active. After failover to Site 2, that extra local tier is no longer present.
 - W2 gains less from remote borrowing because the first device failure is already handled by the WAF cluster.
-- Conventional GTM failover to the equivalent topology in Site 2 remains available for **all** W1-W4 designs.
+- Conventional GTM failover remains available for all designs, but W4 fails to a **smaller Site 2 WAF topology** unless Site 2 is separately expanded.
 
 ## 8. App A -> App B dependency routing
 
