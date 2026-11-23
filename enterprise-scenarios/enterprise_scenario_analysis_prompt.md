@@ -181,6 +181,18 @@ Classify recoverability where useful:
 - **R4** — manual recovery;
 - **R5** — not recoverable with current design.
 
+## Default LTM count
+
+The enterprise baseline is **two LTMs per site** in an HA/Sync-Failover pair wherever an ingress/tenant LTM tier is used.
+
+A three-device LTM DSC group is an optional comparison only. Do not silently promote it into W1-W4 baseline calculations.
+
+When node-count discussion is needed, use [appendix_ltm_waf_2_vs_3_nodes.md](./appendix_ltm_waf_2_vs_3_nodes.md) and distinguish:
+
+- DSC failover groups, where one traffic group/VIP has one active owner;
+- multiple traffic groups active on different DSC devices;
+- independent WAF pool members behind an LTM, where all healthy WAF members can process the same service concurrently.
+
 ## Mandatory actor/path dimensions
 
 Analyse:
