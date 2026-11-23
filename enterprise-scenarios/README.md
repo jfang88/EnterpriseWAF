@@ -117,7 +117,9 @@ With or without ingress LTM:
 
 ### W3 — tenant WAFs + shared reserve
 
-    Tenant LTM
+The tenant LTM service may be a normal 2-device Sync-Failover pair (**W3-L2**) or a 3-device Sync-Failover group (**W3-L3**) when additional maintenance/second-failure headroom is justified.
+
+    Tenant LTM DSC service
         |
     preferred WAFs
         |
