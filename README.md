@@ -123,20 +123,19 @@ Before modifying the analysis:
 
 Site-level GTM recovery is common to all topologies and is **not** a separate WAF topology.
 
-## Authoritative vs legacy/supporting documents
+## Authoritative, supporting and archived documents
 
-The files under `enterprise-scenarios/` listed in its README are the current authoritative analysis set.
+The files under [`enterprise-scenarios/`](./enterprise-scenarios/README.md) are the current authoritative analysis set.
 
-The older root-level documents have now been audited:
+Current specialist guidance retained at the repository root:
 
-| Document | Current status | What remains useful |
-|---|---|---|
-| `waf_architecture_options_cross_site_resilience.md` | **Superseded as the primary architecture paper** | Historical detail on dependency routing, recovery-time decomposition, failure injection, access blast radius and traffic symmetry; useful concepts have been carried forward |
-| `f5_failover_failure_V4_matrix_footnotes.md` | **Superseded topology-specific matrix** | Historical F5/DNS monitor reasoning and footnoted sources; topology no longer matches W1-W4 |
-| `f5_failover_failure_matrix-v3.md` | **Obsolete predecessor to V4** | Keep only for Git history/reference; do not use for current decisions |
-| `waf_websocket_resilience_cloud_patterns.md` | **Still relevant specialist application-resilience reference** | Reconnect, retry/backoff, durable state, replay, draining, reconnect-storm testing, cloud patterns and SSE; use current W1-W4 docs for infrastructure topology |
+- [WebSocket resilience and cloud patterns](./waf_websocket_resilience_cloud_patterns.md) — application-level reconnect, replay, idempotency, draining, reconnect storms and SSE guidance. Current W1-W4 topology/timing files take precedence.
 
-Do not use the old Design A/Design B labels or V3/V4 timing tables as the current baseline.
+Older architecture/failure-analysis versions have been moved to:
+
+- [`archive/`](./archive/README.md)
+
+The archive contains the superseded Design A/Design B architecture paper, V4/V3 failure matrices and the Round 2 working-history file. Do not use archived topology or timing tables as the current baseline.
 
 ## Branch strategy
 
