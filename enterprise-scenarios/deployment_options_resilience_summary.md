@@ -344,13 +344,22 @@ This is device-efficient, but the cluster is a common multi-tenant failure domai
 |---|---:|---:|---:|---|---|---|---|
 | **4x dedicated W1, 2 WAF/tenant/site** | 16 | 16 | **32** | Yes | No local WAF service for affected tenant | **High** | Low |
 | **4x dedicated W1, 3 WAF/tenant/site** | 16 | 24 | **40** | Yes | Yes if N-2 capacity | **High** | Low |
-| **4x dedicated W2b HA cluster** | 16 | 16 | **32** | Yes | Cluster lost for affected tenant | **High** | Low |
+| **4x dedicated W2a HA cluster, no ingress LTM** | 0 | 16 | **16** | Yes | Cluster lost for affected tenant | **High** | Low; WAF owns/receives ingress directly |
+| **4x dedicated W2b HA cluster + LTM** | 16 | 16 | **32** | Yes | Cluster lost for affected tenant | **High** | Low |
+| **4x dedicated W4a asymmetric** | 16 | 20 | **36** | Yes | Site 1 can use extra WAF after cluster loss; Site 2 cannot | **High** | Low |
 | **W3: 2 preferred/tenant + 2 shared reserve/site** | 16 | 20 | **36** | Yes | Usually yes for one tenant if reserve free | Medium-High | Medium |
 | **S1 tenant LTMs + shared active pool, P=4/site** | 16 | 8 | **24** | Yes | Yes if 2 remaining WAFs sized for aggregate load | LTM high / WAF shared | **High at WAF tier** |
 | **S2 shared LTM + shared active pool, P=4/site** | 4 | 8 | **12** | Yes | Yes if capacity | Low | **Very high** |
 | **Shared LTM + shared 2-node WAF HA cluster** | 4 | 4 | **8** | Yes | No; whole shared WAF service lost | Low | **Very high** |
 
 These totals are planning examples, not purchase quotes or recommendations by themselves.
+
+### W2/W4 dedicated count notes
+
+- **W2a** has no ingress LTM at the WAF tier, so the F5 LTM count is zero in this narrow LTM/WAF device model. Edge firewall/VIP and other infrastructure still exist.
+- **W2b** adds the normal two-LTM-per-site-per-tenant baseline.
+- **W4a** uses 3 WAFs in Site 1 and 2 WAFs in Site 2 per tenant: 5 WAFs x 4 tenants = 20 WAF units across the two sites, plus 16 LTM units = 36.
+- **W4b** removes the ingress LTM at the WAF tier and would therefore be 20 WAF units in this narrow device model, but requires an explicit non-LTM steering mechanism to the Site 1 extra WAF.
 
 # 9. Resilience versus cost interpretation
 
