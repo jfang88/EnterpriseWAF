@@ -23,7 +23,7 @@ A tenant may have dedicated or logically isolated instances/contexts of:
 - BIG-IP Advanced WAF / ASM;
 - routing and leased-line termination;
 - application ELB/service endpoints;
-- private-cloud firewall contexts;
+- private-cloud/platform firewall contexts (**CFW**), positioned in front of private-cloud ELB/service endpoints;
 - application and dependency services.
 
 Some components may be shared across multiple tenants. When a component is shared, the scenario analysis must explicitly state the cross-tenant blast radius.
@@ -47,6 +47,7 @@ For a given tenant, assume the **same logical F5 GTM/LTM role exists in both sit
 
 - BIG-IP DNS / GTM capability is available in both sites;
 - BIG-IP LTM, where used for the selected topology, has the same logical role in both sites;
+- the default BIG-IP LTM deployment is **two LTMs per site in an HA/Sync-Failover pair**; a 3-device LTM group is an optional design study, not the baseline;
 - edge-firewall/VIP concepts are equivalent in both sites;
 - W1-W3 normally use the same logical WAF topology in Site 1 and Site 2;
 - W4 is the intentional exception: Site 1 may have a WAF HA cluster plus an additional independently active/spare WAF, while Site 2 has only the WAF HA cluster;
@@ -109,7 +110,9 @@ Internal user/system
   -> internal enterprise DNS
   -> delegation / conditional forward for selected internal service name
   -> BIG-IP DNS / GTM
-  -> internal LTM / ELB / service VIP
+  -> internal LTM / service VIP
+  -> platform/cloud firewall (CFW) where the target is private-cloud hosted
+  -> ELB/service endpoint
   -> application
 ```
 
@@ -147,7 +150,9 @@ External user/system
   -> edge firewall / firewall-owned application VIP
   -> BIG-IP LTM where present
   -> BIG-IP WAF where applicable
-  -> on-premises or private-cloud application delivery
+  -> platform/cloud firewall (CFW) where the application is private-cloud hosted
+  -> application ELB/service
+  -> on-premises or private-cloud application workload
 ```
 
 The WAF topology is intentionally **not** fixed in this file.
@@ -162,7 +167,9 @@ Typical internal path:
 Internal user
   -> internal enterprise DNS
   -> [optional delegation/conditional forward to GTM for selected internal endpoint]
-  -> internal LTM/ELB/service VIP
+  -> internal LTM/service VIP
+  -> platform/cloud firewall (CFW) where the application is private-cloud hosted
+  -> ELB/service endpoint
   -> application
 ```
 
@@ -173,6 +180,8 @@ App A
   -> internal enterprise DNS
   -> [optional GTM lookup for B internal service]
   -> B service VIP / endpoint
+  -> platform/cloud firewall (CFW) where B is private-cloud hosted
+  -> B ELB/service endpoint
   -> App B
 ```
 
@@ -217,7 +226,7 @@ WAF/LTM
 
 ```text
 WAF/LTM
-  -> private-cloud edge firewall
+  -> platform/cloud firewall (CFW)
   -> ELB
   -> VM pool
 ```
@@ -226,7 +235,7 @@ WAF/LTM
 
 ```text
 WAF/LTM
-  -> private-cloud edge firewall
+  -> platform/cloud firewall (CFW)
   -> ELB
   -> Kubernetes ingress/service
   -> pods
@@ -236,7 +245,7 @@ WAF/LTM
 
 ```text
 WAF/LTM
-  -> private-cloud edge firewall
+  -> platform/cloud firewall (CFW)
   -> stable/floating PaaS ELB address
   -> Site 1 or Site 2 workload
 ```
@@ -244,6 +253,8 @@ WAF/LTM
 For ordinary VM/Kubernetes environments, Site 1 and Site 2 may have distinct IPs/ELBs.
 
 For some PaaS services, the upstream ELB/service address can remain stable while the workload moves between data centres.
+
+The CFW and ELB are separate failure domains. A CFW failure can make an otherwise healthy ELB/application unreachable to both external and internal callers that traverse that platform firewall. Analyse CFW HA/member failure, full CFW context/service failure, routing/NAT state and cross-site reachability separately from ELB/application failure.
 
 ## 9. Application-to-application dependencies
 
@@ -287,7 +298,7 @@ Characteristics:
 - HTTP/HTTPS request-response traffic;
 - next request can normally use any healthy backend instance;
 - required state is absent or external/shared;
-- retry through a new WAF/LTM/ELB member is usually acceptable.
+- retry through a new WAF/LTM/CFW/ELB/backend path is usually acceptable where the failed layer has a healthy alternate.
 
 A system is not truly stateless if important login/cart/workflow state exists only in one local process.
 
@@ -320,7 +331,7 @@ Examples include:
 - proprietary L4 services;
 - internal system-to-system protocols.
 
-These may use firewall, LTM, ELB or direct service routing without traversing WAF.
+These may use edge firewall, LTM, CFW, ELB or direct service routing without traversing WAF, depending on hosting pattern.
 
 ## 11. F5 technology assumption
 
@@ -339,6 +350,7 @@ The following belong in the analysis-variable document, not here:
 - WAF topology;
 - clustered versus independent WAF nodes;
 - number of WAF nodes;
+- optional 3-device LTM DSC comparison beyond the default 2-LTM-per-site baseline;
 - shared reserve WAF design;
 - local-only versus cross-site WAF routing;
 - GTM IP/port versus full-application health checking;
@@ -368,6 +380,7 @@ Use these objectives for all options:
 13. Prefer dependency-local recovery (for example B1 -> B2) over moving healthy dependent applications (A/C/D) when the dependency and state model safely allow it.
 14. Treat external namespace and internal namespace as separate control-plane dependencies; failure of one must not automatically be reported as failure of the other.
 15. For App A/B/C dependencies, include internal DNS/GTM resolution behavior in the recovery path where the application resolves dependency endpoints dynamically.
+16. Treat the platform/cloud firewall (CFW) in front of private-cloud ELB/service endpoints as a separate failure and maintenance domain from the ELB/application itself.
 
 
 ## 14. Maintainability and availability analysis objectives
