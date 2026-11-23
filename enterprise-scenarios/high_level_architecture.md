@@ -2,6 +2,7 @@
 
 **Status:** Canonical high-level entity/relationship and traffic-path view  
 **Scope:** Consumers, DNS, network ingress, LTM/WAF, private-cloud security, application hosting, dependencies and cross-site recovery  
+**Canonical shorthand/timing:** [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md)  
 **Detailed resilience analysis:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)  
 **Topology options:** [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md)  
 **Executive recommendation:** [executive_recommendation.md](./executive_recommendation.md)
@@ -21,7 +22,7 @@ Use it to answer:
 - which layers are generic shared infrastructure versus application-coupled controls;
 - where cross-site recovery can occur.
 
-It intentionally stays above the detailed W1/W2/W3/W4/S1/S2 implementation choices.
+It intentionally stays above the detailed W1/W2/W3/W4/S1/S2 implementation choices. Those IDs have one canonical meaning in [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md).
 
 # 2. Core architectural principle: shared WAF platform, application-coupled policy
 
@@ -41,7 +42,7 @@ This layer behaves like shared infrastructure:
 
 ~~~text
 shared WAF nodes
-  WAF1 / WAF2 / WAF3 / ...
+  WAF-1 / WAF-2 / WAF-3 / ...
 ~~~
 
 ## 2.2 WAF application policy
@@ -126,10 +127,10 @@ flowchart TB
   CFW[Platform / cloud firewall - CFW]
   ELB[Private-cloud ELB / service tier]
 
-  A[Application A]
-  B[Application B]
-  C[Application C]
-  D[Application D]
+  APPA[Application A]
+  APPB[Application B]
+  APPC[Application C]
+  APPD[Application D]
 
   STATE[Session / state / database / event services]
 
@@ -143,21 +144,21 @@ flowchart TB
   WAF --> WPA
   WPA --> CFW
   CFW --> ELB
-  ELB --> A
+  ELB --> APPA
 
   IU --> IDNS
   IDNS --> ILTM
   ILTM --> CFW
 
-  A --> IDNS
-  D --> IDNS
+  APPA --> IDNS
+  APPD --> IDNS
   IDNS --> ILTM
-  ILTM --> B
-  B --> C
+  ILTM --> APPB
+  APPB --> APPC
 
-  A --> STATE
-  B --> STATE
-  C --> STATE
+  APPA --> STATE
+  APPB --> STATE
+  APPC --> STATE
 ~~~
 
 Interpretation:
@@ -215,21 +216,21 @@ Dependencies must be modeled separately from user ingress.
 Example:
 
 ~~~text
-App A
+App A @ Site 1
   -> internal DNS
   -> B service VIP / health-aware service endpoint
        |
-       +-- B1 Site 1 preferred
+       +-- App B @ Site 1 preferred
        |
-       +-- B2 Site 2 fallback
+       +-- App B @ Site 2 fallback
   -> App B
   -> App C
 
-App D
+App D @ Site 1
   -> same B service
 ~~~
 
-A failure of B1 should ideally remain a **B recovery event**, not turn into A + C + D site failover.
+A failure of App B @ Site 1 should ideally remain a **B recovery event**, not turn into A + C + D site failover.
 
 The preferred pattern is a stable internal service abstraction with:
 
@@ -245,11 +246,11 @@ The preferred pattern is a stable internal service abstraction with:
 Without dependency-local recovery:
 
 ~~~text
-                         B1 fails
+                    App B @ Site 1 fails
                             |
                 +-----------+-----------+
                 |           |           |
-               A1          C1          D1
+             App A       App C       App D
           timeout/retry timeout/retry timeout/retry
                 \           |           /
                  connection/thread pools
@@ -267,16 +268,15 @@ Without dependency-local recovery:
 With a local-preferred / remote-fallback B service:
 
 ~~~text
-A1 / C1 / D1
-      |
-  B service VIP
-    /       \
- B1         B2
-Site 1     Site 2
-preferred fallback
+App A / App C / App D @ Site 1
+              |
+         B service VIP
+          /          \
+App B @ Site 1    App B @ Site 2
+    preferred        fallback
 
-B1 failure -> withdraw B1 -> retry B2
-            -> A/C/D remain in Site 1
+local B failure -> withdraw local B -> retry remote B
+                -> A/C/D remain in Site 1
 ~~~
 
 This is why cross-site **dependency reachability** should be an early platform capability even though it should not be required during healthy normal operation.
@@ -288,30 +288,30 @@ Both sites should remain separate failure domains.
 ~~~mermaid
 flowchart LR
 
-  subgraph S1[Site 1]
-    L1[LTM HA]
-    W1[WAF platform]
-    F1[CFW]
-    E1[ELB]
-    A1[Apps A/B/C/D]
-    L1 --> W1 --> F1 --> E1 --> A1
+  subgraph SITE1[Site 1]
+    LTM1[LTM HA]
+    WAFA[WAF platform]
+    CFW1[CFW]
+    ELB1[ELB]
+    APPS1[Apps A/B/C/D]
+    LTM1 --> WAFA --> CFW1 --> ELB1 --> APPS1
   end
 
-  subgraph S2[Site 2]
-    L2[LTM HA]
-    W2[WAF platform]
-    F2[CFW]
-    E2[ELB]
-    A2[Apps / DR instances]
-    L2 --> W2 --> F2 --> E2 --> A2
+  subgraph SITE2[Site 2]
+    LTM2[LTM HA]
+    WAFB[WAF platform]
+    CFW2[CFW]
+    ELB2[ELB]
+    APPS2[Apps / DR instances]
+    LTM2 --> WAFB --> CFW2 --> ELB2 --> APPS2
   end
 
-  GTM2[GTM / DNS] --> L1
-  GTM2 --> L2
+  GTM2[GTM / DNS] --> LTM1
+  GTM2 --> LTM2
 
-  L1 -. X2A remote WAF contingency .-> W2
-  L2 -. X2B route-back when Site 1 app healthy .-> A1
-  A1 -. XD1 dependency fallback .-> A2
+  LTM1 -. X2A remote WAF contingency .-> WAFB
+  LTM2 -. X2B route-back when Site 1 app healthy .-> CFW1
+  APPS1 -. XD1 dependency fallback .-> APPS2
 ~~~
 
 Cross-site capability is a **recovery mechanism**, not a steady-state dependency.
@@ -369,7 +369,7 @@ They should remain separately capacity-isolated where an Internet attack, emerge
 
 # 11. Implications for W1/W2/W3/S1/S2
 
-The W1-W4 labels describe per-site WAF topology patterns. S1/S2 describe sharing/tenancy patterns.
+The W1-W4 labels describe per-site WAF topology patterns. S1/S2 describe sharing/tenancy patterns. Their canonical meanings are defined in [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md).
 
 The target-state cloud model may change **where those patterns are applied**.
 
@@ -407,6 +407,8 @@ Before final target-state approval, answer:
 # 13. Source-of-truth relationship
 
 Use this document for the **high-level entity/relationship and traffic-path picture**.
+
+Use [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md) for **canonical W/S/X/T/AT identifiers and timing semantics**.
 
 Then use:
 
