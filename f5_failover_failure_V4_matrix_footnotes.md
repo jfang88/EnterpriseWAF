@@ -1,5 +1,12 @@
 # F5 GTM/LTM/WAF Dual-Site Failure Matrix and Private DNS Considerations
 
+> **STATUS — SUPERSEDED LEGACY FAILURE MATRIX**
+>
+> This matrix assumes a specific older topology with clustered plus standalone GTM/LTM/WAF services and does **not** represent the current W1-W4 architecture model.
+>
+> The footnoted F5/DNS reasoning remains useful historical evidence, but current topology, namespace, timing and service-impact analysis lives under [enterprise-scenarios/](./enterprise-scenarios/README.md). Do not use the exact V4 topology or timing values as current design commitments.
+
+
 This version uses a consistent reference style: inline bracketed references such as [^1] and [^5], with a clickable source table in the appendix.
 
 ## Overview
