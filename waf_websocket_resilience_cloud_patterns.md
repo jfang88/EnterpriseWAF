@@ -1,5 +1,14 @@
 # WebSocket Resilience Through Enterprise WAF and Load-Balancer Tiers
 
+> **STATUS — CURRENT SPECIALIST APPLICATION-RESILIENCE REFERENCE**
+>
+> The WebSocket/SSE guidance in this document remains relevant: reconnect, bounded retry/backoff+jitter, portable authentication/session state, replay/snapshot recovery, idempotency, draining, reconnect-storm testing and application-level recovery.
+>
+> Its older **Design A / Design B** infrastructure labels are historical. For current W1-W4 topology, DNS namespaces, F5 timing and end-to-end service-impact conclusions, use [enterprise-scenarios/](./enterprise-scenarios/README.md).
+>
+> Where this file conflicts with the current invariant/variable documents, the current enterprise-scenarios set takes precedence.
+
+
 **Status:** Design guidance / architecture decision record  
 **Last reviewed:** 2026-09-29  
 **Scope:** Dual-site Enterprise WAF architecture supporting HTTP/HTTPS and WebSocket traffic
