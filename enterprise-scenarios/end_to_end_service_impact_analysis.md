@@ -195,6 +195,9 @@ Important distinction:
 | **One BIG-IP HA peer fails; service VIP remains on surviving peer** | HA peer loss is seconds-scale; F5 logs commonly show ~3.1s peer timeout before failover, plus traffic-group/network convergence | **No** | roughly **3s+ + T6** for affected flows; measure real convergence | Unaffected/mirrored connections may survive; other affected connections can reset/retry |
 | **One independent WAF member behind LTM fails (W1/W3)** | LTM active monitor commonly **5s interval / 16s timeout** | **No** | new traffic: **up to ~16s** before member withdrawal, then healthy member; affected connection adds T6 | Requests during detection window can hit failed member; established connection on failed WAF may reset or wait on app/TCP timeout |
 | **One WAF cluster member fails (W2/W4)** | WAF HA peer failover is seconds-scale; LTM may see the cluster service remain healthy | **No** | usually **seconds-scale + T6** for affected connections | Supported mirroring may preserve some sessions; otherwise reconnect |
+| **One CFW HA member fails; same local application path remains** | CFW HA/state/route convergence; product-specific | **No** | target **seconds-scale + T6** if HA works; actual value **TBD/measure** | Existing sockets survive only if firewall/NAT/session state survives; otherwise reconnect |
+| **Whole local CFW service fails; ELB/app healthy; GTM health sees through-path failure** | withdraw site/path and use alternate CFW/site | **Yes if site/VIP changes** | **~46s + T6** illustrative fast-health case or **up to ~150s + T6** direct-GTM-default case; add T5 if DR app not ready | Existing connections through failed CFW are lost; cached clients may retry old VIP until TTL expires |
+| **CFW fails but health remains false-green** | front-end remains advertised although app path is broken | DNS may continue returning bad site | **potentially unbounded** until through-path readiness/operator detects failure | Clients can repeatedly reconnect to the same broken site/path |
 | **One app/backend member behind LTM fails** | If using equivalent LTM active monitor defaults: **up to ~16s**; other ELB/platform monitor timing must be measured separately | **No** if service VIP is stable | **monitor timeout + T6** | New traffic goes to healthy member after withdrawal; in-flight request may fail |
 | **All local WAF members fail but local LTM can use preconfigured remote WAF (X2A)** | local LTM detects loss/priority threshold, commonly on **~16s-class** monitor timing | **No** | approximately **~16s + T6** if remote WAF is already healthy/policy-ready | Existing WAF connections break/reconnect; no site DNS move required |
 | **All local WAF members fail and no cross-site WAF is available** | must recover local WAF or trigger site/front-end recovery | **Yes if site/VIP changes** | with direct GTM default monitor: **up to ~120s health + up to 30s residual TTL = ~150s + T6**; with faster LTM/iQuery health and prompt propagation, an illustrative case is **~16s + up to 30s = ~46s + T6** | Cached clients can keep using old Site 1 VIP until TTL/cache expires; existing connections need failure/retry before re-resolution |
@@ -241,6 +244,45 @@ healthy member Y
 ```
 
 DNS should not be part of recovery. LTM health withdrawal and client retry are the relevant timing terms.
+
+### 4.4 CFW changes the preferred recovery target
+
+Adding CFW as an explicit layer changes the recovery decision in two ways.
+
+**1. A single CFW member failure should remain local.**
+
+If the CFW HA service survives:
+
+```text
+same DNS answer / same F5 VIP
+        |
+        v
+surviving CFW peer
+        |
+        v
+same ELB/application
+```
+
+Do **not** invoke GTM/site failover merely because one CFW appliance/member failed. The desired outcome is seconds-scale local HA plus T6 only for connections whose firewall state was lost.
+
+**2. Complete CFW failure invalidates remote-WAF route-back to the same site.**
+
+```text
+Site 1 WAF tier fails
+  -> remote WAF can help if Site 1 CFW is healthy
+
+Site 1 CFW fails
+  -> remote WAF still cannot reach Site 1 ELB/app through the failed CFW
+  -> use alternate CFW path or Site 2 application path
+```
+
+Therefore the service-health decision must distinguish:
+
+- WAF failure with healthy CFW/app: X2A can be fast (~16s-class + T6);
+- CFW failure with healthy app behind it: X2A is not sufficient; likely site/app path recovery (~46–150s + T6 if health is correctly detected);
+- CFW false-green: potentially unbounded until through-path monitoring detects the failure.
+
+This strengthens the recommendation for an application-readiness signal that represents the full delivery path through CFW.
 
 ---
 
