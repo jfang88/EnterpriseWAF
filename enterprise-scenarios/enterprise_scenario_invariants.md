@@ -47,6 +47,7 @@ For a given tenant, assume the **same logical F5 GTM/LTM role exists in both sit
 
 - BIG-IP DNS / GTM capability is available in both sites;
 - BIG-IP LTM, where used for the selected topology, has the same logical role in both sites;
+- the default BIG-IP LTM deployment is **two LTMs per site in an HA/Sync-Failover pair**; a 3-device LTM group is an optional design study, not the baseline;
 - edge-firewall/VIP concepts are equivalent in both sites;
 - W1-W3 normally use the same logical WAF topology in Site 1 and Site 2;
 - W4 is the intentional exception: Site 1 may have a WAF HA cluster plus an additional independently active/spare WAF, while Site 2 has only the WAF HA cluster;
@@ -347,6 +348,7 @@ The following belong in the analysis-variable document, not here:
 - WAF topology;
 - clustered versus independent WAF nodes;
 - number of WAF nodes;
+- optional 3-device LTM DSC comparison beyond the default 2-LTM-per-site baseline;
 - shared reserve WAF design;
 - local-only versus cross-site WAF routing;
 - GTM IP/port versus full-application health checking;
