@@ -1,5 +1,14 @@
 # Enterprise WAF Architecture Options and Cross-Site Resilience
 
+> **STATUS — SUPERSEDED AS THE PRIMARY ARCHITECTURE ANALYSIS**
+>
+> This document is retained as historical/reference material. The current authoritative analysis is under [enterprise-scenarios/](./enterprise-scenarios/README.md).
+>
+> Use the current invariant/variable model and W1-W4 topology definitions for decisions. The older **Design A / Design B** labels and topology-specific conclusions in this paper are not the current baseline.
+>
+> Useful material from this paper — dependency routing, recovery-time decomposition, access/user blast-radius reasoning and failure-injection tests — has been carried forward into the current authoritative documents.
+
+
 ## Purpose
 
 This page compares two WAF deployment models and two routing models for a dual-site enterprise application environment:
