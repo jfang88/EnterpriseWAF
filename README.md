@@ -54,6 +54,7 @@ The current baseline assumes:
 - approximately 3–4 tenant/hosting environments in the wider estate;
 - one representative tenant used for most worked examples;
 - similar GTM/LTM roles in both sites;
+- **two LTMs per site is the default LTM baseline**; three-device LTM DSC is optional analysis only;
 - W1–W3 normally use equivalent WAF topology in both sites;
 - W4 is deliberately asymmetric: Site 1 has a WAF HA cluster plus an extra active/spare WAF, while Site 2 has only the WAF HA cluster;
 - external users access services through private leased-line paths and edge firewalls;
@@ -112,6 +113,14 @@ Before modifying the analysis:
 2. If a **topology, F5, routing, health, capacity or maintenance assumption changed**, update [analysis_variables_and_f5_assumptions.md](./enterprise-scenarios/analysis_variables_and_f5_assumptions.md).
 3. If neither changed, do not change the baseline just to reach a different conclusion.
 4. Regenerate/review the derived analyses using [enterprise_scenario_analysis_prompt.md](./enterprise-scenarios/enterprise_scenario_analysis_prompt.md).
+
+## LTM/WAF node-count appendix
+
+For the difference between 2- and 3-device DSC groups versus true active WAF pools, see:
+
+- [2 vs 3 BIG-IP LTM and WAF nodes](./enterprise-scenarios/appendix_ltm_waf_2_vs_3_nodes.md)
+
+The baseline remains **two LTMs per site**.
 
 ## WAF topology shorthand
 
