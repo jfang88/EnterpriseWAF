@@ -20,6 +20,10 @@ For the high-level architecture and entity/relationship view, start with:
 
 This is the canonical diagram for external/internal consumers, DNS namespaces, network paths, LTM/WAF/CFW/ELB layers, application hosting and App A -> B -> C/D dependencies.
 
+For the authoritative W/S/X/T/AT shorthand and the reference end-to-end path, use:
+
+- [Canonical architecture shorthand and end-to-end topology](./enterprise-scenarios/architecture_shorthand_topology_reference.md)
+
 For the executive decision and final recommendation, then read:
 
 - [Executive architecture and 99.95% recommendation](./enterprise-scenarios/executive_recommendation.md)
@@ -30,8 +34,14 @@ Then use:
 
 ## Current analysis structure
 
-The analysis is deliberately separated into **stable inputs**, **changeable inputs**, and **derived outputs** so that new design options can be evaluated without constantly shifting the baseline.
+The analysis is deliberately separated into **canonical terminology/topology**, **stable inputs**, **changeable inputs**, and **derived outputs** so that new design options can be evaluated without constantly shifting the baseline.
 
+    canonical W/S/X/T/AT shorthand + path
+            |
+            v
+    architecture_shorthand_topology_reference.md
+            |
+            v
     Stable enterprise facts
             |
             v
@@ -56,6 +66,9 @@ The analysis is deliberately separated into **stable inputs**, **changeable inpu
               |
               +--> end_to_end_service_impact_analysis.md
               +--> common_failure_matrix.md (technical appendix)
+
+High-level entity/relationship view:
+`high_level_architecture.md`
 
 Supporting derived study:
 `cross_site_routing_and_dependency_recovery.md`
@@ -82,10 +95,10 @@ The current baseline assumes:
 
 Supported application types include:
 
-1. stateless web applications;
-2. stateful web applications;
-3. socket/WebSocket/long-lived connection applications;
-4. non-web/L4 applications that may bypass the WAF.
+1. **AT1** — stateless web applications;
+2. **AT2** — stateful web applications;
+3. **AT3** — socket/WebSocket/long-lived connection applications;
+4. **AT4** — non-web/L4 applications that may bypass the WAF.
 
 ## Analysis lenses
 
@@ -96,6 +109,14 @@ Primary entity/relationship and traffic-path view:
 - [High-level EnterpriseWAF architecture](./enterprise-scenarios/high_level_architecture.md)
 
 This distinguishes generic network/application-delivery infrastructure from the WAF enforcement platform and the **application-coupled WAF policy**.
+
+### Canonical shorthand and topology
+
+Single terminology/timing source of truth:
+
+- [Canonical architecture shorthand and end-to-end topology](./enterprise-scenarios/architecture_shorthand_topology_reference.md)
+
+Use this for W1-W4, D1/S1-S3, X1/X2/XD1, T1-T9 and AT1-AT4 meanings. Do not reuse W1/W2/W3 as WAF-node names or S1/S2 as site labels.
 
 ### Executive recommendation
 
@@ -147,10 +168,11 @@ This evaluates remote-WAF borrowing, remote front-end route-back, conventional s
 
 Before modifying the analysis:
 
-1. If the **real enterprise environment changed**, update [enterprise_scenario_invariants.md](./enterprise-scenarios/enterprise_scenario_invariants.md).
-2. If a **topology, F5, routing, health, capacity or maintenance assumption changed**, update [analysis_variables_and_f5_assumptions.md](./enterprise-scenarios/analysis_variables_and_f5_assumptions.md).
-3. If neither changed, do not change the baseline just to reach a different conclusion.
-4. Regenerate/review the derived analyses using [enterprise_scenario_analysis_prompt.md](./enterprise-scenarios/enterprise_scenario_analysis_prompt.md).
+1. If the **canonical shorthand or canonical path changed**, update [architecture_shorthand_topology_reference.md](./enterprise-scenarios/architecture_shorthand_topology_reference.md) first.
+2. If the **real enterprise environment changed**, update [enterprise_scenario_invariants.md](./enterprise-scenarios/enterprise_scenario_invariants.md).
+3. If a **topology, F5, routing, health, capacity or maintenance assumption changed**, update [analysis_variables_and_f5_assumptions.md](./enterprise-scenarios/analysis_variables_and_f5_assumptions.md).
+4. If none changed, do not change the baseline just to reach a different conclusion.
+5. Regenerate/review the derived analyses using [enterprise_scenario_analysis_prompt.md](./enterprise-scenarios/enterprise_scenario_analysis_prompt.md).
 
 ## LTM/WAF node-count appendix
 
@@ -160,18 +182,20 @@ For the difference between 2- and 3-device DSC groups versus true active WAF poo
 
 The baseline remains **two LTMs per site**.
 
-## WAF topology shorthand
+## WAF topology and sharing shorthand
 
-| ID | WAF topology |
+| ID | Meaning |
 |---|---|
-| **W1** | LTM-fronted scalable independent WAF pool, normally 2..N WAFs per site |
-| **W2** | WAF HA cluster, with or without an ingress LTM |
-| **W3** | Tenant-preferred WAFs plus shared enterprise reserve WAFs |
+| **W1** | LTM-fronted scalable independent **active** WAF pool, normally 2..N WAFs per site |
+| **W2** | WAF HA/DSC cluster, with or without an ingress LTM |
+| **W3** | Tenant-preferred active WAFs plus shared enterprise reserve WAFs |
 | **W4** | Asymmetric: Site 1 WAF HA cluster + extra active/spare WAF; Site 2 WAF HA cluster only |
 | **S1** | Tenant-specific LTM HA pairs feeding a shared independent active WAF pool |
 | **S2** | Shared LTM HA pair feeding a shared independent active WAF pool |
 
 **W1-W4 describe WAF topology patterns. S1/S2 describe tenancy/sharing patterns.** They are compared together in the executive summary because the final architecture decision needs both dimensions.
+
+Use [the canonical reference](./enterprise-scenarios/architecture_shorthand_topology_reference.md) for the full W/S/X/T/AT definitions.
 
 Site-level GTM recovery is common to all topologies and is **not** a separate WAF topology.
 
@@ -181,13 +205,13 @@ The files under [`enterprise-scenarios/`](./enterprise-scenarios/README.md) are 
 
 Current specialist guidance retained at the repository root:
 
-- [WebSocket resilience and cloud patterns](./waf_websocket_resilience_cloud_patterns.md) — application-level reconnect, replay, idempotency, draining, reconnect storms and SSE guidance. Current W1-W4 topology/timing files take precedence.
+- [WebSocket resilience and cloud patterns](./waf_websocket_resilience_cloud_patterns.md) — application-level reconnect, replay, idempotency, draining, reconnect storms and SSE guidance. Current terminology/timing in the canonical reference takes precedence.
 
 Older architecture/failure-analysis versions have been moved to:
 
 - [`archive/`](./archive/README.md)
 
-The archive contains the superseded Design A/Design B architecture paper, V4/V3 failure matrices and the Round 2 working-history file. Do not use archived topology or timing tables as the current baseline.
+The archive contains the superseded Design A/Design B architecture paper, V4/V3 failure matrices and the Round 2 working-history file. Archived W/S labels may have historical meanings; do not use them as the current baseline.
 
 ## Branch strategy
 
@@ -209,6 +233,7 @@ Use these as the primary entry points:
 
 - [Repository README](./README.md)
 - [High-level EnterpriseWAF architecture](./enterprise-scenarios/high_level_architecture.md) — **canonical entity/relationship and traffic-path view**
+- [Canonical architecture shorthand and end-to-end topology](./enterprise-scenarios/architecture_shorthand_topology_reference.md) — **canonical W/S/X/T/AT definitions**
 - [Executive architecture and 99.95% recommendation](./enterprise-scenarios/executive_recommendation.md)
 - [Enterprise scenario analysis index](./enterprise-scenarios/README.md)
 - [End-to-end service impact and recoverability analysis](./enterprise-scenarios/end_to_end_service_impact_analysis.md) — **primary resilience/recovery document**
