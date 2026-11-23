@@ -1,0 +1,332 @@
+# Enterprise WAF Analysis Variables and F5 Recovery Assumptions
+
+**Status:** Changeable analysis inputs  
+**Baseline:** [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)  
+**F5 documentation reviewed:** 23 November 2026
+
+This file contains architecture choices and tunable assumptions. Change this file when comparing a new design; do not alter the invariant file unless the real enterprise context changes.
+
+# 1. Candidate WAF topologies
+
+## W1 — LTM-fronted scalable independent WAF pool
+
+```text
+Firewall VIP
+    |
+LTM HA pair
+    |
++---+---+---+
+|   |   |   |
+W1  W2  W3 ... Wn
+    |
+application
+```
+
+- Starts with two WAFs and can scale to three or more.
+- WAFs are independent active pool members.
+- LTM removes failed members using health monitors.
+- Capacity must be sized for N-1 and, where required, N-2.
+- Policy/configuration consistency across all WAF nodes is critical.
+
+## W2 — WAF HA cluster, with or without LTM in front
+
+### W2a — no ingress LTM
+
+```text
+Firewall VIP
+    |
+WAF HA cluster
+    |
+application
+```
+
+### W2b — LTM in front
+
+```text
+Firewall VIP
+    |
+LTM HA pair
+    |
+WAF HA cluster
+    |
+application
+```
+
+- WAF pair is a clustered HA service/failure domain.
+- Connection/persistence mirroring can improve continuity for supported traffic.
+- Horizontal scale and third-node continuity need special care; F5 documents explicit ASM/AWAF mirroring limits.
+
+## W3 — tenant-preferred WAFs plus shared enterprise reserve
+
+```text
+Tenant LTM pair
+    |
++---+---+
+|       |
+WAF1   WAF2
+   \   /
+ shared reserve
+ +-----+-----+
+ |           |
+R-WAF1     R-WAF2
+```
+
+- Preferred tenant WAFs handle normal traffic.
+- Shared reserve WAFs can join a tenant pool when preferred WAF capacity is lost.
+- Shared reserve introduces cross-tenant capacity, policy-isolation and operational dependencies.
+
+## W4 — local WAF cluster + local spare + second-site cluster
+
+```text
+Site 1                           Site 2
+LTM pair                         LTM pair
+  |                                |
+  +-- WAF cluster (2)              +-- WAF cluster (2)
+  |
+  +-- local spare WAF
+```
+
+- Local cluster handles normal traffic.
+- Third local WAF provides hot/warm/cold contingency.
+- Site 2 cluster provides site-level recovery.
+- Recovery time depends heavily on whether the spare is preconfigured/hot.
+
+## W5 — per-site scalable WAF pools + GTM site recovery
+
+```text
+                 BIG-IP DNS/GTM
+                /              \
+             Site 1           Site 2
+               |                |
+           LTM HA pair      LTM HA pair
+               |                |
+          WAF pool 2..N    WAF pool 2..N
+               |                |
+          local apps        local/DR apps
+```
+
+- Member failures recover locally.
+- Individual WAFs are not normally borrowed across sites.
+- Site-level recovery uses GTM/DNS.
+- Requires enough capacity in the alternate site.
+
+# 2. Cross-site dataplane variable
+
+## X1 — local-only
+
+LTM/WAF/application traffic remains in the local site.
+
+Loss of a whole local WAF tier normally requires site/application recovery.
+
+## X2 — controlled cross-site contingency
+
+Selected remote WAF/application resources can be configured as lower-priority contingency members.
+
+F5 LTM Priority Group Activation is a natural building block: higher-priority members receive traffic first and lower-priority members become active only when the available higher-priority membership falls below the configured threshold.
+
+Cross-site use requires explicit validation of:
+
+- route availability;
+- stateful firewall symmetry;
+- NAT/SNAT;
+- original-client-IP requirements;
+- latency;
+- capacity;
+- application state/data locality;
+- failure of the inter-site link while contingency is active.
+
+# 3. GTM/DNS health models
+
+## G1 — IP/port health only
+
+GTM considers an application endpoint healthy when the target IP/service port responds.
+
+Advantages:
+
+- simple;
+- low application dependency;
+- easy to operate.
+
+Risk:
+
+- **false green**: TCP/HTTPS listener may be up while the application, dependency, login flow or business function is broken.
+
+Use only where port availability is a sufficient definition of service readiness.
+
+## G2 — full application-level health
+
+GTM or the integrated LTM status represents an application-level readiness endpoint or transaction.
+
+Examples:
+
+- HTTP(S) health URL that validates application readiness;
+- expected response body/status;
+- application health that includes critical dependencies.
+
+Advantages:
+
+- substantially better site-selection signal;
+- avoids advertising a site whose network stack is alive but application is unusable.
+
+Risks:
+
+- overly deep checks can create false negatives if a non-critical dependency is included;
+- expensive synthetic transactions can create load;
+- monitor credentials/secrets may be required for deep checks.
+
+Recommended pattern: expose a lightweight **readiness** endpoint that represents whether the instance/site can safely accept new traffic.
+
+## G3 — local authoritative health plus distributed/cross-site observation
+
+Recommended analysis model for two sites:
+
+1. Each site's LTM performs local member/application health checking.
+2. BIG-IP DNS/GTM integrates with BIG-IP LTM using the BIG-IP monitor/iQuery so GTM can use LTM virtual-server health.
+3. Where path-awareness is needed, additional probers/cross-site checks observe the remote endpoint.
+4. Do not make a healthy site's availability depend solely on the inter-site path. Otherwise an inter-site network failure can incorrectly mark healthy local services down.
+
+BIG-IP DNS supports multiple health monitors and availability requirements such as **All**, **At Least**, and **Require** successful probes. Use these deliberately so a cross-site probe failure does not create an unnecessary site outage.
+
+# 4. GTM DNS response preference
+
+## Active/passive applications
+
+Use a health-gated primary/secondary model.
+
+F5 BIG-IP DNS **Global Availability** selects the first available pool/resource and moves to the next only when the preferred resource is unavailable.
+
+Model:
+
+```text
+Primary Site 1 application pool
+   -> if unavailable
+DR Site 2 application pool
+```
+
+Do not return Site 2 merely because its firewall/LTM is alive when the application is still stopped.
+
+## Active/active or locality-preferred applications
+
+Use **Topology** load balancing where the client's LDNS/resolver source can reliably map to the desired site, then fall back to another healthy site.
+
+Important: do not infer "in-site" from whichever GTM appliance happened to answer the DNS query. Preference should be based on application mode and/or topology records tied to resolver/client network context.
+
+# 5. F5 monitoring and recovery-time assumptions
+
+These are **engineering modelling assumptions**, not guaranteed SLA values. Validate on the actual BIG-IP release, hardware, VLAN/routing design and application.
+
+## T1 — BIG-IP HA peer/device failover
+
+F5 DSC network failover uses HA communication between devices. F5 support documentation shows that interruption of failover communication for roughly **3 seconds** can trigger expected HA behavior, and recommends redundant failover communication using management and TMM/self-IP paths.
+
+Model:
+
+- peer-loss detection: approximately 3+ seconds under common/default-style network failover settings;
+- service restoration: detection plus traffic-group takeover plus upstream/downstream network convergence;
+- use a **seconds-scale** target, but measure it in the real network.
+
+Do not publish an exact RTO without failover testing.
+
+## T2 — LTM pool-member/WAF-member health detection
+
+Many BIG-IP LTM active monitor types use defaults around:
+
+- Interval: **5 seconds**
+- Timeout: **16 seconds**
+
+F5 documentation states the timeout should generally be about three times the interval plus one second for these monitors.
+
+Model:
+
+- member removal with defaults: up to roughly the configured timeout;
+- new connections then use remaining healthy pool members;
+- existing connections through the failed member may reset.
+
+Tune monitor intervals only after testing false-positive/flapping risk.
+
+## T3 — BIG-IP DNS direct health monitor
+
+BIG-IP DNS HTTP/HTTPS/TCP-style monitor documentation commonly shows defaults around:
+
+- Interval: **30 seconds**
+- Timeout: **120 seconds**
+
+Therefore a standalone direct GTM monitor can be materially slower than local LTM health detection unless tuned.
+
+For F5-to-F5 environments, prefer integrating BIG-IP DNS with LTM health via the BIG-IP monitor/iQuery where appropriate, and add application-level readiness checks where infrastructure health alone is insufficient.
+
+## T4 — DNS/site failover convergence
+
+End-user site recovery is:
+
+```text
+health detection
+ + GTM decision/update
+ + DNS TTL / recursive-cache expiry
+ + client/application DNS cache
+ + connection retry/re-resolution
+ + alternate-site application readiness
+```
+
+Therefore GTM failover is not a single product failover number.
+
+A manual passive-site application startup can dominate the total RTO even when GTM detects the failure quickly.
+
+## T5 — failback
+
+F5 traffic-group auto-failback supports configurable delay; F5 documentation shows a default of 60 seconds when auto-failback is enabled and notes 40–60 seconds can allow state mirroring to re-establish.
+
+For critical services, prefer controlled failback rather than immediate oscillation.
+
+# 6. F5 connection mirroring implications
+
+F5 recommends connection mirroring where failover would significantly disrupt a long-lived session, and generally does not recommend it for short-lived HTTP/UDP because of performance overhead.
+
+Important Advanced WAF/ASM limitations documented by F5 21.1 include:
+
+- traffic is mirrored to only one standby peer;
+- third-device/multiple failover does not preserve the connection;
+- failback resets the connection;
+- some AWAF features have additional mirroring limitations.
+
+Therefore:
+
+- W2 can improve continuity for a two-device HA event;
+- W4's third/spare WAF does **not** mean an existing connection can transparently survive every transition;
+- W1/W3/W5 should assume connections on a failed independent WAF must reconnect;
+- application reconnect/state-recovery logic remains mandatory for socket/WebSocket designs.
+
+# 7. F5 WAF policy/configuration consistency
+
+F5 supports synchronizing Advanced WAF/ASM security policy/configuration across multiple BIG-IP systems using an ASM-enabled Sync-Only device group.
+
+Key modelling assumptions:
+
+- all WAF pool members must enforce equivalent policy for a protected service;
+- reserve/shared WAFs must have validated tenant policy before receiving production traffic;
+- configuration synchronization is itself a common-mode risk: a bad policy pushed everywhere can fail the whole WAF service even when hardware is healthy;
+- F5 documentation requires members of an ASM-enabled device group to run the same ASM version/hotfix level.
+
+# 8. F5 HA design practices to preserve
+
+- Configure redundant HA failover communication paths; F5 recommends management plus TMM/self-IP network failover paths.
+- Use health monitors that validate the service you actually need, not merely node reachability.
+- For local/remote preferred-member designs, use priority groups rather than ad-hoc manual routing where practical.
+- Consider MAC masquerade/appropriate network design to reduce ARP/network convergence effects after traffic-group failover.
+- Use connection mirroring selectively for long-lived/high-impact connections rather than assuming it should be enabled for all traffic.
+
+# 9. F5 source references
+
+Official F5 references reviewed for this analysis:
+
+- BIG-IP LTM health/performance monitoring: https://techdocs.f5.com/en-us/bigip-17-0-0/big-ip-local-traffic-manager-implementations/implementing-health-and-performance-monitoring.html
+- BIG-IP LTM monitor settings: https://techdocs.f5.com/en-us/bigip-16-0-0/big-ip-local-traffic-manager-monitors-reference/monitors-settings-reference.html
+- BIG-IP DNS monitor settings: https://techdocs.f5.com/en-us/bigip-14-0-0/big-ip-dns-monitors-reference/monitors-settings-reference.html
+- BIG-IP DNS + LTM integration/iQuery: https://techdocs.f5.com/en-us/bigip-17-5-0/big-ip-dns-implementations/integrating-big-ip-dns-into-a-network-with-big-ip-ltm-systems.html
+- BIG-IP DNS Global Availability: https://techdocs.f5.com/en-us/bigip-15-0-0/big-ip-dns-load-balancing/about-load-balancing-and-resource-availability.html
+- BIG-IP DNS Topology load balancing: https://techdocs.f5.com/en-us/bigip-15-0-0/big-ip-dns-load-balancing/using-topology-load-balancing-to-distribute-dns-requests-to-specific-resources.html
+- LTM Priority Group Activation: https://techdocs.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/ltm-basics-11-6-0/4.html
+- Device Service Clustering failover: https://techdocs.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/bigip-system-device-service-clustering-administration-13-0-0/6.html
+- Connection mirroring: https://techdocs.f5.com/en-us/bigip-14-1-0/big-ip-device-service-clustering-administration-14-1-0/managing-connection-mirroring.html
+- Advanced WAF/ASM connection-mirroring limitations (21.1): https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-asm-implementations/connection-mirroring-with-asm/connection-mirroring-limitations.html
+- Advanced WAF/ASM config synchronization: https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-asm-implementations/automatically-synchronizing-application-security-configurations.html
