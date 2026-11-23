@@ -359,19 +359,20 @@ WAF policy must be managed as part of the application/API lifecycle because it c
 
 A shared WAF pool must not imply a single common application policy or one global enforcement change.
 
-## Security-zone sharing boundary
+## Extranet sharing boundary and LTM/GTM constraint
 
-If applications converge onto one or two private on-premise clouds, compare sharing by **security/trust zone or cloud platform** instead of automatically preserving historic tenant stacks.
+The current design focus is the **four-tenant extranet estate**.
 
-Illustrative zones:
+For current option analysis:
 
-- Internet-facing application delivery;
-- Intranet/Extranet application delivery;
-- additional regulatory/criticality zones where required.
+- retain the existing GTM model;
+- retain the four tenant LTM HA service boundaries;
+- compare dedicated versus shared WAF capacity behind those LTM services;
+- treat S2/shared-LTM consolidation only as a future comparison, not the current target.
 
-Internet and Intranet/Extranet WAF runtime should normally remain separate failure/capacity/change domains so Internet attack load or emergency policy changes do not consume internal-service resilience.
+If applications later converge onto a common private-cloud platform, LTM/GTM consolidation can be revisited as a joint target-state question. It must not be assumed until the GTM/LTM/network owners participate.
 
-This is a target-state design variable, not yet an invariant.
+This is a scope/ownership constraint, not a statement that the existing LTM/GTM design is permanently optimal.
 
 See [high_level_architecture.md](./high_level_architecture.md).
 
