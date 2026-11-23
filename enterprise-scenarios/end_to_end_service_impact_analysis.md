@@ -37,7 +37,8 @@ Every infrastructure failure must therefore be translated into:
 ## External human/API path
 
     external human/API client
-      -> customer DNS / enterprise GTM
+      -> external/customer DNS
+      -> enterprise GTM for published external service where delegated
       -> leased-line/VPN path
       -> edge firewall / application VIP
       -> LTM where present
@@ -50,11 +51,28 @@ Every infrastructure failure must therefore be translated into:
 ## Internal path
 
     internal user/system
-      -> internal DNS/service discovery
+      -> internal enterprise DNS
+      -> optional delegation/conditional forward to GTM
       -> internal LTM/ELB/service VIP
       -> application
       -> dependencies such as App B / App C
       -> data/state services
+
+## Internal application dependency path
+
+    App A
+      -> internal enterprise DNS
+      -> optional GTM lookup for internal B service
+      -> B service VIP / endpoint
+      -> App B
+      -> optional internal DNS/GTM lookup for C
+      -> App C
+
+The external and internal namespaces are separate. A DNS/GTM problem can therefore affect:
+
+- external users only;
+- internal users/applications only;
+- or both, depending on which namespace, delegation and GTM service is involved.
 
 The internal path may bypass the internet-facing WAF layer.
 
@@ -126,6 +144,10 @@ The table below intentionally describes the **service/user outcome first**.
 
 | Scenario | External human users | External API/system clients | Internal users/systems | App A/B/C dependency impact | Indicative user-visible interruption | Recoverable? |
 |---|---|---|---|---|---|---|
+| **External namespace / external GTM resolution fails** | New external sessions/name lookups fail; existing connections may continue until reconnect/name refresh | External API clients needing new DNS resolution fail/retry; cached/existing connections may continue | **No direct impact** if internal namespace is independent | App A/B/C internal calls may continue if they use internal DNS/GTM | DNS recovery + cache/TTL; potentially T3/T4 depending design | **Yes** if external DNS/GTM redundancy works; otherwise external-only outage |
+| **Internal enterprise DNS fails** | External users may remain fully healthy | External API may remain healthy | Internal users cannot resolve new internal names unless cached | App A/B/C dependency calls using internal DNS can fail/cascade | internal DNS recovery + application cache/retry | **Conditional**; not solved by WAF/LTM HA |
+| **Internal DNS delegation/forward to GTM fails** | External namespace may remain healthy | External API may remain healthy | Internal endpoints delegated to GTM fail to resolve; directly resolved internal names may still work | Only dependencies using delegated GTM names fail; can create selective A/B/C outage | internal DNS/forwarder recovery + T6 | **Conditional**; depends on redundant forwarding/GTM path |
+| **Internal GTM is up but returns unreachable/wrong-site internal endpoint** | External users may be unaffected | External API may be unaffected | Internal users receive timeout/connection failure | App A may fail B calls despite healthy B elsewhere | health detection + DNS/cache + T6 | **Recoverable only with correct reachability-aware health/selection and re-resolution** |
 | **One leased line fails** | Only users routed through that path lose/retry service; other external populations remain healthy | Same for API clients on failed path | Usually no impact | Usually no impact unless dependency path shares line | carrier/routing recovery; not fundamentally a WAF issue | **Yes**, if alternate network path exists; otherwise partial population outage |
 | **One edge-firewall node fails** | Usually transient or no visible impact if firewall HA works | Same | Usually no impact | No app dependency impact | firewall HA convergence | **Yes** through firewall HA |
 | **Whole edge-firewall pair/path fails** | External users on that ingress may be unavailable even while app is healthy | Same | Internal may remain healthy | Dependencies may remain healthy | routing recovery or T4 if alternate site/VIP used | **Conditional** on alternate external reachability |
@@ -154,6 +176,38 @@ The table below intentionally describes the **service/user outcome first**.
 | **Non-web service LTM/route/backend fails** | Protocol-specific | Protocol-specific reconnect | Internal/system impact depends on protocol | Dependencies may fail | T1/T2/T4 + protocol-specific T6 | **Conditional** on client retry/reconnect semantics |
 
 ---
+
+## 6.1 Namespace-specific failure interpretation
+
+A DNS failure should not be reported generically as "GTM down" without identifying the namespace and actor.
+
+Examples:
+
+    External namespace failure
+      -> external users/API may fail
+      -> internal users may continue
+      -> App A/B/C internal calls may continue
+
+    Internal namespace failure
+      -> external users may continue
+      -> internal users may fail
+      -> App A/B/C may fail even though all external WAF/LTM paths are healthy
+
+    Internal GTM/delegated-name failure
+      -> only selected internal services may fail
+      -> directly resolved internal names can remain healthy
+      -> dependency blast radius depends on which applications consume the affected internal endpoint
+
+For every DNS/GTM failure record:
+
+- namespace: external / internal / both;
+- resolver path;
+- GTM delegation/forwarding path;
+- returned endpoint type;
+- reachability from the requester;
+- TTL/cache behavior;
+- application re-resolution behavior;
+- affected users/applications.
 
 # 6. Cross-site capability changes the user story
 
