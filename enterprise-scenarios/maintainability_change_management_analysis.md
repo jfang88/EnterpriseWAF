@@ -319,6 +319,33 @@ The maintenance window itself may not produce service downtime, but it creates a
 
 ## W3 — tenant WAFs + shared reserve
 
+### W3 LTM service: 2-device versus 3-device DSC
+
+A two-device tenant LTM pair is easier to operate, but taking one device out for firmware/change leaves no local LTM redundancy.
+
+A three-device Sync-Failover group can improve maintainability:
+
+- take one LTM out of service;
+- retain two local LTMs;
+- validate/upgrade the first device;
+- return it;
+- proceed to the next device.
+
+This is valuable for a 99.95% objective because planned maintenance no longer consumes the entire local LTM redundancy budget.
+
+With multiple traffic groups, active ownership can also be spread across the three devices and F5 load-aware/ordered failover can choose a next-active device.
+
+Trade-offs:
+
+- more DSC/failover-order testing;
+- larger synchronized configuration blast radius;
+- more capacity planning;
+- not equivalent to three independent active copies of the same VIP.
+
+**Maintainability conclusion:** W3-L3 is attractive when the business wants to remain locally redundant during LTM maintenance. W3-L2 remains simpler where alternate-site recovery is acceptable during the maintenance risk window.
+
+
+
 ### Recommended pattern
 
 Use shared reserve as controlled maintenance capacity:
