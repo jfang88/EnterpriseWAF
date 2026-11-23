@@ -162,3 +162,20 @@ For quick access:
 ## Working history
 
 `round-2-analysis.md` records the evolution of the analysis and is useful for context, but it should not be treated as the source of truth when it conflicts with the invariant, variable or derived-output files above.
+
+## Relationship to the four older root documents
+
+The current folder replaces the older root-level architecture/failure documents as the source of truth.
+
+| Older document | Disposition |
+|---|---|
+| `../waf_architecture_options_cross_site_resilience.md` | Superseded as primary architecture analysis. Unique recovery/test concepts have been carried forward. |
+| `../f5_failover_failure_V4_matrix_footnotes.md` | Superseded old topology-specific matrix. Do not use its exact topology/timing as current baseline. |
+| `../f5_failover_failure_matrix-v3.md` | Obsolete predecessor to V4. Historical only. |
+| `../waf_websocket_resilience_cloud_patterns.md` | Retained as specialist WebSocket/SSE/application-resilience guidance. Current W1-W4 topology and timing files take precedence. |
+
+### Branch rule
+
+Do not create separate long-lived branches for these documents.
+
+Use one coherent working branch/PR, merge it into `main`, then delete the working branch.
