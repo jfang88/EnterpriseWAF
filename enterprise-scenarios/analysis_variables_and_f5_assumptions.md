@@ -273,6 +273,64 @@ For W4b, the exact steering mechanism that decides when/how the extra independen
   - cluster plus extra WAF failed;
   - Site 1 failed and Site 2 must carry load using only its WAF cluster.
 
+# 1A. Tenancy and sharing variables
+
+W1-W4 describe WAF topology. **Tenancy/sharing is a separate design axis.**
+
+For cost and blast-radius analysis, compare the following deployment patterns across an illustrative **four-tenant** estate. Four tenants is a planning case, not a new enterprise invariant.
+
+## D1 — fully dedicated per tenant
+
+Each tenant/site has its own:
+
+- two-LTM HA pair where LTM is used;
+- dedicated WAF pair/pool/cluster;
+- independent change and capacity boundary.
+
+This maximizes tenant isolation but duplicates standby/spare capacity.
+
+## S1 — tenant LTM pairs + shared active WAF pool
+
+Each tenant retains its own LTM HA pair and routing/VIP boundary, while multiple tenants feed a shared independent active WAF pool.
+
+Advantages:
+
+- shares horizontally useful WAF capacity;
+- reduces WAF appliance count;
+- retains tenant-specific LTM ingress failure domains.
+
+Risks:
+
+- shared WAF policy/configuration and capacity become cross-tenant failure domains;
+- N-1/N-2 must be assessed against **aggregate** tenant load;
+- Site 2 must be sized for simultaneous failover of the credible shared blast radius.
+
+## S2 — shared LTM pair + shared WAF pool
+
+Multiple tenants share both the LTM service and the WAF pool.
+
+This minimizes device count but maximizes common-mode blast radius. Treat it as a deliberate shared-service architecture rather than an implicit cost optimization.
+
+## S3 — shared WAF HA cluster
+
+Multiple tenants use one WAF HA/DSC cluster per site, with either dedicated tenant LTMs or a shared LTM pair.
+
+A shared two-node cluster tolerates one WAF member failure, but complete cluster loss affects every tenant using it. It is not equivalent to an independent active WAF pool for horizontal scale.
+
+## W3 hybrid — dedicated preferred WAFs + shared reserve
+
+Each tenant keeps dedicated preferred WAF capacity while reserve WAFs are shared.
+
+For four-tenant cost modelling, the useful comparison is:
+
+- two dedicated preferred WAFs/tenant/site + shared reserve;
+- versus three dedicated WAFs/tenant/site;
+- versus a shared active WAF pool.
+
+The shared reserve should be counted as a common capacity/failure dependency and must not be treated as if every tenant owns the full reserve simultaneously.
+
+See [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md) for the four-tenant device-count and resilience comparison.
+
 # 2. Cross-site dataplane variables
 
 Cross-site routing is not a single design. Model the following separately.
