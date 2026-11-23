@@ -110,35 +110,65 @@ R-WAF1     R-WAF2
 - The same logical preferred-plus-reserve model may exist in Site 2.
 - Site-level GTM recovery remains available in addition to reserve-WAF recovery.
 
-## W4 — WAF HA cluster plus local spare
+## W4 — asymmetric WAF cluster plus extra active/spare node in Site 1
 
-Per site:
+W4 is the intentional asymmetry case.
+
+Site 1 has:
+
+- a WAF HA cluster; plus
+- one additional independently active/spare WAF.
+
+Site 2 has:
+
+- the WAF HA cluster only.
+
+Two front-end variants should be analysed.
+
+### W4a — LTM in front of both sites
 
 ```text
-Firewall VIP
+Site 1                               Site 2
+Firewall VIP                         Firewall VIP
+    |                                    |
+LTM HA pair                          LTM HA pair
+    |                                    |
+    +-- WAF HA cluster (2)               +-- WAF HA cluster (2)
     |
-LTM HA pair
-    |
-    +-- WAF HA cluster (2)
-    |
-    +-- local spare WAF
+    +-- extra active/spare WAF
 ```
 
-Normally the same logical pattern exists in Site 1 and Site 2:
+The Site 1 LTM can steer traffic between the WAF cluster service and the extra WAF according to the selected pool/priority design.
+
+### W4b — no ingress LTM in front of the WAF tier
 
 ```text
-Site 1                         Site 2
-LTM HA pair                    LTM HA pair
-  |                              |
-  +-- WAF cluster (2)            +-- WAF cluster (2)
-  +-- local spare                +-- local spare
+Site 1                               Site 2
+Firewall VIP                         Firewall VIP
+    |                                    |
+    +-- WAF HA cluster (2)               +-- WAF HA cluster (2)
+    |
+    +-- extra active/spare WAF
 ```
 
-- The WAF cluster handles normal traffic.
-- The additional local WAF provides hot/warm/cold contingency.
-- Recovery time depends heavily on whether the spare is already configured, monitored and able to receive traffic.
-- If only one site has the extra spare, treat that as an **asymmetric capacity variant of W4**, not a different topology.
-- GTM/site recovery remains available after local cluster/spare recovery is exhausted.
+For W4b, the exact steering mechanism that decides when/how the extra independent WAF receives traffic must be defined explicitly (for example firewall/VIP/routing behavior). Do not assume LTM-style health-based pool activation if there is no ingress LTM.
+
+### W4 behavior
+
+- The WAF cluster handles the normal clustered HA function.
+- The extra Site 1 WAF adds local capacity/resilience beyond the two-node cluster.
+- Site 2 deliberately has less local WAF capacity because it has only the cluster.
+- If the extra Site 1 WAF is hot and policy-ready, Site 1 can survive a broader set of local WAF failures without GTM/site failover.
+- If Site 1 is lost, Site 2 still provides the normal WAF cluster but does **not** have the same extra-node headroom.
+- Capacity planning must therefore account for this asymmetry, especially when Site 2 becomes the active/DR site.
+- Connection mirroring across the clustered pair does not imply transparent migration to the extra independent WAF.
+- Moving traffic from the cluster to the extra WAF should assume reconnect for affected long-lived connections unless a tested F5-supported mechanism proves otherwise.
+- W4 should be assessed separately for:
+  - one cluster member failed;
+  - both cluster members failed;
+  - extra active/spare WAF failed;
+  - cluster plus extra WAF failed;
+  - Site 1 failed and Site 2 must carry load using only its WAF cluster.
 
 # 2. Cross-site dataplane variables
 
