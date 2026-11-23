@@ -29,6 +29,18 @@ A tenant may have dedicated or logically isolated instances/contexts of:
 
 Some components may be shared across multiple tenants. When a component is shared, the scenario analysis must explicitly state the cross-tenant blast radius.
 
+### Current focus: four-tenant Extranet estate
+
+The current target-state decision set is the **four existing Extranet tenants**.
+
+Assume these four tenants remain distinct **network/security failure domains** unless an explicit decision changes that boundary.
+
+For the current analysis:
+
+- do **not** assume the four tenant LTM/GTM stacks will be consolidated merely because WAF capacity may be pooled;
+- do **not** expand the scope into unrelated enterprise Internet or Intranet transformation unless that is explicitly commissioned;
+- treat any later LTM/GTM consolidation as a separate future architecture decision.
+
 ### Default modelling rule
 
 For readability, worked examples and failure matrices should use **one representative tenant** unless shared infrastructure materially changes the result.
@@ -77,6 +89,13 @@ For the representative tenant, per site:
 A leased-line failure is first an **external-user reachability failure**, not automatically an application failure.
 
 The same affected user population may lose access to several applications hosted in the same tenant even while the applications themselves remain healthy.
+
+Traffic through these functional stacks may include both:
+
+- Extranet/user-facing application delivery; and
+- Internet breakout / proxy / outbound-related services.
+
+These are **functional service roles**, not new consolidation boundaries. They do not change the assumption that the four Extranet tenants remain separate LTM/GTM failure domains in the current decision set.
 
 ## 5. DNS / GTM access patterns and namespace separation
 
@@ -284,7 +303,7 @@ The dependency may use:
 
 Failure of Application B must not automatically imply that Application A should fail site if a safe and supported B recovery path exists.
 
-Likewise, a remote B2 is only a valid recovery target if its own required dependencies such as C are available and compatible.
+Likewise, a remote B is only a valid recovery target if its own required dependencies such as C are available and compatible.
 
 Dependency health, dependency routing and cascading failure across App A / App B / App C are first-class failure-analysis dimensions.
 
@@ -378,7 +397,7 @@ Use these objectives for all options:
 10. Full-site failover should be the final recovery domain, not the default response to a component fault.
 11. The primary resilience measure is **time from fault to successful business transaction for each affected actor**, not time for an individual F5 component to return to green.
 12. A failure analysis is incomplete unless it states external-human, external-system/API, internal-user and dependent-application impact where applicable.
-13. Prefer dependency-local recovery (for example B1 -> B2) over moving healthy dependent applications (A/C/D) when the dependency and state model safely allow it.
+13. Prefer dependency-local recovery (for example local B -> remote B) over moving healthy dependent applications (A/C/D) when the dependency and state model safely allow it.
 14. Treat external namespace and internal namespace as separate control-plane dependencies; failure of one must not automatically be reported as failure of the other.
 15. For App A/B/C dependencies, include internal DNS/GTM resolution behavior in the recovery path where the application resolves dependency endpoints dynamically.
 16. Treat the platform/cloud firewall (CFW) in front of private-cloud ELB/service endpoints as a separate failure and maintenance domain from the ELB/application itself.
