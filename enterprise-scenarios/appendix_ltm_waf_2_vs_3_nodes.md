@@ -272,6 +272,19 @@ This is the key architectural distinction:
 
 > **3 independent WAF pool members can genuinely share one service's traffic. A 3-device DSC failover group does not normally share one floating traffic group across all three devices.**
 
+## Downstream CFW note
+
+For private-cloud applications, the diagrams in this appendix focus on the LTM/WAF relationship but the actual downstream service path is:
+
+```text
+LTM/WAF tier
+   -> platform/cloud firewall (CFW)
+   -> ELB/service
+   -> application
+```
+
+CFW is a separate HA/failure domain and is not part of the LTM or WAF cluster.
+
 # 8. W3 interpretation
 
 The EnterpriseWAF W3 baseline should be read as:
@@ -289,6 +302,10 @@ Per site
            \                   /
             \                 /
              shared reserve WAF(s)
+                     |
+                    CFW
+                     |
+                    ELB
 ~~~
 
 The tenant LTM pair is HA for the **front-end VIP**.
@@ -321,6 +338,10 @@ Site 1
         |               |
   WAF HA cluster    extra WAF
   one TG active     independent
+        \             /
+             CFW
+              |
+             ELB
 ~~~
 
 If the LTM is configured to treat:
