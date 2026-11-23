@@ -456,6 +456,38 @@ For HA peers, do **not** deliberately leave active and standby on materially dif
 
 ---
 
+# 8A. Platform/cloud firewall (CFW) maintenance
+
+For private-cloud applications, the CFW is an inline stateful tier immediately before the ELB/service endpoint.
+
+Maintenance/change analysis must therefore include:
+
+- CFW HA/member upgrades;
+- policy/rule changes;
+- NAT/SNAT ownership;
+- session/state synchronization where supported;
+- route changes;
+- drain/connection-aging behavior;
+- certificate/TLS inspection changes where applicable;
+- validation from both external and internal paths;
+- application dependency flows through the CFW;
+- full CFW context/service rollback.
+
+A CFW maintenance event can have a larger application blast radius than an ELB member change because several ELBs/applications may share the same CFW context.
+
+Preferred sequence:
+
+1. confirm CFW peer/context health;
+2. verify surviving CFW capacity;
+3. drain or move state where supported;
+4. change one member/context unit at a time;
+5. validate NAT, routing and representative application transactions;
+6. validate App A -> B/C internal flows;
+7. observe before changing the peer;
+8. retain the alternate site as a rollback/fallback domain.
+
+Do not combine high-risk CFW policy/NAT changes with WAF, LTM and application releases in the same wave unless required.
+
 # 8. GTM / BIG-IP DNS maintenance
 
 GTM is control-plane infrastructure, so maintenance must preserve DNS resolution even when one GTM/device/site is unavailable.
