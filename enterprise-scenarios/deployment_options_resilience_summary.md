@@ -146,9 +146,9 @@ Firewall VIP
     |
 LTM HA pair
     |
-+---+---+---+
-|   |   |   |
-W1  W2  W3 ... Wn
++----+----+----+
+|    |    |    |
+WAF1 WAF2 WAF3 ... WAFn
     |
    CFW
     |
