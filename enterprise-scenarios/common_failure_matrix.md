@@ -2,7 +2,8 @@
 
 **Role:** Technical component-level appendix for Failure/Recovery Lens 1  
 **Primary service/user outcome:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)  
-**Separate Lens 2:** [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md)
+**Separate Lens 2:** [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md)  
+**Canonical shorthand/topology:** [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md)
 
 > This matrix explains how infrastructure components detect and recover from failures. It is **not** the primary service story. Use the end-to-end service impact analysis for external-user, external-system/API, internal-user, App A/B/C, outage-time and recoverability conclusions.
 
@@ -10,6 +11,7 @@
 
 - Stable baseline: [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)
 - Changeable topology/F5 assumptions: [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)
+- Canonical W/S/X/T definitions: [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md)
 
 **Purpose**
 
@@ -19,31 +21,33 @@ Apply the same failure scenarios to each candidate WAF topology without changing
 
 | ID | Topology |
 |---|---|
-| **W1** | LTM-fronted scalable independent WAF pool (2..N) |
-| **W2** | WAF HA cluster; W2a without ingress LTM, W2b with LTM |
-| **W3** | Tenant-preferred WAFs plus shared enterprise reserve WAFs |
+| **W1** | LTM-fronted scalable independent active WAF pool (2..N) |
+| **W2** | WAF HA/DSC cluster; W2a without ingress LTM, W2b with LTM |
+| **W3** | Tenant-preferred active WAFs plus shared enterprise reserve WAFs |
 | **W4** | Asymmetric: Site 1 WAF HA cluster + extra active/spare WAF; Site 2 WAF HA cluster only |
 
 **Common site rule:** W1-W3 normally use the same logical WAF topology in both sites. W4 is deliberately asymmetric: Site 1 has a WAF HA cluster plus an extra active/spare WAF, while Site 2 has only the WAF HA cluster. GTM/LTM roles remain similar per site.
 
+**Tenancy/sharing is a separate axis:** D1/S1/S2/S3 definitions are canonicalized in [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md). In particular, **S1** means tenant-specific LTM HA pairs feeding a shared independent active WAF pool, while **S2** means a shared LTM HA pair feeding a shared independent active WAF pool.
+
 Cross-site dataplane routing is evaluated separately as:
 
 - **X1** local-only
-- **X2A** surviving local LTM borrows a remote WAF
-- **X2B** remote front-end routes back to the healthy primary-site application
+- **X2A** surviving local LTM borrows a remote WAF and routes back through the healthy local CFW/ELB/application path
+- **X2B** remote front-end routes back to the healthy primary-site CFW/ELB/application path
 - **X2C** conventional full application/site failover
 - **XD1** App A uses remote App B as dependency fallback
 
 # 2. Timing shorthand
 
-These are modelling categories, not guaranteed SLAs.
+These are modelling categories, not guaranteed SLAs. T4 starts **after** the relevant health decision; do not fold T3/T5/T6 into T4 and then add them again.
 
 | Timing ID | Meaning |
 |---|---|
 | **T1 — HA peer failover** | roughly 3+ seconds peer-loss detection under common/default-style BIG-IP HA behavior, plus traffic-group/network convergence; validate in production design |
 | **T2 — local pool-member health** | often up to the configured LTM monitor timeout; many monitor types default around 5s interval / 16s timeout |
 | **T3 — direct GTM monitor** | BIG-IP DNS direct HTTP/HTTPS/TCP monitoring commonly defaults around 30s interval / 120s timeout unless tuned |
-| **T4 — DNS/site convergence** | health detection + GTM decision + residual DNS TTL/cache + client re-resolution/retry + alternate-site readiness. F5 GTM A-record pool TTL default is 30s; direct GTM monitor defaults can be 30s/120s |
+| **T4 — DNS/site-selection convergence after health decision** | GTM answer change + residual DNS TTL/cache + client re-resolution/retry to the selected endpoint. Add T5 separately for manual/startup readiness and T6 for application/session/socket recovery. GTM A-record pool TTL default is 30s |
 | **T5 — warm/cold/manual** | operator/startup/configuration dependent; may be minutes or longer |
 | **T6 — application recovery** | application-specific retry/reconnect/session/state/replay behavior; can dominate RTO even after infrastructure is healthy |
 | **T7 — failback** | controlled restoration to preferred device/site; auto-failback delay is configurable and commonly modelled around 60s when enabled |
@@ -86,8 +90,6 @@ External and internal DNS namespaces are separate control-plane dependencies. Th
 | F00C | Internal DNS delegation/conditional forward to GTM fails | Restore forwarding/delegation; directly resolved internal names may remain healthy | DNS recovery + T6 | No direct WAF-topology difference | Same | Same | Same |
 | F00D | Internal GTM returns unreachable/wrong-site endpoint | Correct health/reachability selection; clients/apps must re-resolve/reconnect | T3/T4/T6 | No direct WAF-topology difference | Same | Same | Same |
 
-
-
 | ID | Failure | Detection / recovery path | Indicative timing | W1 | W2 | W3 | W4 |
 |---|---|---|---|---|---|---|---|
 | F01 | One GTM/DNS node fails | Remaining GTM/DNS peer(s) continue answering; DNS service redundancy must be independent of app WAF topology | T1/T4 depending GTM HA design; existing cached answers unaffected | No WAF impact | No WAF impact | No WAF impact | No WAF impact |
@@ -101,8 +103,6 @@ External and internal DNS namespaces are separate control-plane dependencies. Th
 # 4. LTM failures
 
 For W3, distinguish **W3-L2** (two-device tenant LTM pair) from **W3-L3** (three-device Sync-Failover group). W3-L3 mainly improves maintenance and second-failure headroom; one traffic group/VIP is still active on one device at a time.
-
-
 
 | ID | Failure | Recovery path | Indicative timing | W1 | W2 | W3 | W4 |
 |---|---|---|---|---|---|---|---|
@@ -363,7 +363,6 @@ For this environment:
 # 13. Resilience summary by topology
 
 For the combined topology + tenancy/cost comparison, including four-tenant dedicated versus shared device counts, see [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md).
-
 
 Ratings assume correct health monitoring, adequate capacity, alternate-site application readiness and compliant applications.
 
