@@ -121,6 +121,27 @@ A WAF outage therefore does not automatically mean the application is unavailabl
 
 External and internal availability must be reported separately.
 
+### Mandatory service-outcome reporting
+
+Every failure scenario must report the outcome separately for:
+
+- **external human users**;
+- **external systems/API clients**;
+- **internal users/systems**;
+- **dependent applications**, including App A -> App B -> App C chains where relevant.
+
+Do not stop the analysis at "component failed" or "component recovered."
+
+For each actor, state:
+
+- whether service is unaffected, degraded, partially unavailable or fully unavailable;
+- expected user-visible interruption/recovery time;
+- whether recovery is automatic or manual;
+- whether local-only recovery is sufficient;
+- whether cross-site capability changes the result;
+- whether the application must retry, reconnect, re-authenticate, restore state or replay transactions/messages;
+- whether the business service is actually recovered after the infrastructure is healthy.
+
 ## 8. Application hosting patterns
 
 Applications may be hosted in one or more of these patterns.
@@ -167,12 +188,19 @@ For some PaaS services, the upstream ELB/service address can remain stable while
 
 ## 9. Application-to-application dependencies
 
-Applications may be interconnected.
+Applications may be interconnected in one-hop or multi-hop chains.
 
-Example:
+Examples:
 
 ```text
 Application A
+   -> Application B
+
+Application A
+   -> Application B
+      -> Application C
+
+Application D
    -> Application B
 ```
 
@@ -185,7 +213,9 @@ The dependency may use:
 
 Failure of Application B must not automatically imply that Application A should fail site if a safe and supported B recovery path exists.
 
-Dependency health and dependency routing are first-class failure-analysis dimensions.
+Likewise, a remote B2 is only a valid recovery target if its own required dependencies such as C are available and compatible.
+
+Dependency health, dependency routing and cascading failure across App A / App B / App C are first-class failure-analysis dimensions.
 
 ## 10. Application types that must be supported
 
@@ -274,6 +304,9 @@ Use these objectives for all options:
 8. Treat DNS convergence, connection recovery and application-state recovery as separate steps.
 9. For long-lived connections, assume application reconnect/recovery is required even when infrastructure HA is present.
 10. Full-site failover should be the final recovery domain, not the default response to a component fault.
+11. The primary resilience measure is **time from fault to successful business transaction for each affected actor**, not time for an individual F5 component to return to green.
+12. A failure analysis is incomplete unless it states external-human, external-system/API, internal-user and dependent-application impact where applicable.
+13. Prefer dependency-local recovery (for example B1 -> B2) over moving healthy dependent applications (A/C/D) when the dependency and state model safely allow it.
 
 
 ## 14. Maintainability and availability analysis objectives
