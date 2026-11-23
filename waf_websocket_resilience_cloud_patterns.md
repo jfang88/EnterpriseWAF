@@ -18,7 +18,7 @@
 This document is a companion to:
 
 - [Enterprise WAF Architecture Options and Cross-Site Resilience](./archive/waf_architecture_options_cross_site_resilience.md)
-- [F5 Failover Failure V4 Matrix and Footnotes](./f5_failover_failure_V4_matrix_footnotes.md)
+- [Archived F5 Failover Failure V4 Matrix and Footnotes](./archive/f5_failover_failure_V4_matrix_footnotes.md)
 
 The existing documents cover broader WAF topology, cross-site routing, GTM/LTM failure domains, and application failover. This document focuses specifically on long-lived WebSocket connections and how to design for infrastructure failures.
 
@@ -58,7 +58,7 @@ These official sources describe **client-facing WebSocket behavior**, not the pr
 | [LSEG WebSocket API](https://developers.lseg.com/en/api-catalog/real-time-opnsrc/websocket-api) | Connects to real-time distribution services over WebSocket. LSEG explicitly says its example programs are illustrative and production applications must implement item and connection recovery. | Build item/subscription recovery and authentication/connection handling in the application; sample transport code is insufficient. |
 | [Nasdaq hackathon WebSocket sample](https://github.com/Nasdaq/hackathons) | Contains a WebSocket client for a hackathon stream and disconnect/error callbacks. It uses a historical unencrypted `ws://` example and does not document production replay, resubscription or failover guarantees. | Protocol use alone is not evidence of a resilient market-data service. Do not use the sample endpoint or claim Nasdaq production recovery behavior from it. |
 
-**Architecture implication:** A well-designed WebSocket client must recover from client sleep, firewall/circuit loss, WAF or LTM failure, ELB recycling, VM/Pod failure, state-service loss and site failover. The failure location changes the path and recovery time, but not the core application sequence: detect → reconnect with jitter → authenticate → resubscribe → verify/rebuild state → reconcile uncertain commands. WAF clustering narrows one failure domain; it does not eliminate the application contract.
+**Architecture implication:** A well-designed WebSocket client must recover from client sleep, firewall/circuit loss, WAF or LTM failure, **CFW failure**, ELB recycling, VM/Pod failure, state-service loss and site failover. The failure location changes the path and recovery time, but not the core application sequence: detect → reconnect with jitter → authenticate → resubscribe → verify/rebuild state → reconcile uncertain commands. WAF clustering narrows one failure domain; it does not eliminate the application contract.
 
 The detailed source qualification and additional financial providers appear in [Section 9.1](#91-verified-financial-services-websocket-examples). The concrete protocol and VM affinity rules appear under [Application state placement and recovery contract](#application-state-placement-and-recovery-contract).
 
@@ -952,7 +952,7 @@ A reconnect to another WAF/application instance shall be able to authenticate wi
 
 ## WS-005 - Portable logical session
 
-Where the application requires session continuity, logical session state shall not depend exclusively on one WAF, ELB, ingress controller, Pod or VM.
+Where the application requires session continuity, logical session state shall not depend exclusively on one WAF, CFW/ELB path, ingress controller, Pod or VM.
 
 ## WS-006 - Subscription recovery
 
