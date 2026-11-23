@@ -2,6 +2,8 @@
 
 **Status:** Changeable analysis inputs  
 **Baseline:** [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)  
+**Canonical shorthand/topology:** [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md)  
+**High-level architecture:** [high_level_architecture.md](./high_level_architecture.md)  
 **F5 documentation reviewed:** 23 November 2026
 
 This file contains architecture choices and tunable assumptions. Change this file when comparing a new design; do not alter the invariant file unless the real enterprise context changes.
@@ -23,6 +25,10 @@ For example, W1 means:
                  |                    |
             WAF pool 2..N        WAF pool 2..N
                  |                    |
+                CFW                  CFW
+                 |                    |
+             ELB/service          ELB/service
+                 |                    |
              local apps           local/DR apps
 ```
 
@@ -37,9 +43,13 @@ Firewall VIP
     |
 LTM HA pair
     |
-+---+---+---+
-|   |   |   |
-W1  W2  W3 ... Wn
++-----+-----+-----+
+|     |     |     |
+WAF-1 WAF-2 WAF-3 ... WAF-n
+    |
+   CFW
+    |
+ELB/service
     |
 application
 ```
@@ -65,6 +75,10 @@ Firewall VIP
     |
 WAF HA cluster
     |
+   CFW
+    |
+ELB/service
+    |
 application
 ```
 
@@ -78,6 +92,10 @@ Firewall VIP
 LTM HA pair
     |
 WAF HA cluster
+    |
+   CFW
+    |
+ELB/service
     |
 application
 ```
@@ -96,12 +114,18 @@ Tenant LTM DSC service
     |
 +---+---+
 |       |
-WAF1   WAF2
+WAF-1   WAF-2
    \   /
  shared reserve
  +-----+-----+
  |           |
-R-WAF1     R-WAF2
+R-WAF-1    R-WAF-2
+      |
+     CFW
+      |
+  ELB/service
+      |
+  application
 ```
 
 Preferred tenant WAFs handle normal traffic. Shared reserve WAFs can join a tenant pool when preferred WAF capacity is lost.
@@ -237,8 +261,14 @@ Firewall VIP                         Firewall VIP
 LTM HA pair                          LTM HA pair
     |                                    |
     +-- WAF HA cluster (2)               +-- WAF HA cluster (2)
-    |
-    +-- extra active/spare WAF
+    |                                    |
+    +-- extra active/spare WAF           |
+    |                                    |
+   CFW                                  CFW
+    |                                    |
+ELB/service                         ELB/service
+    |                                    |
+application                         application
 ```
 
 The Site 1 LTM can steer traffic between the WAF cluster service and the extra WAF according to the selected pool/priority design.
@@ -250,8 +280,14 @@ Site 1                               Site 2
 Firewall VIP                         Firewall VIP
     |                                    |
     +-- WAF HA cluster (2)               +-- WAF HA cluster (2)
-    |
-    +-- extra active/spare WAF
+    |                                    |
+    +-- extra active/spare WAF           |
+    |                                    |
+   CFW                                  CFW
+    |                                    |
+ELB/service                         ELB/service
+    |                                    |
+application                         application
 ```
 
 For W4b, the exact steering mechanism that decides when/how the extra independent WAF receives traffic must be defined explicitly (for example firewall/VIP/routing behavior). Do not assume LTM-style health-based pool activation if there is no ingress LTM.
@@ -389,11 +425,11 @@ Loss of a whole local WAF tier normally requires local restoration or applicatio
 
 Normal:
 
-    Site 1 firewall -> Site 1 LTM -> Site 1 WAF -> Site 1 app
+    Site 1 firewall -> Site 1 LTM -> Site 1 WAF -> Site 1 CFW -> Site 1 ELB/app
 
 Contingency:
 
-    Site 1 firewall -> Site 1 LTM -> Site 2 WAF -> route back -> Site 1 app
+    Site 1 firewall -> Site 1 LTM -> Site 2 WAF -> route back -> Site 1 CFW -> Site 1 ELB/app
 
 Use remote WAFs as lower-priority contingency members where routing and policy allow it.
 
@@ -411,12 +447,12 @@ Primary risk:
 
 Normal:
 
-    GTM -> Site 1 firewall -> Site 1 LTM -> Site 1 WAF -> Site 1 app
+    GTM -> Site 1 firewall -> Site 1 LTM -> Site 1 WAF -> Site 1 CFW -> Site 1 ELB/app
 
 Contingency:
 
     GTM -> Site 2 firewall -> Site 2 LTM -> Site 2 WAF
-        -> inter-site route -> Site 1 app
+        -> inter-site route -> Site 1 CFW -> Site 1 ELB/app
 
 Use when the local front-end/LTM/WAF tier is unavailable but the primary application remains healthy.
 
@@ -433,7 +469,7 @@ Primary risks:
 
 ## X2C — conventional full site/application failover
 
-    GTM -> Site 2 firewall -> Site 2 LTM -> Site 2 WAF -> Site 2 app
+    GTM -> Site 2 firewall -> Site 2 LTM -> Site 2 WAF -> Site 2 CFW -> Site 2 ELB/app
 
 Use when the primary application is unhealthy, its data/state cannot remain in Site 1, or route-back is unsafe/unavailable.
 
@@ -441,19 +477,19 @@ Use when the primary application is unhealthy, its data/state cannot remain in S
 
 Normal:
 
-    A1 -> B service VIP -> B1
+    App A @ Site 1 -> B service VIP -> App B @ Site 1
 
 Contingency:
 
-    A1 -> B service VIP -> B2
+    App A @ Site 1 -> B service VIP -> App B @ Site 2
 
 This is separate from external WAF recovery.
 
-A stable LTM/service VIP with local B1 at higher priority and B2 as lower-priority contingency can prevent a B1 failure from forcing A1 and other dependent applications to fail site.
+A stable LTM/service VIP with local App B at higher priority and remote App B as lower-priority contingency can prevent a B failure from forcing App A and other dependent applications to fail site.
 
 Cross-site dependency use requires:
 
-- B2 capacity;
+- remote B capacity;
 - acceptable latency;
 - data/state consistency;
 - authentication/service identity;
@@ -463,7 +499,7 @@ Cross-site dependency use requires:
 - connection refresh/re-resolution;
 - idempotency/reconciliation.
 
-If the application cannot safely retry/reconnect to B2, do not count XD1 as a valid end-to-end recovery path.
+If the application cannot safely retry/reconnect to remote B, do not count XD1 as a valid end-to-end recovery path.
 
 ## Common cross-site validation
 
@@ -646,7 +682,9 @@ Therefore a standalone direct GTM monitor can be materially slower than local LT
 
 For F5-to-F5 environments, prefer integrating BIG-IP DNS with LTM health via the BIG-IP monitor/iQuery where appropriate, and add application-level readiness checks where infrastructure health alone is insufficient.
 
-## T4 — DNS/site failover convergence
+## T4 — DNS/site-selection convergence after the health decision
+
+T4 begins **after** the relevant health state has changed. It represents DNS/site selection and client convergence, not passive-application startup or application-state restoration.
 
 ### DNS answer TTL
 
@@ -666,29 +704,29 @@ Do not confuse:
 - **GTM health-monitor interval/timeout** — how long GTM takes to decide an endpoint is unavailable; with many direct GTM HTTP/HTTPS/TCP monitors the documented defaults are 30s interval / 120s timeout; and
 - **DNS answer TTL** — how long an already-returned IP can remain cached; the documented GTM pool default is 30s.
 
-End-user site recovery is therefore:
+T4 is therefore:
 
 ```text
-health detection
- + GTM decision/update
+GTM decision/update
  + residual DNS TTL/cache
- + client/application reconnect or retry
- + alternate-site application readiness
+ + client re-resolution/retry to the selected endpoint
 ```
+
+If the alternate application must be started or made safe first, add **T5**. If the application/client must reconnect, re-authenticate, restore state or replay, add **T6**.
 
 ### Validated planning examples
 
 These are calculations from documented defaults, **not F5 SLAs**:
 
 1. **Direct GTM monitor model**
-   - health withdrawal: up to ~120s with default-style direct GTM monitor timeout;
-   - residual DNS answer TTL: up to ~30s;
-   - planning boundary before fresh DNS resolution: roughly **up to ~150s + T6**, assuming alternate site is already ready.
+   - T3 health withdrawal: up to ~120s with default-style direct GTM monitor timeout;
+   - T4 residual DNS answer TTL: up to ~30s;
+   - planning boundary before application recovery: roughly **up to ~150s + T6**, assuming the alternate site is already ready.
 
 2. **LTM health exported to GTM / iQuery model**
-   - local application/WAF-path health may be detected on the LTM's faster monitor timescale (for example ~16s with common defaults);
+   - local application/WAF-path health may be detected on the LTM's faster T2 timescale (for example ~16s with common defaults);
    - GTM/iQuery propagation must still be measured;
-   - if GTM changes its answer at about that point, residual DNS TTL can add up to ~30s;
+   - if GTM changes its answer at about that point, T4 residual DNS TTL can add up to ~30s;
    - an illustrative lower-latency planning case is therefore **~46s + T6**, but this is not a vendor guarantee and must be measured end-to-end.
 
 3. **Manual passive-site application**
@@ -715,7 +753,7 @@ T5 is intentionally not assigned a fixed F5 product time. It may be minutes or l
 Use T6 for application-specific recovery after the infrastructure path is available, including:
 
 - request retry;
-- reconnect/re-resolution;
+- reconnect/re-resolution where application behavior controls it;
 - re-authentication;
 - session/state restoration;
 - subscription restoration;
@@ -855,7 +893,6 @@ Official F5 references reviewed for this analysis:
 - Connection mirroring: https://techdocs.f5.com/en-us/bigip-14-1-0/big-ip-device-service-clustering-administration-14-1-0/managing-connection-mirroring.html
 - Advanced WAF/ASM connection-mirroring limitations (21.1): https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-asm-implementations/connection-mirroring-with-asm/connection-mirroring-limitations.html
 - Advanced WAF/ASM config synchronization: https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-asm-implementations/automatically-synchronizing-application-security-configurations.html
-
 
 # 10. Maintainability and change-management variables
 
@@ -1068,7 +1105,6 @@ At minimum monitor:
 
 Prefer service-level dashboards that show both **component state** and **actual end-to-end application availability**.
 
-
 # 11. Legacy inputs retained for confirmation
 
 The older root-level architecture papers contained some useful requirements and planning assumptions. They are preserved here only where they may still influence the current analysis.
@@ -1099,7 +1135,7 @@ An earlier paper proposed these **acceptance-test planning bands**, not measured
 
 These values are **not current committed recovery objectives**. Keep them only as candidate benchmarks until business/application owners agree targets.
 
-The current authoritative timing model remains T1-T7 in this file, and measured end-to-end service RTO should replace planning estimates.
+The current authoritative timing model remains **T1-T9** in this file and the canonical shorthand reference, and measured end-to-end service RTO should replace planning estimates.
 
 ## L3 — older topology-specific timing tables
 
