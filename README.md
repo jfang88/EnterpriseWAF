@@ -154,6 +154,10 @@ The baseline remains **two LTMs per site**.
 | **W2** | WAF HA cluster, with or without an ingress LTM |
 | **W3** | Tenant-preferred WAFs plus shared enterprise reserve WAFs |
 | **W4** | Asymmetric: Site 1 WAF HA cluster + extra active/spare WAF; Site 2 WAF HA cluster only |
+| **S1** | Tenant-specific LTM HA pairs feeding a shared independent active WAF pool |
+| **S2** | Shared LTM HA pair feeding a shared independent active WAF pool |
+
+**W1-W4 describe WAF topology patterns. S1/S2 describe tenancy/sharing patterns.** They are compared together in the executive summary because the final architecture decision needs both dimensions.
 
 Site-level GTM recovery is common to all topologies and is **not** a separate WAF topology.
 
