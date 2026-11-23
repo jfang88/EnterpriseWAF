@@ -220,20 +220,21 @@ The question is not "Is Site 1 down?" The question is "Which layer failed, and c
 
 ## 7. Cross-site benefit by WAF topology
 
+W1-W4 are assumed to exist with the same logical topology in both sites.
+
 | Topology | Benefit from route-back | Main drawback |
 |---|---|---|
-| W1 - independent WAF pool | High. Remote WAF can be lower-priority pool member | Connection reset on failed member; routing/capacity complexity |
-| W2 - WAF HA cluster | Medium. Most useful after whole local cluster loss | First failure already handled locally; remote transition is larger |
-| W3 - preferred WAFs + shared reserves | Very high. Reserve WAF can be local or remote | Reserve exhaustion and cross-tenant policy/capacity risk |
-| W4 - local cluster + local spare + remote cluster | High, but local spare should normally be used first | More recovery tiers and more testing |
-| W5 - per-site pools + GTM | Medium by design | Higher capacity cost, but cleaner failure domains |
+| W1 - independent WAF pool in each site | High. A Site 1 LTM can use a Site 2 WAF as lower-priority contingency if routing/policy allow it | Connection reset on failed member; routing/capacity complexity |
+| W2 - WAF HA cluster in each site | Medium. Most useful after whole local cluster loss | First failure already handled locally; remote transition is larger |
+| W3 - preferred WAFs + shared reserves in each site | Very high. Reserve WAF can be local or remote | Reserve exhaustion and cross-tenant policy/capacity risk |
+| W4 - cluster + local spare in each site | High, but local spare should normally be used before remote capacity | More recovery tiers and more testing |
 
 Practical interpretation:
 
 - W1 and W3 benefit most from X2A.
 - W4 should normally consume its local spare before crossing sites.
-- W5 deliberately favors local recovery and then site recovery rather than WAF hairpinning.
-- W2 gains less from remote borrowing because a first device failure is already handled by the WAF cluster.
+- W2 gains less from remote borrowing because the first device failure is already handled by the WAF cluster.
+- Conventional GTM failover to the equivalent topology in Site 2 remains available for **all** W1-W4 designs.
 
 ## 8. App A -> App B dependency routing
 
