@@ -89,10 +89,10 @@ application
 
 ## W3 — tenant-preferred WAFs plus shared enterprise reserve
 
-Per site, each tenant has its preferred WAF capacity behind its tenant LTM. One or more shared reserve WAFs may be available to multiple tenant pools.
+Per site, each tenant has its preferred WAF capacity behind a **tenant LTM service**. One or more shared reserve WAFs may be available to multiple tenant pools.
 
 ```text
-Tenant LTM pair
+Tenant LTM DSC service
     |
 +---+---+
 |       |
@@ -104,11 +104,112 @@ WAF1   WAF2
 R-WAF1     R-WAF2
 ```
 
-- Preferred tenant WAFs handle normal traffic.
-- Shared reserve WAFs can join a tenant pool when preferred WAF capacity is lost.
-- Shared reserve introduces cross-tenant capacity, policy-isolation and operational dependencies.
-- The same logical preferred-plus-reserve model may exist in Site 2.
-- Site-level GTM recovery remains available in addition to reserve-WAF recovery.
+Preferred tenant WAFs handle normal traffic. Shared reserve WAFs can join a tenant pool when preferred WAF capacity is lost.
+
+### W3-L2 — two-device tenant LTM Sync-Failover pair
+
+This is the baseline/default W3 LTM model.
+
+```text
+Tenant VIP / traffic group
+          |
+      LTM-A active
+      LTM-B standby
+          |
+ preferred/reserve WAFs
+```
+
+Benefits:
+
+- simplest DSC operating model;
+- mature active/standby failover;
+- one LTM member can be maintained while the peer serves traffic.
+
+Limitation:
+
+- during maintenance of one LTM, the tenant LTM service is effectively single-device;
+- complete loss of the LTM pair removes access to both preferred and reserve WAFs behind it.
+
+### W3-L3 — three-device tenant LTM Sync-Failover group
+
+F5 DSC supports up to **eight devices** in a Sync-Failover device group.
+
+For one tenant traffic group/VIP:
+
+```text
+Tenant VIP / traffic group
+          |
+      active: LTM-A
+ next-active: LTM-B
+ additional: LTM-C
+          |
+ preferred/reserve WAFs
+```
+
+A single traffic group is active on one BIG-IP at a time; three devices do **not** mean one tenant VIP is simultaneously active on all three.
+
+For multiple traffic groups, active load can be distributed:
+
+```text
+TG-A active on LTM-A
+TG-B active on LTM-B
+TG-C active on LTM-C
+```
+
+F5 supports ordered and load-aware next-active selection.
+
+Benefits:
+
+- one LTM can be removed for maintenance while **two LTMs still remain**;
+- subject to capacity, a second LTM failure during maintenance can be survived locally;
+- multiple traffic groups can be distributed across devices for better hardware utilisation;
+- lowers the chance that an ordinary LTM failure escalates into GTM/site recovery;
+- particularly useful in W3 because reserve WAFs are otherwise unreachable if the entire tenant LTM service is lost.
+
+Trade-offs:
+
+- all three devices remain a **single DSC/configuration change domain**;
+- a bad synchronized LTM/iRule/configuration can affect all three;
+- each traffic group still has one active owner and one next-active target at a time;
+- connection/state mirroring behavior must be validated for the chosen traffic-group/next-active design;
+- more failover order, capacity and operational testing is required;
+- three devices improve availability/maintenance headroom more than they improve a single VIP's throughput.
+
+### W3-LI — multiple independent LTMs
+
+Multiple independent LTMs are technically possible only when another mechanism distributes traffic to them, for example distinct VIPs, upstream routing/ECMP, firewall steering or GTM/DNS.
+
+This is **not** the preferred default for one tenant service because:
+
+- the front-door VIP/traffic ownership problem has to be solved elsewhere;
+- connection/persistence state is not shared automatically as one DSC service;
+- config consistency and rollback become more complex;
+- upstream health and routing become another failure domain;
+- troubleshooting becomes harder.
+
+Independent LTMs can make sense when they intentionally serve **different tenants, applications, VIP sets or fault domains**, rather than trying to behave as one HA LTM service.
+
+### W3 recommendation
+
+Use **W3-L2** as the simple default.
+
+Consider **W3-L3** when:
+
+- 99.95%/maintenance requirements justify retaining redundancy while one LTM is out for change;
+- there are enough traffic groups to distribute useful active load;
+- the third device's capacity is genuinely available during failure;
+- operational teams can manage/test the additional DSC complexity.
+
+Do not add a third LTM solely to make a two-device HA pair "more clustered." Its strongest business case is **maintenance + second-failure tolerance** and multi-traffic-group utilisation.
+
+Shared reserve WAF risks remain:
+
+- cross-tenant capacity contention;
+- policy isolation;
+- reserve policy readiness;
+- reserve exhaustion during concurrent tenant failures/maintenance.
+
+The same logical preferred-plus-reserve model may exist in Site 2. Site-level GTM recovery remains available in addition to local LTM/WAF recovery.
 
 ## W4 — asymmetric WAF cluster plus extra active/spare node in Site 1
 
@@ -585,6 +686,8 @@ Official F5 references reviewed for this analysis:
 - BIG-IP LTM monitor settings: https://techdocs.f5.com/en-us/bigip-16-0-0/big-ip-local-traffic-manager-monitors-reference/monitors-settings-reference.html
 - BIG-IP DNS monitor settings: https://techdocs.f5.com/en-us/bigip-14-0-0/big-ip-dns-monitors-reference/monitors-settings-reference.html
 - BIG-IP DNS/GTM A-record pool TTL (default 30s): https://clouddocs.f5.com/api/icontrol-rest/APIRef_tm_gtm_pool_a.html
+- BIG-IP DSC Sync-Failover device groups (maximum eight devices): https://techdocs.f5.com/en-us/bigip-14-1-0/big-ip-device-service-clustering-administration-14-1-0/working-with-device-groups.html
+- BIG-IP DSC traffic groups / ordered and load-aware failover: https://techdocs.f5.com/en-us/bigip-14-1-0/big-ip-device-service-clustering-administration-14-1-0/managing-failover.html
 - BIG-IP LTM current health monitoring: https://techdocs.f5.com/en-us/bigip-17-0-0/big-ip-local-traffic-manager-implementations/implementing-health-and-performance-monitoring.html
 - BIG-IP pool action when service becomes unavailable: https://techdocs.f5.com/content/kb/en-us/products/big-ip_ltm/manuals/product/ltm-basics-13-0-0/_jcr_content/pdfAttach/download/file.res/BIG-IP_Local_Traffic_Management__Basics.pdf
 - BIG-IP DNS + LTM integration/iQuery: https://techdocs.f5.com/en-us/bigip-17-5-0/big-ip-dns-implementations/integrating-big-ip-dns-into-a-network-with-big-ip-ltm-systems.html
