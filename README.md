@@ -14,7 +14,13 @@ For the document map and reading order, see:
 
 - [Enterprise scenario analysis index](./enterprise-scenarios/README.md)
 
-For the executive decision and final recommendation, start with:
+For the high-level architecture and entity/relationship view, start with:
+
+- [High-level EnterpriseWAF architecture](./enterprise-scenarios/high_level_architecture.md)
+
+This is the canonical diagram for external/internal consumers, DNS namespaces, network paths, LTM/WAF/CFW/ELB layers, application hosting and App A -> B -> C/D dependencies.
+
+For the executive decision and final recommendation, then read:
 
 - [Executive architecture and 99.95% recommendation](./enterprise-scenarios/executive_recommendation.md)
 
@@ -82,6 +88,14 @@ Supported application types include:
 4. non-web/L4 applications that may bypass the WAF.
 
 ## Analysis lenses
+
+### High-level architecture
+
+Primary entity/relationship and traffic-path view:
+
+- [High-level EnterpriseWAF architecture](./enterprise-scenarios/high_level_architecture.md)
+
+This distinguishes generic network/application-delivery infrastructure from the WAF enforcement platform and the **application-coupled WAF policy**.
 
 ### Executive recommendation
 
@@ -194,5 +208,7 @@ The consolidated enterprise scenario analysis is now published on `main`.
 Use these as the primary entry points:
 
 - [Repository README](./README.md)
+- [High-level EnterpriseWAF architecture](./enterprise-scenarios/high_level_architecture.md) — **canonical entity/relationship and traffic-path view**
+- [Executive architecture and 99.95% recommendation](./enterprise-scenarios/executive_recommendation.md)
 - [Enterprise scenario analysis index](./enterprise-scenarios/README.md)
 - [End-to-end service impact and recoverability analysis](./enterprise-scenarios/end_to_end_service_impact_analysis.md) — **primary resilience/recovery document**
