@@ -61,7 +61,71 @@ The two sites are separate infrastructure and routing failure domains.
 
 ---
 
-## 2.2 Hosting-environment ingress
+## 2.2 Enterprise tenant / hosting-environment model
+
+The wider enterprise may contain approximately **3 or 4 tenants / hosting environments**.
+
+A **tenant** in this document means a network, infrastructure and security context used to host and protect a suite of related enterprise applications. It does **not** mean an external customer.
+
+A tenant may contain multiple interconnected systems, for example:
+
+```text
+Tenant / Hosting Environment 1
+ |
+ +---- Application A
+ +---- Application B
+ +---- Application C
+```
+
+Different tenants may have separate or logically isolated instances/contexts of:
+
+- edge firewall HA pairs and firewall-owned VIPs;
+- GTM / BIG-IP DNS;
+- LTM;
+- WAF;
+- routing and leased-line termination;
+- application ELB/service endpoints;
+- private-cloud firewall contexts;
+- application services and dependencies.
+
+Some infrastructure may instead be shared across tenants. The design must therefore record whether a component is:
+
+- **tenant-dedicated**;
+- **shared by selected tenants**; or
+- **enterprise-wide shared**.
+
+That distinction determines cross-tenant failure blast radius.
+
+### Default modelling rule
+
+To keep architecture comparisons and failure scenarios understandable, **simple examples should model one representative tenant only**.
+
+Unless a scenario explicitly says otherwise, assume:
+
+```text
+One representative tenant
+  + two sites
+  + four leased-line access paths per site
+  + two HA edge-firewall pairs per site
+  + that tenant's GTM/LTM/WAF/application stack
+  + that tenant's suite of applications
+```
+
+The same logical pattern can then be repeated for Tenant 2, Tenant 3 and Tenant 4.
+
+Only introduce multi-tenant complexity when it changes the result, for example:
+
+- a GTM service is shared by several tenants;
+- an LTM or WAF pair serves several tenant environments;
+- a firewall/routing component is shared;
+- a private-cloud service is a common dependency;
+- failure of shared infrastructure could affect multiple application suites.
+
+When a shared component is present, explicitly identify the **cross-tenant blast radius**. Otherwise, keep the worked example scoped to one tenant.
+
+---
+
+## 2.3 Hosting-environment ingress
 
 In this document, a **tenant means an internal hosting environment for a suite of enterprise systems/applications**. It does **not** mean an external customer or user organisation.
 
@@ -101,7 +165,7 @@ Do not assume the four lines are truly independent unless carrier, physical rout
 
 ---
 
-## 2.3 External application VIP ownership
+## 2.4 External application VIP ownership
 
 The externally reachable application VIPs **live on the firewall tier**.
 
@@ -132,7 +196,7 @@ The firewall tier may provide:
 
 DNS/GTM is a **resolution/control plane**, not an inline application-data hop.
 
-There may be **two GTM/DNS instances or listeners per site**:
+For the representative tenant, there may be **two GTM/DNS instances or listeners per site**. In the wider enterprise these may be tenant-dedicated or shared; simple examples should assume the representative tenant's logical GTM service unless shared tenancy is the failure being analysed:
 
 ```text
 Site 1                    Site 2
@@ -699,6 +763,9 @@ For every scenario, produce a table with:
 
 | Field | Required analysis |
 |---|---|
+| Tenant scope | Representative tenant by default; identify other tenants only if shared infrastructure is involved |
+| Component tenancy | Tenant-dedicated or shared |
+| Cross-tenant impact | None by default; explicitly state if shared infrastructure expands the blast radius |
 | Scenario ID | Failure being tested |
 | Actor/path | P1-P13 or other declared path |
 | Failed component | Exact component/tier |
