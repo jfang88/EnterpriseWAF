@@ -17,6 +17,112 @@ There is no single topology that guarantees 99.95% availability. The target is c
 - alternate-site applications, dependencies and data are actually ready;
 - common-mode configuration changes are staged and reversible.
 
+## 1.1 Topology names used in this document
+
+The shorthand is used only to keep the comparison tables compact. Read the descriptions below before the ranking.
+
+| ID | Plain-English description | Normal traffic model | Main trade-off |
+|---|---|---|---|
+| **W1** | **Tenant/dedicated LTM pair in front of independent active WAFs** | LTM load-balances the same service across 2..N active WAFs | Strong horizontal scale and maintenance flexibility; failed sockets normally reconnect |
+| **W2** | **WAF HA/DSC cluster**, optionally behind an LTM | One WAF owns a traffic group; peer is HA standby for that traffic group | Simple HA and possible connection mirroring, but pair/cluster is a hard local boundary |
+| **W3** | **Tenant LTM pair + tenant-preferred WAFs + shared reserve WAFs** | Preferred WAFs serve normally; shared reserve is contingency capacity | Keeps normal-state tenant separation but introduces shared reserve governance/contention |
+| **W4** | **Asymmetric cluster design**: Site 1 WAF HA cluster + extra WAF; Site 2 cluster only | Site 1 has extra local capacity; Site 2 has only the cluster | Stronger Site 1 resilience but asymmetric DR/maintenance |
+| **S1** | **Tenant-specific LTM pairs feeding one shared independent active WAF pool** | Four tenant LTM pairs share a horizontally active WAF pool | Best cost/resilience candidate if aggregate capacity and tenant policy isolation are strong |
+| **S2** | **Shared LTM pair + shared independent active WAF pool** | Tenants share both ingress LTM and WAF capacity | Lowest device count among active-pool options, but much larger common failure/change domain |
+
+### W1 — dedicated independent WAF pool
+
+~~~text
+Tenant firewall/VIP
+       |
+  2-LTM HA pair
+       |
+ +-----+-----+-----+
+ |     |     |     |
+WAF1  WAF2  WAF3  ...   all active pool members
+       |
+      CFW
+       |
+     ELB/app
+~~~
+
+### W2 — WAF HA cluster
+
+~~~text
+Tenant firewall/VIP
+       |
+ [2-LTM HA pair]
+       |
+ WAF-A ACTIVE
+ WAF-B standby
+       |
+      CFW
+       |
+     ELB/app
+~~~
+
+A traffic group has one active WAF owner. This is not the same as W1 where several independent WAFs process the same service concurrently.
+
+### W3 — preferred tenant WAFs plus shared reserve
+
+~~~text
+Tenant 2-LTM HA pair
+       |
+  preferred WAF1 + WAF2
+       |
+       +------ shared reserve WAF(s)
+       |
+      CFW -> ELB/app
+~~~
+
+Each tenant retains its preferred WAF capacity. Reserve WAFs are shared only for failure/maintenance capacity.
+
+### W4 — asymmetric cluster + extra Site 1 WAF
+
+~~~text
+Site 1                         Site 2
+2-LTM pair                     2-LTM pair
+   |                              |
+WAF HA cluster                WAF HA cluster
+   |
+extra WAF
+~~~
+
+### S1 — tenant LTMs + shared active WAF pool
+
+~~~text
+Tenant 1 LTM pair --\
+Tenant 2 LTM pair ---\
+Tenant 3 LTM pair ----> shared WAF1/WAF2/WAF3/WAF4...
+Tenant 4 LTM pair ---/             |
+                                  CFW/ELB/app paths
+~~~
+
+The shared WAFs are **independent active pool members**, not one HA cluster. This is the current preferred cost/resilience option to validate.
+
+### S2 — shared LTM + shared active WAF pool
+
+~~~text
+Tenants 1..4
+     |
+ shared 2-LTM HA pair
+     |
+ shared active WAF pool
+     |
+ tenant/application CFW/ELB paths
+~~~
+
+This saves more devices than S1 but also makes the LTM tier a four-tenant common failure/change domain.
+
+### Cross-site shorthand used later
+
+- **X2A** — local LTM borrows a remote-site WAF and routes back to the healthy local CFW/application.
+- **X2B** — remote-site front end (firewall/LTM/WAF) serves the client and routes back to the healthy primary-site CFW/application.
+- **X2C** — conventional full application/site failover.
+- **XD1** — App A stays local but uses a healthy App B in the alternate site.
+
+For the detailed topology/cost analysis see [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md).
+
 For the current four-tenant comparison, the recommended decision order is:
 
 | Rank | Option | Recommendation |
