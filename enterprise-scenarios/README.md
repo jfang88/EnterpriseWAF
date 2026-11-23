@@ -155,7 +155,7 @@ When re-running the work:
 For quick access:
 
 - **Primary failure/resilience result:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)
-  - **Timing summary:** see sections 4.2–4.3 for validated LTM/GTM/DNS recovery windows and cache/connection behavior
+  - **Timing summary:** see sections 4.2–4.4 for validated LTM/GTM/DNS recovery windows, CFW recovery effects, and cache/connection behavior
 - **Technical failure matrix:** [common_failure_matrix.md](./common_failure_matrix.md)
 - **Maintainability result:** [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md)
 - **Cross-site result:** [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md)
