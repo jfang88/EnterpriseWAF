@@ -1,5 +1,8 @@
 # Common Failure Matrix — Enterprise WAF Topology Options
 
+**Analysis lens:** Failure/recovery (Lens 1)  
+**Separate Lens 2:** [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md)
+
 **Inputs**
 
 - Stable baseline: [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)
