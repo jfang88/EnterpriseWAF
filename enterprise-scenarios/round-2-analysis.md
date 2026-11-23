@@ -12,6 +12,27 @@ The base invariants and reusable scenario prompt remain in:
 
 This round should focus on comparing the same enterprise environment under a small number of explicit design options.
 
+## Enterprise scope and modelling simplification
+
+The wider organisation may operate approximately **3 or 4 tenants / hosting environments**, each supporting a different suite of applications and potentially using separate or logically isolated GTM, LTM, WAF, edge-firewall and routing contexts.
+
+For clarity, the worked diagrams and failure tables in this Round 2 analysis should normally use **one representative tenant**.
+
+Assume the representative tenant contains:
+
+- its external-user leased-line access paths;
+- two HA edge-firewall pairs per site;
+- the relevant GTM/DNS service;
+- the relevant LTM/WAF tiers;
+- on-premises/private-cloud application delivery;
+- multiple application types;
+- possible Application A -> Application B dependencies.
+
+The same model can be replicated for the other tenant environments.
+
+Only expand a scenario across multiple tenants where infrastructure is explicitly shared and the shared component materially changes the blast radius. In those cases, state which other tenant/application suites are affected.
+
+
 ## Primary comparison
 
 ### Option 1 — Clustered WAF + local-only routing
@@ -409,6 +430,9 @@ For every scenario capture:
 
 | Field | Description |
 |---|---|
+| Tenant scope | One representative tenant by default; identify multi-tenant scope only for shared infrastructure |
+| Component tenancy | Dedicated to the tenant or shared |
+| Cross-tenant impact | Whether another tenant/application suite is affected |
 | Scenario | Exact injected failure |
 | Actor/path | External user, internal user, App A -> B, etc. |
 | Application type | Stateless web, stateful web, socket/WebSocket, or non-web |
