@@ -4,7 +4,8 @@
 **Stable baseline:** [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)  
 **Changeable assumptions:** [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)  
 **Technical component matrix:** [common_failure_matrix.md](./common_failure_matrix.md)  
-**Cross-site/dependency detail:** [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md)
+**Cross-site/dependency detail:** [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md)  
+**Deployment/topology summary:** [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md)
 
 ## 1. Purpose
 
@@ -326,6 +327,23 @@ The table below intentionally describes the **service/user outcome first**.
 | **Non-web service LTM/route/backend fails** | Protocol-specific | Protocol-specific reconnect | Internal/system impact depends on protocol | Dependencies may fail | T1/T2/T4 + protocol-specific T6 | **Conditional** on client retry/reconnect semantics |
 
 ---
+
+## 5.1 Shared multi-tenant service failures
+
+When LTM or WAF capacity is shared across tenants, the same hardware failure can have a larger service impact than in a dedicated topology.
+
+| Shared failure | Dedicated-tenant outcome | Shared-service outcome | Recovery implication |
+|---|---|---|---|
+| one shared WAF node | one tenant normally unaffected unless its own pool loses capacity | all tenants share reduced capacity | prove aggregate N-1 capacity |
+| two shared WAF nodes | dedicated failure stays within one tenant | several/all tenants can become capacity constrained or lose WAF service | prove aggregate N-2 or invoke cross-site capacity |
+| shared WAF policy/config error | one tenant if policy boundary is dedicated | several/all tenants may fail simultaneously | topology redundancy does not fix common-mode policy error |
+| shared WAF pool lost | one tenant loses local WAF tier | four-tenant external ingress can fail together | Site 2/cross-site WAF must absorb aggregate load |
+| shared LTM service lost | tenant-specific pair only affects one tenant | all tenants behind shared LTM lose local ingress | much larger GTM/site failover blast radius |
+| shared reserve exhausted | dedicated tenants remain independent | one tenant's recovery can consume another tenant's contingency capacity | reserve admission/prioritization required |
+
+For a four-tenant shared pool, cross-site recovery must be sized for the **credible simultaneous tenant blast radius**, not just the largest single tenant.
+
+A shared pool can reduce device count and improve aggregate utilisation, but the service RTO may worsen if one shared common-mode failure causes multiple applications/tenants to perform GTM/site failover together.
 
 ## 6.1 Namespace-specific failure interpretation
 
