@@ -745,3 +745,51 @@ At minimum monitor:
 - external versus internal user path health.
 
 Prefer service-level dashboards that show both **component state** and **actual end-to-end application availability**.
+
+
+# 11. Legacy inputs retained for confirmation
+
+The older root-level architecture papers contained some useful requirements and planning assumptions. They are preserved here only where they may still influence the current analysis.
+
+## L1 — user-impact threshold from earlier analysis
+
+An earlier design document used a business rule that the service/trading operation could remain open only while **less than 25% of users were affected**.
+
+This is **not currently treated as an invariant** because it has not been reconfirmed in the current baseline.
+
+If the requirement still applies, promote it into `enterprise_scenario_invariants.md` and analyse every external access failure domain against it.
+
+Important consequence:
+
+- four equal client/access pools imply one pool = 25%;
+- a strict `<25%` rule would therefore fail if one complete equal-sized pool is lost;
+- a firewall pair serving two such pools could create roughly 50% blast radius, depending on actual routing/population allocation.
+
+Do not assume 25% from circuit count. Use the real user distribution.
+
+## L2 — earlier candidate recovery bands
+
+An earlier paper proposed these **acceptance-test planning bands**, not measured SLAs:
+
+- local automated-path recovery: approximately **<=2 minutes p95**;
+- alternate-ingress/site recovery: approximately **<=15 minutes p95**, only where the alternate application/data are already ready and reachable;
+- manual DR/dependency recovery: no defensible upper bound until an application-specific RTO/runbook exists.
+
+These values are **not current committed recovery objectives**. Keep them only as candidate benchmarks until business/application owners agree targets.
+
+The current authoritative timing model remains T1-T7 in this file, and measured end-to-end service RTO should replace planning estimates.
+
+## L3 — older topology-specific timing tables
+
+The old V3/V4 failure matrices assumed a specific topology of clustered plus standalone GTM/LTM/WAF services and used release-era defaults such as GTM 30s/90s.
+
+Those exact matrices are not current design inputs.
+
+Retain only the general lessons:
+
+- monitor choice materially changes recovery time;
+- application-level health is stronger than port-only health;
+- DNS cache/resolver behavior is part of site recovery;
+- user/session recovery may exceed infrastructure recovery.
+
+Use the current F5 timing assumptions and validate against the actual deployed BIG-IP version/configuration.
