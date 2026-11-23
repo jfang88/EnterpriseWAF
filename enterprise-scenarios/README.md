@@ -146,11 +146,12 @@ When re-running the work:
 1. Read [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md).
 2. Read [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md).
 3. Use [enterprise_scenario_analysis_prompt.md](./enterprise_scenario_analysis_prompt.md).
-4. Regenerate/review [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md).
-5. Regenerate/review [common_failure_matrix.md](./common_failure_matrix.md) as the technical supporting matrix.
-6. Regenerate/review [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md).
-7. Update [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md) if cross-site assumptions changed.
-8. Use the [archive](../archive/README.md) only for historical traceability; do not promote archived assumptions implicitly.
+4. Regenerate/review [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md).
+5. Regenerate/review [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md).
+6. Regenerate/review [common_failure_matrix.md](./common_failure_matrix.md) as the technical supporting matrix.
+7. Regenerate/review [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md).
+8. Update [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md) if cross-site assumptions changed.
+9. Use the [archive](../archive/README.md) only for historical traceability; do not promote archived assumptions implicitly.
 
 ## Output locations
 
