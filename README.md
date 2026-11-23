@@ -28,6 +28,16 @@ Then use:
 
 - [Deployment options, resilience and four-tenant cost summary](./enterprise-scenarios/deployment_options_resilience_summary.md) for the detailed option comparison
 
+## Management artifacts
+
+The current management presentation is version-controlled under [management-artifacts/](./management-artifacts/):
+
+- [PowerPoint management summary](./management-artifacts/EnterpriseWAF_Management_Summary.pptx)
+- [PDF management summary](./management-artifacts/EnterpriseWAF_Management_Summary.pdf)
+- [End-to-end topology diagram](./management-artifacts/diagrams/EnterpriseWAF_End_to_End_Topology.svg)
+
+Use these stable filenames from `main`; Git history provides versioning. Older `_v2/_v3/_v4/_v5` files and Base64 fragments on working branches are non-authoritative.
+
 ## Current analysis structure
 
 The analysis is deliberately separated into **stable inputs**, **changeable inputs**, and **derived outputs** so that new design options can be evaluated without constantly shifting the baseline.
