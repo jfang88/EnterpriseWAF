@@ -65,6 +65,8 @@ The baseline currently models:
 - W4 as the deliberate asymmetric exception;
 - edge-firewall-owned external application VIPs;
 - private leased-line external-user ingress;
+- separate external and internal DNS namespaces;
+- internal users/applications using internal enterprise DNS, with selected internal service names optionally delegated/forwarded to GTM;
 - internal users potentially bypassing WAF;
 - on-prem, VM, Kubernetes and PaaS application hosting;
 - App A -> App B -> App C and shared-dependency chains.
