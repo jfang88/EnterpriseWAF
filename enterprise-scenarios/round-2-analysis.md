@@ -286,6 +286,31 @@ This class must be analysed separately from WAF-protected web traffic. A WAF out
 
 For every failure scenario in this document, state which application type is being analysed because the same infrastructure failure can have very different user-visible outcomes.
 
+
+### Application-type failure lens
+
+Application type is a mandatory analysis dimension. The infrastructure recovery path may be identical while the application/user recovery is different.
+
+| Failure event | Stateless web | Stateful web | Socket / WebSocket | Non-web bypassing WAF |
+|---|---|---|---|---|
+| One WAF node fails | Retry/new request through healthy WAF; usually low impact | New requests can move, but persistence/session portability must be checked | Existing sockets on failed path normally reconnect and restore state | Normally no impact because WAF is not in path |
+| Entire local WAF tier fails | External web requires alternate WAF/site; internal direct-ELB users may remain healthy | Same infrastructure recovery, plus session/state portability check | All affected sockets reconnect; resubscription/replay may be required | Normally unaffected unless it shares the failed LTM/firewall/route |
+| One LTM node fails | HA/LB recovery; in-flight request may retry | Same, but persistence mappings and session affinity must be validated | Connections through failed node may reset and reconnect | L4 service may reset/reconnect depending on protocol |
+| Backend/VM/Pod fails | ELB/LB selects another healthy member | Requires state/persistence recovery if state was local | Socket reconnect may land on another backend; durable state/replay required | Protocol-specific retry and state recovery |
+| ELB/service VIP fails | Select alternate healthy ELB/service or site | State service and persistence must also remain available | Reconnect to alternate endpoint and restore logical session | L4/DNS/routing recovery; WAF irrelevant |
+| DNS/GTM changes site | Next/new requests use alternate reachable VIP | Alternate site must have compatible session/data state | Existing socket does not move; reconnect/re-resolve required | New connections use alternate endpoint if protocol/client re-resolves |
+| Cross-site contingency activated | Usually transparent after retry if backend is reachable | Validate latency, persistence, data/state locality and transaction safety | Reconnect likely; remote latency/state recovery matters | Depends on whether protocol is approved for cross-site routing |
+| Inter-site route fails while local healthy | No impact if local path remains selected | No impact if state is local/healthy | No impact to local sockets; remote sockets fail | No impact to local path |
+| Inter-site route fails while remote contingency is active | Fall back locally if possible, otherwise fail/retry/site switch | Risk of losing remote state/session path; recovery may be larger | Remote sockets break and must reconnect to another valid path | Protocol-specific reconnect/failover |
+| Full site fails | GTM/DNS selects ready alternate site | Requires state/data availability at alternate site | Reconnect, re-authenticate, restore/replay state | Reconnect/re-resolve using protocol-specific alternate-site design |
+
+Every scenario should therefore answer **two separate questions**:
+
+1. **Infrastructure recovery:** which firewall/LTM/WAF/ELB/site path becomes active?
+2. **Application recovery:** what must this application type do after that infrastructure change?
+
+Do not call an infrastructure failover successful until the application-type-specific recovery requirement is also satisfied.
+
 ## Common control-plane choices
 
 Analyse DNS/GTM separately from the WAF architecture:
@@ -318,6 +343,17 @@ Per hosting environment, per site:
 - internal users may connect directly to an internal ELB/service path and bypass the external WAF tier.
 
 ## Round-2 failure studies
+
+Apply each failure to all three topology options **and to each applicable application type**. A scenario is incomplete if it only states that the infrastructure failed over successfully without explaining the application-specific consequence.
+
+At minimum, distinguish:
+
+- stateless web;
+- stateful web;
+- socket/WebSocket/long-lived connection;
+- non-web service bypassing WAF.
+
+Where a failure is irrelevant to an application type (for example, a WAF-node failure for a non-web service that truly bypasses the WAF), record **No direct impact from this layer** rather than omitting the application type.
 
 Apply each failure to all three options wherever relevant.
 
@@ -375,6 +411,9 @@ For every scenario capture:
 |---|---|
 | Scenario | Exact injected failure |
 | Actor/path | External user, internal user, App A -> B, etc. |
+| Application type | Stateless web, stateful web, socket/WebSocket, or non-web |
+| State location | None/shared/local/session store/database/durable stream/etc. |
+| Persistence/affinity | Whether LTM/ELB/backend affinity is required |
 | Failed component | Component or tier that failed |
 | What remains healthy | Explicit unaffected services |
 | Detection | Which layer notices the failure |
@@ -384,7 +423,9 @@ For every scenario capture:
 | External-user impact | Which leased-line populations are affected |
 | Internal-user impact | Whether internal ELB/service access remains available |
 | A -> B impact | Dependency behaviour |
-| Session impact | HTTP retry, TCP reset, WebSocket reconnect, etc. |
+| Session impact | HTTP retry, re-login, TCP reset, WebSocket reconnect, protocol reconnect, etc. |
+| Application recovery | Retry only, restore session, re-authenticate, resubscribe, replay/reconcile, protocol-specific recovery |
+| State portability | Whether required state is available after member/site change |
 | Cascading risk | Whether unrelated apps/site are forced to move |
 | Capacity impact | Remaining local/remote capacity |
 | Manual action | Any operator action required |
@@ -404,7 +445,9 @@ In particular:
 - loss of the entire local WAF tier should not force application failover when a safe remote WAF path exists;
 - failure of App B should not force App A and every other dependent application to move sites when a safe B2 contingency exists;
 - loss of cross-site routing should remove contingency options but should not break healthy local services;
-- a full site move should remain the final recovery level.
+- a full site move should remain the final recovery level;
+- infrastructure failover should not be considered complete until the relevant application type has recovered its required session, state, connection or protocol context;
+- non-web services should not be marked unavailable merely because the WAF tier is unavailable when their approved path bypasses WAF.
 
 ## Working decisions / TBDs
 
@@ -428,8 +471,9 @@ This branch should ultimately produce:
 1. a stable end-to-end context diagram;
 2. a three-option architecture comparison;
 3. a common failure matrix applied across all options;
-4. explicit external-user, internal-user and App A -> App B outcomes;
-5. cascading-failure analysis;
-6. cross-site routing pros/cons and prerequisites;
-7. recommended architecture and unresolved decisions;
-8. updates to the canonical architecture/failure documents only after this analysis has been reviewed.
+4. an application-type impact matrix showing how each failure differs for stateless web, stateful web, socket/WebSocket and non-web services;
+5. explicit external-user, internal-user and App A -> App B outcomes;
+6. cascading-failure analysis;
+7. cross-site routing pros/cons and prerequisites;
+8. recommended architecture and unresolved decisions;
+9. updates to the canonical architecture/failure documents only after this analysis has been reviewed.
