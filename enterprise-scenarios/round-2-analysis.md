@@ -33,81 +33,190 @@ The same model can be replicated for the other tenant environments.
 Only expand a scenario across multiple tenants where infrastructure is explicitly shared and the shared component materially changes the blast radius. In those cases, state which other tenant/application suites are affected.
 
 
-## Primary comparison
+## Candidate WAF topology comparison
 
-### Option 1 — LTM-fronted scalable WAF pool
+The WAF design is the main topology variable for this round. Unless otherwise stated, use one representative tenant and hold the surrounding firewall, DNS/GTM, application type and application hosting assumptions constant.
 
-The first WAF topology is a **pool of WAF devices behind a pair of LTMs**.
-
-Representative path:
+### Option 1 — LTM-fronted scalable independent WAF pool
 
 ```text
-Firewall-owned application VIP
-            |
-        LTM HA pair
-            |
-     +------+------+------+
-     |             |      |
-    WAF1          WAF2   WAF3 ... WAFn
-     |             |      |
-     +------+------+------+
-            |
-      protected backend
-      application VIP(s)
+Firewall-owned VIP
+        |
+    LTM HA pair
+        |
+ +------+------+------+--->
+ |      |      |
+WAF1   WAF2   WAF3 ... WAFn
+        |
+ protected backend application VIPs
 ```
 
-Key characteristics:
+- Starts with 2 WAF devices but can scale to 3 or more based on traffic, inspection load and resilience requirements.
+- WAFs are independent active pool members.
+- LTM selects healthy WAF members and removes failed members.
+- Capacity must be assessed for N, N-1 and, where required, N-2 conditions.
+- A single WAF failure should normally remain a pool-member event rather than becoming an application/site failover.
+- Bad policy/configuration distributed to the entire pool is a separate common-mode failure.
 
-- the LTM tier presents the upstream service and load-balances traffic across the WAF pool;
-- the WAF pool may initially contain **2 WAF devices**;
-- the pool can scale horizontally to **3 or more WAF devices** when traffic, throughput, inspection load or resilience requirements increase;
-- WAF devices are treated as pool members rather than as a fixed two-node active/standby WAF pair;
-- each WAF may expose or use the required downstream/application-facing VIPs or protected service definitions to reach the backend applications;
-- LTM health monitoring should remove an unhealthy WAF member from service;
-- planned maintenance should allow a WAF member to be drained/removed without taking the whole protected service down;
-- total capacity should be assessed under degraded conditions, e.g. whether the remaining WAF members can carry the load after loss of one member;
-- the failure analysis must distinguish **one WAF member failure**, **multiple member failure**, and **loss of the entire WAF pool**;
-- the failure analysis must also distinguish **one LTM member failure** from **loss of the entire LTM HA pair**;
-- cross-site routing is a separate design decision and must not be assumed as part of this option unless explicitly enabled.
+### Option 2 — WAF cluster, with or without LTM in front
 
-For this option, the normal local-site data path is:
+Two variants should be compared where relevant.
+
+**2A — WAF cluster without an ingress LTM**
 
 ```text
-External user
- -> leased-line path
- -> edge firewall / firewall-owned VIP
- -> LTM HA pair
- -> selected healthy WAF pool member
- -> application / ELB / private-cloud path
+Firewall-owned VIP
+        |
+   WAF HA cluster
+        |
+ protected application
 ```
 
-Capacity/failure questions to include:
+**2B — LTM in front of the WAF cluster**
 
-1. With 2 WAFs, can one surviving WAF carry the full required peak load?
-2. With 3+ WAFs, what N+1 or N+2 capacity target is required?
-3. How quickly does the LTM stop sending new traffic to a failed/unhealthy WAF?
-4. What happens to existing HTTP, stateful-web and socket/WebSocket connections pinned to that WAF?
-5. Does the downstream application path remain reachable from every WAF pool member?
-6. Are WAF policies/configuration consistent across all pool members?
-7. Can a new WAF be added to the pool without service interruption?
-8. What is the blast radius of a bad policy/configuration pushed to every WAF member?
+```text
+Firewall-owned VIP
+        |
+    LTM HA pair
+        |
+   WAF HA cluster
+        |
+ protected application
+```
 
-### Option 2 — LTM-balanced active WAFs + local-only routing
+Considerations:
 
-- firewall-owned external VIP;
-- LTM balances multiple active WAF nodes;
-- normal application traffic remains in the local site;
-- no cross-site WAF borrowing;
-- no cross-site App A -> App B contingency unless separately declared.
+- the WAF cluster is treated as a single HA service;
+- failure of one WAF cluster member should be distinguished from loss of the complete cluster;
+- clustered state/connection behaviour may differ from an independent pool;
+- Variant 2B adds an LTM failure domain but may provide better traffic steering, health monitoring and consistency with other topologies;
+- capacity scaling may be less flexible than adding independent pool members, depending on the final F5 deployment model.
 
-### Option 3 — LTM-balanced active WAFs + controlled cross-site contingency
+### Option 3 — Tenant-preferred WAFs with shared reserve WAFs
 
-- firewall-owned external VIP;
-- LTM balances local active WAF nodes;
-- local resources remain preferred;
-- remote WAF capacity may be available as lower-priority contingency;
-- App A may use a healthy remote App B endpoint where explicitly permitted;
-- inter-site routing is a recovery path, not a normal dependency.
+Each tenant has its own LTM HA pair and preferred WAF capacity, while a small number of WAFs are held as shared enterprise contingency capacity.
+
+```text
+Tenant A LTM pair                  Tenant B LTM pair
+       |                                 |
+ +-----+-----+                      +-----+-----+
+ |           |                      |           |
+A-WAF1     A-WAF2                 B-WAF1     B-WAF2
+       \                             /
+        \                           /
+         +---- shared WAF-R1 -------+
+         +---- shared WAF-R2 -------+
+```
+
+Normal traffic uses tenant-preferred WAFs. Shared reserve WAFs can be activated into the required tenant pool after single or multiple WAF failures.
+
+Analyse explicitly:
+
+- single preferred-WAF failure;
+- both preferred WAFs for one tenant failing;
+- failures in two tenants at the same time;
+- reserve WAF capacity exhaustion;
+- how tenant-specific WAF policy/configuration is loaded and validated on reserve nodes;
+- whether reserve WAFs can safely serve more than one tenant concurrently;
+- tenant/network segmentation and route reachability;
+- connection/persistence impact when traffic moves to a reserve WAF;
+- whether shared reserve creates a cross-tenant common-mode failure or operational dependency.
+
+Two reserve WAFs should not be assumed to protect every tenant against simultaneous failure without a capacity model.
+
+### Option 4 — Local WAF cluster + local spare + second-site WAF cluster
+
+A more layered resilience model can combine clustered WAFs with an additional local contingency member.
+
+```text
+SITE 1
+Firewall VIP
+    |
+LTM HA pair
+    |
+    +---- WAF cluster: WAF1 + WAF2
+    |
+    +==== WAF3 local spare
+
+SITE 2
+Firewall VIP
+    |
+LTM HA pair
+    |
+    +---- WAF cluster: WAF4 + WAF5
+```
+
+Possible behaviour:
+
+- Site 1 cluster handles normal traffic.
+- WAF3 is a hot/warm spare or lower-priority pool member.
+- If one or both clustered WAFs fail, the LTM can use WAF3 where the service/configuration model permits.
+- If Site 1 cannot provide the service, GTM/site recovery can use Site 2.
+- This can provide multiple recovery layers without requiring normal cross-site WAF borrowing.
+
+The analysis must decide whether WAF3 is:
+
+- always configured and health checked but lower priority;
+- active for a small percentage of traffic;
+- warm standby requiring activation;
+- cold spare requiring configuration/startup.
+
+Those choices materially change recovery time.
+
+### Option 5 — Per-site scalable WAF pools with GTM-level site recovery
+
+This is an additional candidate topology worth comparing because it increases resilience while keeping the dataplane local to each site.
+
+```text
+                      GTM
+                  /         \
+             Site 1         Site 2
+               |              |
+           LTM HA pair    LTM HA pair
+               |              |
+          WAF pool 2..N   WAF pool 2..N
+               |              |
+          local apps      local/DR apps
+```
+
+- Each site uses the scalable-pool model from Option 1.
+- WAF member failures are handled locally by the LTM.
+- Each site is sized for the agreed degraded-mode requirement.
+- Individual WAFs are not normally borrowed across the inter-site network.
+- GTM/site failover is used when the local application-delivery service or site is unavailable.
+- This avoids much of the routing/state complexity of cross-site WAF borrowing but requires enough spare capacity in the DR/alternate site.
+
+### Cross-site routing is a separate axis
+
+For Options 1-4, where technically possible, compare:
+
+- **X1 — local-only:** LTM can use only WAF/application resources in its site.
+- **X2 — controlled cross-site contingency:** selected remote WAF or application resources can be used at lower priority.
+
+Do not automatically equate Option 3's shared reserve with cross-site routing; the shared reserve may be local, centrally reachable, or site-specific depending on the final design.
+
+### Common topology evaluation criteria
+
+For every option compare:
+
+1. single WAF failure;
+2. dual/multiple WAF failure;
+3. loss of the complete local WAF service;
+4. one LTM node failure;
+5. complete LTM HA-pair failure;
+6. GTM node/service failure;
+7. edge-firewall member/pair failure;
+8. bad WAF policy/configuration affecting one or all nodes;
+9. capacity after N-1/N-2 failure;
+10. planned maintenance and drain;
+11. stateless-web impact;
+12. stateful-web impact;
+13. socket/WebSocket connection impact;
+14. non-web services that bypass WAF;
+15. tenant isolation and cross-tenant blast radius;
+16. local versus cross-site routing requirements;
+17. full-site failure and recovery;
+18. operational complexity and recovery time.
 
 ## Common actors to analyse
 
@@ -413,7 +522,7 @@ Per hosting environment, per site:
 
 ## Round-2 failure studies
 
-Apply each failure to all three topology options **and to each applicable application type**. A scenario is incomplete if it only states that the infrastructure failed over successfully without explaining the application-specific consequence.
+Apply each failure to all selected WAF topology options **and to each applicable application type**. A scenario is incomplete if it only states that the infrastructure failed over successfully without explaining the application-specific consequence.
 
 At minimum, distinguish:
 
@@ -489,9 +598,11 @@ For every scenario capture:
 | Failed component | Component or tier that failed |
 | What remains healthy | Explicit unaffected services |
 | Detection | Which layer notices the failure |
-| Option 1 result | Clustered WAF + local-only |
-| Option 2 result | LB WAF + local-only |
-| Option 3 result | LB WAF + cross-site contingency |
+| Option 1 result | LTM-fronted scalable WAF pool |
+| Option 2 result | WAF HA cluster, with/without LTM |
+| Option 3 result | Tenant-preferred WAFs + shared reserve |
+| Option 4 result | Local cluster + local spare + second-site cluster |
+| Option 5 result | Per-site scalable pools + GTM site recovery |
 | External-user impact | Which leased-line populations are affected |
 | Internal-user impact | Whether internal ELB/service access remains available |
 | A -> B impact | Dependency behaviour |
@@ -542,7 +653,7 @@ This branch should ultimately produce:
 
 1. a stable end-to-end context diagram;
 2. a three-option architecture comparison;
-3. a common failure matrix applied across all options;
+3. a common failure matrix applied across all selected WAF topology options;
 4. an application-type impact matrix showing how each failure differs for stateless web, stateful web, socket/WebSocket and non-web services;
 5. explicit external-user, internal-user and App A -> App B outcomes;
 6. cascading-failure analysis;
