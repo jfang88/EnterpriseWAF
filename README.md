@@ -76,6 +76,8 @@ The current baseline assumes:
 - external and internal DNS namespaces are separate;
 - internal users/applications use internal enterprise DNS, with selected internal service names optionally delegated/forwarded to GTM;
 - internal users may bypass the WAF and use internal service paths;
+- internal users/desktops, internal DNS and internal LTM/service VIPs are outside the private-cloud boundary;
+- a distinct **internal firewall** separates the enterprise internal network from the private-cloud CFW;
 - private-cloud application paths include a distinct platform/cloud firewall (CFW) immediately in front of the ELB/service tier;
 - applications may run on-premises, on VMs, Kubernetes or PaaS;
 - Application A -> Application B -> Application C and shared-dependency chains are treated as first-class resilience scenarios.
