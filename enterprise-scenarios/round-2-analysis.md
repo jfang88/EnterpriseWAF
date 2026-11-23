@@ -1,5 +1,14 @@
 # Enterprise Scenario Analysis — Round 2
 
+> **Documentation structure update:** The stable baseline, changeable assumptions and derived matrix have now been split into separate files to prevent baseline drift:
+>
+> - [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)
+> - [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)
+> - [common_failure_matrix.md](./common_failure_matrix.md)
+> - [enterprise_scenario_analysis_prompt.md](./enterprise_scenario_analysis_prompt.md) is now the regeneration prompt.
+>
+> This Round 2 file remains useful as working history, but the files above are the authoritative set for further analysis.
+
 **Status:** Working analysis on branch `analysis/enterprise-scenarios-round-2`
 
 ## Purpose
