@@ -446,6 +446,12 @@ If these are absent, explicitly mark the application **not end-to-end resilient*
 
 Regenerate [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md) with:
 
+- a self-contained **T1-T9 reference table** near the top so timing shorthand can be understood without opening another document;
+- a link back to the detailed timing assumptions;
+- examples showing how T4/T5/T6/T9 combine in service recovery.
+
+Then include:
+
 1. W1-W4 topology summary;
 2. one-node / two-node / whole-cluster-or-pool resilience;
 3. cross-site versus no-cross-site comparison;
