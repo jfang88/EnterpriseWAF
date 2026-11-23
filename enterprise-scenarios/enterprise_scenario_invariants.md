@@ -76,18 +76,66 @@ A leased-line failure is first an **external-user reachability failure**, not au
 
 The same affected user population may lose access to several applications hosted in the same tenant even while the applications themselves remain healthy.
 
-## 5. DNS / GTM access patterns
+## 5. DNS / GTM access patterns and namespace separation
 
-External users may resolve services using either of these supported patterns:
+The enterprise has **separate external and internal DNS namespaces / resolution paths**. They must be analysed independently.
+
+### External namespace
+
+External users/systems may resolve externally published services using either of these supported patterns:
 
 1. external/customer resolvers query enterprise BIG-IP DNS / GTM directly; or
-2. external/customer corporate DNS forwards or delegates the relevant zones to enterprise BIG-IP DNS / GTM.
+2. external/customer corporate DNS forwards or delegates the relevant external zones to enterprise BIG-IP DNS / GTM.
+
+Representative flow:
+
+```text
+External user/system
+  -> external/customer DNS resolver
+  -> enterprise GTM / BIG-IP DNS for published external endpoint
+  -> returned external/firewall application VIP
+```
+
+### Internal namespace
+
+Internal users/systems normally use **internal enterprise DNS**, not the external namespace.
+
+For selected internal service names, internal DNS may delegate or conditionally forward to BIG-IP DNS / GTM, which returns the appropriate internal application/service endpoint.
+
+Representative flow:
+
+```text
+Internal user/system
+  -> internal enterprise DNS
+  -> delegation / conditional forward for selected internal service name
+  -> BIG-IP DNS / GTM
+  -> internal LTM / ELB / service VIP
+  -> application
+```
+
+Applications may use the same internal resolution pattern for application-to-application calls.
+
+Representative dependency flow:
+
+```text
+Application A
+  -> internal DNS
+  -> GTM / BIG-IP DNS for internal service name
+  -> B service VIP / internal endpoint
+  -> Application B
+  -> optional further internal DNS/GTM resolution
+  -> Application C
+```
+
+It is **not an invariant** that every internal endpoint must use GTM. Some internal names may resolve directly in enterprise DNS, while selected internal endpoints may be delegated/forwarded to GTM.
 
 There may be two GTM/DNS instances or listeners per site for a tenant, or GTM may be shared. The exact tenancy model must be declared when cross-tenant blast radius matters.
 
 DNS/GTM is a **control/resolution plane**. It is not an inline HTTP application hop.
 
-A DNS answer is useful only when the client network can actually reach the returned application VIP.
+A DNS answer is useful only when the requesting actor can actually reach the returned VIP/endpoint.
+
+External namespace availability and internal namespace availability must be reported separately.
 
 ## 6. External application path
 
@@ -112,9 +160,20 @@ Typical internal path:
 
 ```text
 Internal user
-  -> internal DNS/service resolution
+  -> internal enterprise DNS
+  -> [optional delegation/conditional forward to GTM for selected internal endpoint]
   -> internal LTM/ELB/service VIP
   -> application
+```
+
+Typical internal application dependency path:
+
+```text
+App A
+  -> internal enterprise DNS
+  -> [optional GTM lookup for B internal service]
+  -> B service VIP / endpoint
+  -> App B
 ```
 
 A WAF outage therefore does not automatically mean the application is unavailable to internal users.
@@ -207,7 +266,7 @@ Application D
 The dependency may use:
 
 - a site-local/static endpoint;
-- internal DNS/GTM;
+- internal enterprise DNS, with optional delegation/conditional forwarding to GTM for selected internal service names;
 - a stable internal service VIP;
 - a local-preferred VIP with a remote lower-priority member.
 
@@ -307,6 +366,8 @@ Use these objectives for all options:
 11. The primary resilience measure is **time from fault to successful business transaction for each affected actor**, not time for an individual F5 component to return to green.
 12. A failure analysis is incomplete unless it states external-human, external-system/API, internal-user and dependent-application impact where applicable.
 13. Prefer dependency-local recovery (for example B1 -> B2) over moving healthy dependent applications (A/C/D) when the dependency and state model safely allow it.
+14. Treat external namespace and internal namespace as separate control-plane dependencies; failure of one must not automatically be reported as failure of the other.
+15. For App A/B/C dependencies, include internal DNS/GTM resolution behavior in the recovery path where the application resolves dependency endpoints dynamically.
 
 
 ## 14. Maintainability and availability analysis objectives
