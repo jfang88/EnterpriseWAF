@@ -16,13 +16,17 @@ Apply the same failure scenarios to each candidate WAF topology without changing
 | **W1** | LTM-fronted scalable independent WAF pool (2..N) |
 | **W2** | WAF HA cluster; W2a without ingress LTM, W2b with LTM |
 | **W3** | Tenant-preferred WAFs plus shared enterprise reserve WAFs |
-| **W4** | Local WAF cluster + local spare + second-site WAF cluster |
-| **W5** | Per-site scalable WAF pools + GTM site recovery |
+| **W4** | Asymmetric: Site 1 WAF HA cluster + extra active/spare WAF; Site 2 WAF HA cluster only |
+
+**Common site rule:** W1-W3 normally use the same logical WAF topology in both sites. W4 is deliberately asymmetric: Site 1 has a WAF HA cluster plus an extra active/spare WAF, while Site 2 has only the WAF HA cluster. GTM/LTM roles remain similar per site.
 
 Cross-site dataplane routing is evaluated separately as:
 
 - **X1** local-only
-- **X2** controlled cross-site contingency
+- **X2A** surviving local LTM borrows a remote WAF
+- **X2B** remote front-end routes back to the healthy primary-site application
+- **X2C** conventional full application/site failover
+- **XD1** App A uses remote App B as dependency fallback
 
 # 2. Timing shorthand
 
@@ -39,61 +43,61 @@ These are modelling categories, not guaranteed SLAs.
 
 # 3. Control-plane and ingress failures
 
-| ID | Failure | Detection / recovery path | Indicative timing | W1 | W2 | W3 | W4 | W5 |
-|---|---|---|---|---|---|---|---|---|
-| F01 | One GTM/DNS node fails | Remaining GTM/DNS peer(s) continue answering; DNS service redundancy must be independent of app WAF topology | T1/T4 depending GTM HA design; existing cached answers unaffected | No WAF impact | No WAF impact | No WAF impact | No WAF impact | No WAF impact |
-| F02 | All GTM/DNS service in one site fails | Other GTM site/listener must answer queries; customer/corporate DNS must be able to reach it | DNS resolver retry + cache behavior; usually T4 | Existing app sessions continue; new DNS resolution depends on remaining GTM | Same | Same | Same | Same |
-| F03 | GTM IP/port monitor is green but application is broken | No recovery until app-level signal or operator detects failure; GTM may keep advertising bad site | Potentially unbounded from GTM perspective | Critical false-green risk | Critical false-green risk | Critical false-green risk | Critical false-green risk | Critical false-green risk |
-| F04 | GTM full application-readiness monitor marks local app down | GTM stops returning unhealthy site and selects next healthy eligible site/pool | app monitor detection + T4 | Site switch if alternate ready | Same | Same | Same | Same; intended site-level behavior |
-| F05 | One leased line fails | Only user population routed through that line loses reachability unless customer/network reroutes | carrier/routing convergence; not a WAF recovery | App remains healthy for other users | Same | Same | Same | Same |
-| F06 | One edge-firewall member fails | Firewall HA pair takes over VIP/state according to firewall design | firewall HA timing, outside F5 WAF/LTM timing | Downstream F5 stack unchanged | Same | Same | Same | Same |
-| F07 | Entire edge-firewall pair/path fails | Remaining leased-line/firewall path or alternate site must be reachable; GTM cannot solve missing network reachability by itself | routing/firewall convergence or T4 if site selection changes | Potential partial/full external outage | Same | Same | Same | Same |
+| ID | Failure | Detection / recovery path | Indicative timing | W1 | W2 | W3 | W4 |
+|---|---|---|---|---|---|---|---|
+| F01 | One GTM/DNS node fails | Remaining GTM/DNS peer(s) continue answering; DNS service redundancy must be independent of app WAF topology | T1/T4 depending GTM HA design; existing cached answers unaffected | No WAF impact | No WAF impact | No WAF impact | No WAF impact |
+| F02 | All GTM/DNS service in one site fails | Other GTM site/listener must answer queries; customer/corporate DNS must be able to reach it | DNS resolver retry + cache behavior; usually T4 | Existing app sessions continue; new DNS resolution depends on remaining GTM | Same | Same | Same |
+| F03 | GTM IP/port monitor is green but application is broken | No recovery until app-level signal or operator detects failure; GTM may keep advertising bad site | Potentially unbounded from GTM perspective | Critical false-green risk | Critical false-green risk | Critical false-green risk | Critical false-green risk |
+| F04 | GTM full application-readiness monitor marks local app down | GTM stops returning unhealthy site and selects next healthy eligible site/pool | app monitor detection + T4 | Site switch if alternate ready | Same | Same | Same |
+| F05 | One leased line fails | Only user population routed through that line loses reachability unless customer/network reroutes | carrier/routing convergence; not a WAF recovery | App remains healthy for other users | Same | Same | Same |
+| F06 | One edge-firewall member fails | Firewall HA pair takes over VIP/state according to firewall design | firewall HA timing, outside F5 WAF/LTM timing | Downstream F5 stack unchanged | Same | Same | Same |
+| F07 | Entire edge-firewall pair/path fails | Remaining leased-line/firewall path or alternate site must be reachable; GTM cannot solve missing network reachability by itself | routing/firewall convergence or T4 if site selection changes | Potential partial/full external outage | Same | Same | Same |
 
 # 4. LTM failures
 
-| ID | Failure | Recovery path | Indicative timing | W1 | W2 | W3 | W4 | W5 |
-|---|---|---|---|---|---|---|---|---|
-| F08 | One LTM node in HA pair fails | BIG-IP DSC traffic group fails to peer; use redundant HA communication | T1; validate actual ARP/MAC/network convergence | **High resilience**; WAF pool unchanged | W2a N/A; W2b cluster remains behind surviving LTM | **High**; preferred/reserve pools unchanged | **High** | **High** |
-| F09 | Entire local LTM HA pair unavailable | No local traffic steering through that LTM tier; use alternate site or a separately reachable service path | T4 if GTM/site switch; otherwise outage | Local WAF pool unreachable through normal design | W2a may avoid this failure domain; W2b affected | Preferred + reserve WAFs are useless if all require failed tenant LTM | Local spare/cluster unavailable through failed LTM; site switch required | Site switch is explicit recovery path |
-| F10 | LTM health monitor falsely marks healthy WAF down | Capacity reduced; may activate lower-priority/reserve members | T2 | Remaining WAF pool handles load | W2b can withdraw whole cluster VIP/member if monitor design poor; W2a N/A | May unnecessarily consume reserve | May activate spare | Remaining pool handles load |
+| ID | Failure | Recovery path | Indicative timing | W1 | W2 | W3 | W4 |
+|---|---|---|---|---|---|---|---|
+| F08 | One LTM node in HA pair fails | BIG-IP DSC traffic group fails to peer; use redundant HA communication | T1; validate actual ARP/MAC/network convergence | **High resilience**; WAF pool unchanged | W2a N/A; W2b cluster remains behind surviving LTM | **High**; preferred/reserve pools unchanged | **High** |
+| F09 | Entire local LTM HA pair unavailable | No local traffic steering through that LTM tier; use alternate site or a separately reachable service path | T4 if GTM/site switch; otherwise outage | Local WAF pool unreachable through normal design | W2a may avoid this failure domain; W2b affected | Preferred + reserve WAFs are useless if all require failed tenant LTM | W4a: cluster/extra WAF unavailable through failed Site 1 LTM; site switch may use Site 2 LTM+cluster. W4b has no ingress LTM failure domain at WAF tier |
+| F10 | LTM health monitor falsely marks healthy WAF down | Capacity reduced; may activate lower-priority/reserve members | T2 | Remaining WAF pool handles load | W2b can withdraw whole cluster VIP/member if monitor design poor; W2a N/A | May unnecessarily consume reserve | W4a may activate the extra Site 1 WAF; W4b depends on its non-LTM steering mechanism |
 
 **Critical observation:** An LTM pair is itself a tenant-level service failure domain. W3 shared spare WAFs do not protect against total tenant-LTM loss unless there is another traffic-steering path.
 
 # 5. WAF failures
 
-| ID | Failure | Recovery path | Indicative timing | W1 | W2 | W3 | W4 | W5 |
-|---|---|---|---|---|---|---|---|---|
-| F11 | One WAF node/member fails | LTM withdraws member or clustered peer takes over | W1/W3/W5: T2; W2/W4 cluster: T1/T2 depending failure mode | **Very good** if remaining capacity sufficient | **Very good** for first HA-pair failure; mirroring may preserve supported connections | **Very good**; preferred peer remains, reserve available | **Very good**; cluster peer/spare available | **Very good** |
-| F12 | Two WAF nodes fail / preferred tenant WAF pair lost | Use remaining independent members, reserve, local spare or site recovery | T2; T5 if spare not hot; T4 if site switch | Good only if pool has 3+ and N-2 capacity; 2-node pool = complete local WAF loss | HA pair lost = complete local WAF service loss | **Strong** if reserve WAFs are hot, configured and have capacity | **Strong** if local spare is hot/configured; otherwise T5/site | Good if local pool has 3+; otherwise site recovery |
-| F13 | Entire local WAF service unavailable | Local alternate WAF path, cross-site WAF if X2, or GTM site failover | T2/T4/T5 depending design | X1: site failover; X2: remote WAF possible | Site failover unless separate WAF service exists | Reserve may recover locally if independent from failure cause | Local spare may recover; otherwise Site 2 cluster | Site 2 via GTM by design |
-| F14 | Bad WAF policy/configuration pushed to all WAFs | Roll back policy; use independently controlled unaffected pool/site only if bad config not replicated there | operator/change rollback; often T5 | **Common-mode critical risk** | **Common-mode critical risk** | Reserve is not useful if it receives same bad policy | Spare/site not useful if same bad policy replicated everywhere | Both sites may fail if config is globally synchronized |
-| F15 | WAF CPU/throughput exhaustion | LTM sends to remaining/added members; reserve or site capacity may absorb load | T2 if monitor detects; scale/ops dependent | **Best horizontal scale** | Cluster capacity may be fixed; scaling less flexible | Good if reserve capacity available | Spare gives bounded extra capacity | Good if both local pools sized with headroom |
-| F16 | Shared reserve WAFs exhausted by another tenant | No reserve available; tenant falls back to preferred survivors/site recovery | capacity event; T4/T5 if site move | N/A | N/A | **Critical W3 shared-capacity risk** | N/A unless spare shared | N/A |
+| ID | Failure | Recovery path | Indicative timing | W1 | W2 | W3 | W4 |
+|---|---|---|---|---|---|---|---|
+| F11 | One WAF node/member fails | LTM withdraws member or clustered peer takes over | W1/W3: T2; W2/W4 cluster: T1/T2 depending failure mode | **Very good** if remaining capacity sufficient | **Very good** for first HA-pair failure; mirroring may preserve supported connections | **Very good**; preferred peer remains, reserve available | **Very good in Site 1**; cluster peer and extra WAF provide layered recovery. **Site 2** has cluster peer only |
+| F12 | Two WAF nodes fail / preferred tenant WAF pair lost | Use remaining independent members, reserve, local spare or site recovery | T2; T5 if spare not hot; T4 if site switch | Good only if pool has 3+ and N-2 capacity; 2-node pool = complete local WAF loss | HA pair lost = complete local WAF service loss | **Strong** if reserve WAFs are hot, configured and have capacity | **Strong in Site 1** if extra WAF is hot/configured; after Site 1 failure, Site 2 has only its WAF cluster |
+| F13 | Entire local WAF service unavailable | Local alternate WAF path, cross-site WAF if X2, or GTM site failover | T2/T4/T5 depending design | X1: site failover; X2: remote WAF possible | Site failover unless separate WAF service exists | Reserve may recover locally if independent from failure cause | Site 1 extra WAF may recover locally; otherwise use Site 2 WAF cluster |
+| F14 | Bad WAF policy/configuration pushed to all WAFs | Roll back policy; use independently controlled unaffected pool/site only if bad config not replicated there | operator/change rollback; often T5 | **Common-mode critical risk** | **Common-mode critical risk** | Reserve is not useful if it receives same bad policy | Spare/site not useful if same bad policy replicated everywhere |
+| F15 | WAF CPU/throughput exhaustion | LTM sends to remaining/added members; reserve or site capacity may absorb load | T2 if monitor detects; scale/ops dependent | **Best horizontal scale** | Cluster capacity may be fixed; scaling less flexible | Good if reserve capacity available | Site 1 extra WAF gives bounded extra capacity; Site 2 does not have the same headroom |
+| F16 | Shared reserve WAFs exhausted by another tenant | No reserve available; tenant falls back to preferred survivors/site recovery | capacity event; T4/T5 if site move | N/A | N/A | **Critical W3 shared-capacity risk** | N/A unless spare shared |
 
 # 6. Backend/application-platform failures
 
-| ID | Failure | Recovery path | Timing | W1 | W2 | W3 | W4 | W5 |
-|---|---|---|---|---|---|---|---|---|
-| F17 | One application VM/pod/member fails | ELB/application LB selects another member; WAF topology should not change | backend monitor timeout + T6 | No topology change | No topology change | No topology change | No topology change | No topology change |
-| F18 | Local application ELB/cloud-edge path fails | WAF may see backend unavailable; GTM/app routing must select alternate ready service | backend detection + T4/T6 | Site/app failover unless alternate backend path exists | Same | Same | Same | W5 site failover naturally aligned |
-| F19 | Application is network-up but business-not-ready | Requires app-level readiness monitor; IP/port monitoring creates false green | potentially unbounded if only L4 monitor | All options equally vulnerable | Same | Same | Same | Same |
-| F20 | Shared session/state store fails | Application-level recovery, alternate state store/site; WAF/LTM failover alone does not help | T6; data-platform RTO | Infrastructure may stay green while app fails | Same | Same | Same | Same |
-| F21 | App B local service fails while App A remains healthy | A should use healthy B2/service VIP if supported; otherwise A may fail/cascade | dependency monitor + T6; X2 if remote B used | WAF topology irrelevant to east-west dependency unless path uses it | Same | Same | Same | Same |
+| ID | Failure | Recovery path | Timing | W1 | W2 | W3 | W4 |
+|---|---|---|---|---|---|---|---|
+| F17 | One application VM/pod/member fails | ELB/application LB selects another member; WAF topology should not change | backend monitor timeout + T6 | No topology change | No topology change | No topology change | No topology change |
+| F18 | Local application ELB/cloud-edge path fails | WAF may see backend unavailable; GTM/app routing must select alternate ready service | backend detection + T4/T6 | Site/app failover unless alternate backend path exists | Same | Same | Same |
+| F19 | Application is network-up but business-not-ready | Requires app-level readiness monitor; IP/port monitoring creates false green | potentially unbounded if only L4 monitor | All options equally vulnerable | Same | Same | Same |
+| F20 | Shared session/state store fails | Application-level recovery, alternate state store/site; WAF/LTM failover alone does not help | T6; data-platform RTO | Infrastructure may stay green while app fails | Same | Same | Same |
+| F21 | App B local service fails while App A remains healthy | A should use healthy B2/service VIP if supported; otherwise A may fail/cascade | dependency monitor + T6; X2 if remote B used | WAF topology irrelevant to east-west dependency unless path uses it | Same | Same | Same |
 
 # 7. Cross-site and dependency-routing failures
 
-| ID | Failure | Recovery path | Timing | W1 | W2 | W3 | W4 | W5 |
-|---|---|---|---|---|---|---|---|---|
-| XS01 | One local WAF fails while other local WAF capacity remains | Recover locally; do not invoke cross-site merely because it exists | T2 / cluster HA | Strong local recovery | Strong cluster recovery | Strong local preferred recovery | Strong cluster recovery | Strong local recovery |
-| XS02 | All local WAFs fail; local LTM and primary app healthy | **X2A:** local LTM activates remote WAF and routes back to primary app | T2 if remote WAF already monitored/configured | **High benefit** | Medium; only after whole cluster loss | **Very high benefit** if reserve/remote WAF available | High after local cluster/spare exhausted | Optional; W5 normally chooses site recovery |
-| XS03 | Local LTM + WAF tier fail; primary app healthy | **X2B:** GTM moves ingress to Site 2 LTM/WAF, which routes back to Site 1 app | T4 + new connection; may still beat manual app DR | High if designed | High for W2b; W2a depends on front-end path | High | High | Medium; contrary to W5's cleaner site model |
-| XS04 | Primary app fails but remote WAF route-back is available | Do not use route-back to failed app; use X2C application/site recovery | T4 + T6 | No route-back benefit | Same | Same | Same | Same |
-| XS05 | Inter-site link fails while all local services healthy | Keep local path up; withdraw only remote contingency | route detection; no DNS/site change | No normal impact | Same | Shared remote reserve unavailable only | Local cluster/spare stays healthy | No dataplane impact by design |
-| XS06 | Inter-site link fails while X2A/X2B is active | Contingency path fails; restore local tier or move full application/site | route detection + T2/T4/T6 | Existing remote sessions fail | Same | Remote reserve traffic fails | Remote contingency collapses | W5 normally avoids this state |
-| XS07 | Cross-site path is asymmetric through stateful firewall/NAT | Correct routing/SNAT before using path; endpoint health alone is insufficient | potentially T5/network repair | Critical X2 risk | Critical X2 risk | Critical if reserve remote | Critical for remote tier | Low if site-local only |
-| XS08 | Remote WAF is healthy but lacks correct tenant/app policy | Treat remote WAF as unavailable; do not activate | config/validation dependent | Critical configuration gate | Same | **Major W3 reserve risk** | Spare/remote cluster gate | Remote site pool must already be equivalent |
-| XS09 | Remote WAF capacity is exhausted | Keep/restore local service or fail application/site | capacity dependent | X2 unavailable | Same | **Major shared-reserve risk** | Remote cluster capacity risk | Site 2 capacity risk |
-| XS10 | Bad WAF policy is synchronized to local and remote WAFs | Roll back policy; topology/routing cannot solve a common-mode logical failure | T5/operator/change rollback | Critical | Critical | Critical | Critical | Critical |
+| ID | Failure | Recovery path | Timing | W1 | W2 | W3 | W4 |
+|---|---|---|---|---|---|---|---|
+| XS01 | One local WAF fails while other local WAF capacity remains | Recover locally; do not invoke cross-site merely because it exists | T2 / cluster HA | Strong local recovery | Strong cluster recovery | Strong local preferred recovery | Strong cluster recovery |
+| XS02 | All local WAFs fail; local LTM and primary app healthy | **X2A:** local LTM activates remote WAF and routes back to primary app | T2 if remote WAF already monitored/configured | **High benefit** | Medium; only after whole cluster loss | **Very high benefit** if reserve/remote WAF available | High after local cluster/spare exhausted |
+| XS03 | Local LTM + WAF tier fail; primary app healthy | **X2B:** GTM moves ingress to Site 2 LTM/WAF, which routes back to Site 1 app | T4 + new connection; may still beat manual app DR | High if designed | High for W2b; W2a depends on front-end path | High | High |
+| XS04 | Primary app fails but remote WAF route-back is available | Do not use route-back to failed app; use X2C application/site recovery | T4 + T6 | No route-back benefit | Same | Same | Same |
+| XS05 | Inter-site link fails while all local services healthy | Keep local path up; withdraw only remote contingency | route detection; no DNS/site change | No normal impact | Same | Shared remote reserve unavailable only | Site 1 cluster/extra WAF stays healthy; Site 2 cluster remains independent |
+| XS06 | Inter-site link fails while X2A/X2B is active | Contingency path fails; restore local tier or move full application/site | route detection + T2/T4/T6 | Existing remote sessions fail | Same | Remote reserve traffic fails | Remote contingency collapses; W4 Site 2 still has only the base WAF cluster |
+| XS07 | Cross-site path is asymmetric through stateful firewall/NAT | Correct routing/SNAT before using path; endpoint health alone is insufficient | potentially T5/network repair | Critical X2 risk | Critical X2 risk | Critical if reserve remote | Critical for remote tier |
+| XS08 | Remote WAF is healthy but lacks correct tenant/app policy | Treat remote WAF as unavailable; do not activate | config/validation dependent | Critical configuration gate | Same | **Major W3 reserve risk** | Extra Site 1 WAF / Site 2 cluster policy-readiness gate |
+| XS09 | Remote WAF capacity is exhausted | Keep/restore local service or fail application/site | capacity dependent | X2 unavailable | Same | **Major shared-reserve risk** | Site 2 cluster capacity risk; no equivalent extra WAF exists there |
+| XS10 | Bad WAF policy is synchronized to local and remote WAFs | Roll back policy; topology/routing cannot solve a common-mode logical failure | T5/operator/change rollback | Critical | Critical | Critical | Critical |
 
 ## 7.1 Application A -> Application B dependency recovery
 
@@ -116,22 +120,22 @@ However, this benefit is valid only when the application protocol supports bound
 
 # 8. Full-site failures
 
-| ID | Failure | Recovery path | Timing | W1 | W2 | W3 | W4 | W5 |
-|---|---|---|---|---|---|---|---|---|
-| F25 | Entire Site 1 fails and Site 2 app is ready | GTM returns Site 2 healthy VIP; client re-resolves/reconnects | T4 + T6 | Good if Site 2 equivalent exists/capacity | Good if Site 2 cluster exists | Good if Site 2 capacity exists | **Strong explicit second-site cluster** | **Strong explicit design intent** |
-| F26 | Entire Site 1 fails but passive Site 2 application is stopped | Start app, validate dependencies/readiness, then GTM may advertise it | **T5 dominates** + T4/T6 | Infrastructure HA cannot meet short RTO | Same | Same | Same | Same |
-| F27 | Site 1 remains partially reachable but critical app dependency/data is unavailable | App-level health must withdraw site only for affected application; avoid global site-down decision | app readiness + T4/T6 | Per-app GTM health required | Same | Same | Same | Same |
+| ID | Failure | Recovery path | Timing | W1 | W2 | W3 | W4 |
+|---|---|---|---|---|---|---|---|
+| F25 | Entire Site 1 fails and Site 2 app is ready | GTM returns Site 2 healthy VIP; client re-resolves/reconnects | T4 + T6 | Good if Site 2 equivalent exists/capacity | Good if Site 2 cluster exists | Good if Site 2 capacity exists | **Strong if Site 2 cluster is sized for full DR load; note Site 2 lacks Site 1's extra WAF headroom** |
+| F26 | Entire Site 1 fails but passive Site 2 application is stopped | Start app, validate dependencies/readiness, then GTM may advertise it | **T5 dominates** + T4/T6 | Infrastructure HA cannot meet short RTO | Same | Same | Same |
+| F27 | Site 1 remains partially reachable but critical app dependency/data is unavailable | App-level health must withdraw site only for affected application; avoid global site-down decision | app readiness + T4/T6 | Per-app GTM health required | Same | Same | Same |
 
 # 9. Long-lived/socket behavior
 
 Infrastructure recovery and application recovery must be separated.
 
-| Failure | W1 | W2 | W3 | W4 | W5 |
-|---|---|---|---|---|---|
-| One WAF fails | Existing sockets on failed WAF normally reconnect to another WAF | Two-device mirroring may preserve some supported connections, but F5 AWAF has mirroring limits | Reconnect to preferred/reserve WAF | Cluster peer may preserve supported connection; move to third spare should assume reconnect | Reconnect to another local WAF |
-| LTM HA peer fails | LTM connection mirroring can help if configured/supported; app should still tolerate reconnect | Same for W2b; W2a N/A | Same | Same | Same |
-| WAF cluster fails completely | Reconnect via new WAF/site | Mirroring cannot preserve connection when whole pair is gone | Reconnect via reserve/site | Move to spare/site; **assume reconnect** | Reconnect via alternate member/site |
-| Site failover | DNS change does not move existing socket; client must reconnect/re-resolve | Same | Same | Same | Same |
+| Failure | W1 | W2 | W3 | W4 |
+|---|---|---|---|---|
+| One WAF fails | Existing sockets on failed WAF normally reconnect to another WAF | Two-device mirroring may preserve some supported connections, but F5 AWAF has mirroring limits | Reconnect to preferred/reserve WAF | Cluster peer may preserve supported connection; move to the extra Site 1 WAF should assume reconnect |
+| LTM HA peer fails | LTM connection mirroring can help if configured/supported; app should still tolerate reconnect | Same for W2b; W2a N/A | Same | Same |
+| WAF cluster fails completely | Reconnect via new WAF/site | Mirroring cannot preserve connection when whole pair is gone | Reconnect via reserve/site | Move to extra Site 1 WAF or Site 2 cluster; **assume reconnect** |
+| Site failover | DNS change does not move existing socket; client must reconnect/re-resolve | Same | Same | Same |
 
 **F5 limitation to treat as architecture-significant:** Advanced WAF/ASM connection mirroring is documented as two-device mirroring; a third-device failover and failback reset the connection. Therefore W4 and larger pool topologies must not promise transparent multi-hop socket preservation.
 
@@ -216,7 +220,7 @@ If "stateless" applications store critical session/workflow state only in proces
 - any WAF/LTM/backend/site failure can become a user-visible outage until manual restart;
 - messages/events can be lost silently;
 - WAF connection mirroring may mask only a subset of first-device failures;
-- W4/W5/multi-node hardware resilience provides little end-to-end benefit if clients cannot reconnect.
+- W4/multi-node hardware resilience provides little end-to-end benefit if clients cannot reconnect.
 
 **Compliance conclusion:** socket applications without reconnect + state reconciliation should be explicitly classified as **infrastructure-HA only, not end-to-end resilient**.
 
@@ -278,15 +282,24 @@ For this environment:
 
 # 13. Resilience summary by topology
 
-Ratings assume good capacity, correct health monitors and compliant applications.
+Ratings assume correct health monitoring, adequate capacity, alternate-site application readiness and compliant applications.
 
 | Topology | Single WAF failure | Dual/local WAF failure | Site failure | Horizontal scale | Long-lived continuity | Tenant isolation | Operational complexity | Overall |
 |---|---|---|---|---|---|---|---|---|
-| **W1 scalable pool** | **High** | **Medium-High** if 3+ / N-2 capacity; Low if only 2 | Medium unless paired with site design | **High** | Medium; reconnect expected | High if tenant-dedicated | Medium | **High local resilience** |
-| **W2 HA cluster** | **High** | Low once whole pair lost | Medium | Low-Medium | **High for first supported mirrored failover**, but limited beyond 2 devices | High | Low-Medium | **Good simple HA, weaker scale/common-mode** |
-| **W3 preferred + shared reserve** | **High** | **High** if reserve available | Medium-High | High shared efficiency | Medium; reconnect to reserve expected | Medium due shared reserve | **High** | **High resilience but shared-capacity risk** |
-| **W4 cluster + spare + remote cluster** | **Very High** if spare hot | **High** | **High** | Medium | High for first cluster event; reconnect expected when moving to spare/site | High | **High** | **Very resilient, operationally complex** |
-| **W5 per-site pools + GTM** | **High** | **High** if pools sized N-1/N-2 | **High** when app/site ready | **High** | Medium; site/member reconnect expected | **High** | Medium | **Strongest clean failure-domain model** |
+| **W1 scalable pool in each site** | **High** | **Medium-High** with 3+ / N-2 capacity; a 2-node pool loses the local WAF service after both fail | **High** when Site 2 application is ready and sized | **High** | Medium; reconnect expected for failed independent WAF | High if tenant-dedicated | Medium | **Strong default: simple scale-out + symmetric site design** |
+| **W2 HA cluster in each site** | **High** | Low locally once the whole pair is lost; then use cross-site/site recovery | **High** when Site 2 application is ready | Low-Medium | **Best first-failure continuity** where supported mirroring applies; limited beyond pair | High | Low-Medium | **Good simple HA, weaker scale-out/common-mode boundary** |
+| **W3 preferred WAFs + shared reserve in each site** | **High** | **High** if reserve is available, policy-ready and sized | **High** when Site 2 application is ready | High shared efficiency | Medium; reconnect to reserve/remote WAF expected | Medium because reserve is shared | **High** | **High resilience but shared-capacity/cross-tenant risk** |
+| **W4 asymmetric: Site 1 cluster + extra WAF; Site 2 cluster only** | **Very High in Site 1** if extra WAF is hot/policy-ready | **High in Site 1**; lower local redundancy once running in Site 2 | **Medium-High**, but Site 2 must be sized to carry production with only the cluster | Medium | High for first clustered failover; reconnect expected when moving to extra WAF or Site 2 | High | **High** | **Strong primary-site resilience, but asymmetric DR capacity must be explicit** |
+
+The second site is common to every design. The meaningful W1-W4 differences are therefore:
+
+- local WAF failure-domain size;
+- scale-out model;
+- dedicated/shared/spare capacity;
+- connection-mirroring behavior;
+- common-mode policy exposure;
+- recovery complexity before GTM/site failover;
+- and, for W4, the intentional **capacity asymmetry between Site 1 and Site 2**.
 
 # 14. Critical failure points
 
@@ -335,12 +348,15 @@ Across all options, the most important residual risks are:
 
 No WAF topology alone creates end-to-end resilience.
 
-- **W1** is a strong default for horizontally scalable, stateless or reconnect-capable applications.
-- **W2** is attractive where simple two-node HA and supported connection mirroring are valuable, but it has a clear pair/common-mode boundary and weaker scale-out behavior.
-- **W3** improves asset efficiency and dual-WAF recoverability, but reserve capacity/policy isolation becomes an enterprise shared-risk problem.
-- **W4** provides layered local and site resilience, especially if the spare is hot, but has the highest operational/configuration complexity and cannot promise transparent connection preservation through every tier.
-- **W5** provides the cleanest fault-domain separation: handle member failures locally, keep normal dataplane traffic local, and use GTM for site-level failure. It costs more capacity but is easier to reason about and test.
+All W1-W4 designs have a second-site recovery path with similar GTM/LTM roles. W1-W3 normally repeat the same WAF topology in both sites. W4 deliberately does not: Site 1 has the WAF cluster plus an extra active/spare WAF, while Site 2 has only the WAF cluster.
 
-Cross-site routing is most valuable when it prevents a healthy application from moving merely because its local WAF/LTM path failed, or prevents a healthy App A from moving because App B1 failed. X2A is preferable to X2B when the local LTM survives because it avoids DNS convergence and keeps the client ingress stable. X2B is a useful second-tier contingency when application DR is slower than front-end failover, but it should remain a temporary degraded state.
+- **W1** is a strong default for horizontal scale and clean failure-domain reasoning.
+- **W2** is attractive where simple two-node HA and supported connection mirroring are valuable, but the cluster pair remains the key local failure boundary.
+- **W3** can provide strong resilience with efficient shared reserve capacity, but reserve exhaustion and cross-tenant policy isolation become enterprise risks.
+- **W4** provides the strongest **Site 1 local WAF redundancy** of these patterns, especially if the extra WAF is hot and policy-ready. Its main trade-off is asymmetric DR: once operating in Site 2, only the WAF cluster is available unless capacity is added.
+
+Cross-site routing is most valuable when it prevents a healthy application from moving merely because its local WAF/LTM path failed, or prevents a healthy App A from moving because App B1 failed. X2A is preferable to X2B when the local LTM survives because it avoids DNS convergence and keeps client ingress stable. X2B is a useful second-tier contingency when application DR is slower than front-end failover, but it should remain a temporary degraded state.
+
+For W4 specifically, capacity tests must prove that the Site 2 WAF cluster alone can carry the required DR load, because Site 2 does not have Site 1's extra active/spare WAF.
 
 For business-critical systems, **application compliance is part of the architecture acceptance criteria**. A topology should not receive a "high resilience" rating unless the application type meets the retry/state/reconnect requirements needed to exploit the infrastructure recovery path.
