@@ -195,6 +195,30 @@ Analyse:
 
 Treat **external namespace resolution** and **internal namespace resolution** as separate failure domains. Do not assume a DNS/GTM failure affects both unless the architecture actually shares that failure domain.
 
+## Mandatory platform-firewall layer
+
+For private-cloud hosted applications, model the inline path as:
+
+```text
+WAF/LTM
+  -> platform/cloud firewall (CFW)
+  -> application ELB/service
+  -> VM / Kubernetes / PaaS workload
+```
+
+Treat CFW and ELB as separate health, routing, NAT/state, change and failure domains.
+
+For CFW failures state:
+
+- whether external and internal flows share the same CFW;
+- CFW HA/member behavior;
+- full CFW context/service failure impact;
+- whether a healthy ELB/app becomes unreachable;
+- whether multiple applications behind the same CFW fail together;
+- whether cross-site routing can reach the alternate CFW/ELB;
+- whether GTM/app health correctly detects the failure;
+- whether CFW failure triggers unnecessary multi-application/site failover.
+
 ## Mandatory application types
 
 Every failure scenario must state the applicable application type:
@@ -223,16 +247,17 @@ Cover at least:
 11. entire local WAF service;
 12. common-mode WAF policy/configuration error;
 13. shared reserve exhaustion;
-14. cloud firewall / ELB;
-15. VM/Kubernetes member/cluster;
-16. application readiness;
-17. session/state store;
-18. App A -> App B -> App C dependency;
-19. cross-site route;
-20. asymmetric cross-site path;
-21. entire site;
-22. passive site not ready;
-23. long-lived connection recovery.
+14. platform/cloud firewall (CFW) member/HA service and full CFW context;
+15. application ELB/service tier;
+16. VM/Kubernetes member/cluster;
+17. application readiness;
+18. session/state store;
+19. App A -> App B -> App C dependency;
+20. cross-site route;
+21. asymmetric cross-site path;
+22. entire site;
+23. passive site not ready;
+24. long-lived connection recovery.
 
 ## GTM analysis
 
