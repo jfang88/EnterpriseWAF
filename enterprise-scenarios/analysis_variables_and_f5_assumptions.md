@@ -110,30 +110,111 @@ LTM pair                         LTM pair
 - Site-level recovery uses GTM/DNS.
 - Requires enough capacity in the alternate site.
 
-# 2. Cross-site dataplane variable
+# 2. Cross-site dataplane variables
+
+Cross-site routing is not a single design. Model the following separately.
 
 ## X1 — local-only
 
 LTM/WAF/application traffic remains in the local site.
 
-Loss of a whole local WAF tier normally requires site/application recovery.
+Loss of a whole local WAF tier normally requires local restoration or application/site recovery.
 
-## X2 — controlled cross-site contingency
+## X2A — surviving local LTM borrows a remote WAF
 
-Selected remote WAF/application resources can be configured as lower-priority contingency members.
+Normal:
 
-F5 LTM Priority Group Activation is a natural building block: higher-priority members receive traffic first and lower-priority members become active only when the available higher-priority membership falls below the configured threshold.
+    Site 1 firewall -> Site 1 LTM -> Site 1 WAF -> Site 1 app
 
-Cross-site use requires explicit validation of:
+Contingency:
 
-- route availability;
+    Site 1 firewall -> Site 1 LTM -> Site 2 WAF -> route back -> Site 1 app
+
+Use remote WAFs as lower-priority contingency members where routing and policy allow it.
+
+F5 Priority Group Activation and the Virtual Location monitor are suitable building blocks for local-preferred / remote-fallback behavior.
+
+Primary benefit:
+
+- avoids DNS change and avoids moving a healthy application.
+
+Primary risk:
+
+- inter-site path, remote WAF capacity, SNAT/return-route symmetry and policy readiness become part of service recovery.
+
+## X2B — remote front-end routes back to the primary application
+
+Normal:
+
+    GTM -> Site 1 firewall -> Site 1 LTM -> Site 1 WAF -> Site 1 app
+
+Contingency:
+
+    GTM -> Site 2 firewall -> Site 2 LTM -> Site 2 WAF
+        -> inter-site route -> Site 1 app
+
+Use when the local front-end/LTM/WAF tier is unavailable but the primary application remains healthy.
+
+Primary benefit:
+
+- can avoid application DR/startup even after local delivery-tier loss.
+
+Primary risks:
+
+- DNS/GTM convergence;
+- split-site front-end/backend;
+- inter-site network dependency;
+- more complex routing and troubleshooting.
+
+## X2C — conventional full site/application failover
+
+    GTM -> Site 2 firewall -> Site 2 LTM -> Site 2 WAF -> Site 2 app
+
+Use when the primary application is unhealthy, its data/state cannot remain in Site 1, or route-back is unsafe/unavailable.
+
+## XD1 — App A -> App B local-preferred / remote-fallback dependency routing
+
+Normal:
+
+    A1 -> B service VIP -> B1
+
+Contingency:
+
+    A1 -> B service VIP -> B2
+
+This is separate from external WAF recovery.
+
+A stable LTM/service VIP with local B1 at higher priority and B2 as lower-priority contingency can prevent a B1 failure from forcing A1 and other dependent applications to fail site.
+
+Cross-site dependency use requires:
+
+- B2 capacity;
+- acceptable latency;
+- data/state consistency;
+- authentication/service identity;
+- firewall/routing rules;
+- bounded timeouts;
+- safe retries;
+- connection refresh/re-resolution;
+- idempotency/reconciliation.
+
+If the application cannot safely retry/reconnect to B2, do not count XD1 as a valid end-to-end recovery path.
+
+## Common cross-site validation
+
+For X2A, X2B and XD1 explicitly validate:
+
+- forward route;
+- return route;
 - stateful firewall symmetry;
 - NAT/SNAT;
 - original-client-IP requirements;
 - latency;
-- capacity;
+- inter-site bandwidth/capacity;
+- remote WAF/application capacity;
+- policy/configuration readiness;
 - application state/data locality;
-- failure of the inter-site link while contingency is active.
+- behavior when the inter-site link fails while contingency is active.
 
 # 3. GTM/DNS health models
 
