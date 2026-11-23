@@ -274,3 +274,75 @@ Use these objectives for all options:
 8. Treat DNS convergence, connection recovery and application-state recovery as separate steps.
 9. For long-lived connections, assume application reconnect/recovery is required even when infrastructure HA is present.
 10. Full-site failover should be the final recovery domain, not the default response to a component fault.
+
+
+## 14. Maintainability and availability analysis objectives
+
+Maintainability is a **second mandatory analysis lens** after failure/recovery analysis.
+
+The architecture must be assessed not only for whether it survives unplanned failure, but also for whether normal operational changes can be performed without consuming all redundancy or creating an avoidable outage.
+
+For every topology, evaluate:
+
+- monitoring and operational visibility;
+- firmware/software upgrades;
+- WAF policy/signature changes;
+- LTM/GTM configuration and iRule/policy changes;
+- certificate/key changes where relevant;
+- node draining and connection handling;
+- staged, rolling, canary or blue-green change patterns;
+- configuration synchronization and change-control tooling;
+- rollback/recovery from a bad change;
+- how many independent maintenance operations can occur before resilience is materially reduced;
+- whether Site 1 and Site 2 can be changed on different schedules;
+- whether application teams must coordinate draining, reconnect or readiness changes;
+- whether planned maintenance can remain inside the required availability target.
+
+### Availability target to test
+
+Use **99.95% availability** as an explicit design target to evaluate at:
+
+1. individual component/service tier;
+2. tenant application-delivery path;
+3. end-to-end application service.
+
+Do not assume that every component being 99.95% available produces 99.95% end-to-end availability.
+
+If planned maintenance counts against the SLO, 99.95% corresponds to approximately:
+
+- **4 hours 22 minutes 48 seconds per year**;
+- **21 minutes 54 seconds per average month**;
+- **5 minutes 2 seconds per week**.
+
+A simple series of five independent 99.95% components would be only about **99.75%** available before allowing for redundancy, common-mode failure or recovery behavior. Therefore the analysis must use the actual redundant topology rather than multiply vendor component claims or assume component SLO equals service SLO.
+
+### Change-safety objective
+
+A maintainable design should, where technically possible:
+
+1. remove/drain one device or capacity unit;
+2. retain enough capacity to meet service demand;
+3. apply and validate the change;
+4. return the changed unit to service;
+5. observe it before proceeding;
+6. stagger the next device/site/change wave;
+7. preserve a known-good rollback path.
+
+The analysis should explicitly identify topologies where maintenance temporarily removes the same redundancy needed to survive an unplanned failure.
+
+### Application maintainability
+
+Application behavior is part of planned-change resilience.
+
+Where applications use long-lived connections, stateful sessions, persistent backend connections or App A -> App B dependencies, planned draining must account for:
+
+- connection drain/graceful close;
+- retry and reconnect behavior;
+- re-authentication;
+- session/state portability;
+- DNS/service re-resolution;
+- idempotency;
+- transaction completion;
+- dependency failover.
+
+Applications that cannot tolerate planned member withdrawal should be marked as a maintainability constraint even if the F5 infrastructure itself is highly available.
