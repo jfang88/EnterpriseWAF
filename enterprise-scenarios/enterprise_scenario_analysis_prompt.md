@@ -40,6 +40,8 @@ Change this file when testing a different topology, health-check strategy, capac
 
 Regenerate/update:
 
+- **High-level architecture:** [high_level_architecture.md](./high_level_architecture.md)
+
 - **Executive recommendation:** [executive_recommendation.md](./executive_recommendation.md)
 - **Architecture summary:** [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md)
 - **Lens 1 — primary end-to-end service impact/recovery:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)
@@ -59,6 +61,34 @@ A new analysis lens should be added as a separate derived document where possibl
 You are reviewing a dual-site enterprise application-delivery architecture using F5 BIG-IP DNS/GTM, LTM and Advanced WAF/ASM.
 
 Use the invariant and variable files above.
+
+## Mandatory high-level architecture view
+
+Maintain [high_level_architecture.md](./high_level_architecture.md) as the canonical entity/relationship view.
+
+It must show:
+
+- external human/API consumers;
+- external/customer DNS and enterprise GTM;
+- internal users/systems and internal enterprise DNS;
+- external/private-network ingress paths;
+- edge firewall/VIP;
+- LTM;
+- WAF runtime/enforcement platform;
+- **application-specific WAF policy as a separate logical concept**;
+- CFW;
+- ELB/application platform;
+- App A/B/C/D dependency relationships;
+- Site 1/Site 2 recovery relationships.
+
+Explicitly distinguish:
+
+- generic network/application-delivery infrastructure;
+- shared WAF enforcement capacity;
+- application-coupled WAF policy;
+- target-state security-zone/cloud sharing boundary.
+
+If the estate consolidates into common private-cloud platforms, do not assume historic tenant boundaries remain the correct runtime sharing boundary. Compare Internet and Intranet/Extranet stacks separately.
 
 ## Mandatory comparison dimensions
 
