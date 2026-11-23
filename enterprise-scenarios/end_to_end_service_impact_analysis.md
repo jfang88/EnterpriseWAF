@@ -56,6 +56,7 @@ Every infrastructure failure must therefore be translated into:
       -> internal enterprise DNS
       -> optional delegation/conditional forward to GTM
       -> internal LTM/service VIP
+      -> internal firewall
       -> platform/cloud firewall (CFW) where private-cloud hosted
       -> ELB/service VIP
       -> application
@@ -73,6 +74,10 @@ Every infrastructure failure must therefore be translated into:
       -> App B
       -> optional internal DNS/GTM lookup for C
       -> App C
+
+## Internal firewall boundary
+
+Internal users, desktops, internal enterprise DNS and the internal LTM/service VIP are outside the private cloud. Private-cloud access crosses a distinct **internal firewall** before the **private-cloud CFW**. These must be analysed as separate failure domains: an internal-firewall outage can isolate internal users from otherwise healthy private-cloud applications while external/extranet access may remain healthy; a CFW outage can affect both external and internal paths after they reach the private-cloud boundary.
 
 The external and internal namespaces are separate. A DNS/GTM problem can therefore affect:
 
