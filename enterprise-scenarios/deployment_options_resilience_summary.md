@@ -8,6 +8,22 @@
 
 # 1. Executive summary
 
+## 1.0 Current scope and ownership constraint
+
+The primary design is the **four-tenant extranet estate**.
+
+For the current WAF target:
+
+- retain the existing GTM model;
+- retain the existing tenant LTM HA service boundaries;
+- compare WAF topology/sharing behind those boundaries;
+- treat shared-LTM/S2 consolidation as a future comparison only;
+- treat X2A/X2B as candidate capabilities until GTM/LTM/network/firewall owners validate them.
+
+This document therefore does **not** recommend LTM/GTM consolidation as part of the current WAF decision.
+
+See [high_level_architecture.md](./high_level_architecture.md) for the end-to-end topology and ownership-boundary diagram.
+
 This document answers four architecture questions together:
 
 1. Which deployment options tolerate **one node, two nodes, a complete local cluster/tier, or a complete site failure**?
@@ -30,7 +46,7 @@ A single WAF or backend failure should remain a **local member failure**. It sho
 | **W3** | Tenant LTM pair -> tenant-preferred WAFs + **shared reserve WAF capacity** |
 | **W4** | Asymmetric: Site 1 WAF HA cluster + extra WAF; Site 2 WAF HA cluster only |
 | **S1** | **Tenant-specific LTM pairs -> shared independent active WAF pool** |
-| **S2** | **Shared LTM pair -> shared independent active WAF pool** |
+| **S2** | **Shared LTM pair -> shared independent active WAF pool (future comparison; outside current LTM/GTM scope)** |
 | **X2A** | Surviving local LTM uses remote WAF and routes back to the local application path |
 | **X2B** | Remote front end routes back to the healthy primary-site application path |
 | **X2C** | Full application/site failover |
@@ -85,7 +101,7 @@ In summary:
 | **Best isolation / highest-confidence maintainability** | dedicated W1 with 2 LTMs + 3 independent WAFs per tenant/site | strongest local maintenance and N-2-style headroom with smallest cross-tenant blast radius |
 | **Good but more complex** | W3 preferred WAFs + shared reserve | strong recovery if reserve is guaranteed, but shared reserve governance is complex |
 | **Simple but less maintenance margin** | W2b two-node WAF HA cluster | good first-failure HA/mirroring; pair boundary leaves less redundancy during maintenance |
-| **Not preferred as critical-service default** | shared LTM + shared WAF service | lowest device count but largest common-mode/cross-tenant blast radius |
+| **Not preferred / outside current target scope** | shared LTM + shared WAF service | requires LTM-owner redesign and has the largest common-mode/cross-tenant blast radius |
 
 The 99.95% target is most credible when normal changes are effectively no-outage, common failures stay R0/R1, and whole-tier/dependency failures can use R2 recovery rather than forcing a site move.
 
@@ -130,9 +146,9 @@ Firewall VIP
     |
 LTM HA pair
     |
-+---+---+---+
-|   |   |   |
-W1  W2  W3 ... Wn
++----+----+----+
+|    |    |    |
+WAF1 WAF2 WAF3 ... WAFn
     |
    CFW
     |

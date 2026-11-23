@@ -66,6 +66,8 @@ Use the invariant and variable files above.
 
 Maintain [high_level_architecture.md](./high_level_architecture.md) as the canonical entity/relationship view.
 
+It must show an explicit **architecture ownership boundary** separating GTM/LTM/network owner decisions, EnterpriseWAF decisions, and platform/application decisions.
+
 It must show:
 
 - external human/API consumers;
@@ -88,7 +90,7 @@ Explicitly distinguish:
 - application-coupled WAF policy;
 - target-state security-zone/cloud sharing boundary.
 
-If the estate consolidates into common private-cloud platforms, do not assume historic tenant boundaries remain the correct runtime sharing boundary. Compare Internet and Intranet/Extranet stacks separately.
+The current primary scope is the **four-tenant extranet estate**. Retain the existing GTM and tenant LTM boundaries in the current target model. Treat LTM/GTM consolidation as a future joint architecture question requiring the owning teams; do not silently redesign those services in the WAF recommendation.
 
 ## Mandatory comparison dimensions
 

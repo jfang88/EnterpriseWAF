@@ -16,7 +16,7 @@ If you only want the current architecture and conclusions, start with:
 
 | File | Type | Purpose | Change frequency |
 |---|---|---|---|
-| [high_level_architecture.md](./high_level_architecture.md) | **Canonical architecture overview** | External/internal consumers, DNS, network paths, LTM/WAF/CFW/ELB, cloud hosting, App A/B/C/D dependencies and WAF platform-vs-policy distinction | Update when the target logical architecture changes |
+| [high_level_architecture.md](./high_level_architecture.md) | **Canonical architecture overview** | Four-tenant extranet consumers/DNS/network paths, retained LTM/GTM boundaries, ownership model, WAF/CFW/ELB, cloud hosting, App A/B/C/D dependencies and WAF platform-vs-policy distinction | Update when the target logical architecture changes |
 | [executive_recommendation.md](./executive_recommendation.md) | **Executive decision summary** | Final recommendation, 99.95 potential, ranked options and approval gates | Update when conclusions materially change |
 | [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md) | **Primary architecture summary** | W1-W4, dedicated/shared four-tenant cost, N-1/N-2/tier failure tolerance, cross-site comparison and application-type resilience | Regenerate when topology/capacity/tenancy assumptions change |
 | [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md) | **Invariant input** | Stable enterprise context, application types, sites, tenant model, design objectives and 99.95 maintainability objective | Rare |
@@ -60,6 +60,8 @@ Use this decision:
 This prevents the baseline from drifting every time a new topology or scenario is considered.
 
 ## Current enterprise context
+
+The primary topology decision is the four-tenant **extranet** environment. Existing GTM/LTM tenant boundaries are retained in the current WAF target; consolidation is a future joint question for the owning teams.
 
 The baseline currently models:
 

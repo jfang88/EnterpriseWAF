@@ -2,7 +2,7 @@
 
 Enterprise architecture analysis for resilient F5-based application delivery and WAF design.
 
-The current analysis focuses on a two-site enterprise environment using F5 BIG-IP DNS/GTM, LTM and Advanced WAF/ASM, with multiple tenant/hosting environments and a mix of stateless web, stateful web, WebSocket/long-lived and non-web applications.
+The current analysis focuses on a two-site **four-tenant extranet** environment using F5 BIG-IP DNS/GTM, LTM and Advanced WAF/ASM, with external partner/customer access over private-network paths plus internal users and application dependencies.
 
 ## Start here
 
@@ -18,7 +18,7 @@ For the high-level architecture and entity/relationship view, start with:
 
 - [High-level EnterpriseWAF architecture](./enterprise-scenarios/high_level_architecture.md)
 
-This is the canonical diagram for external/internal consumers, DNS namespaces, network paths, LTM/WAF/CFW/ELB layers, application hosting and App A -> B -> C/D dependencies.
+This is the canonical diagram for the four-tenant extranet topology: external/internal consumers, DNS namespaces, private-network paths, retained tenant LTM/GTM boundaries, WAF/CFW/ELB layers, ownership boundaries, application hosting and App A -> B -> C/D dependencies.
 
 For the executive decision and final recommendation, then read:
 

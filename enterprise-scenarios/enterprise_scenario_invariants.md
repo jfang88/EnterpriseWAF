@@ -28,6 +28,20 @@ A tenant may have dedicated or logically isolated instances/contexts of:
 
 Some components may be shared across multiple tenants. When a component is shared, the scenario analysis must explicitly state the cross-tenant blast radius.
 
+### Current focus: four-tenant extranet estate
+
+The primary architecture discussion is the **four-tenant extranet environment**.
+
+For this analysis:
+
+- the four tenant/hosting contexts are the current extranet delivery domains;
+- external partner/customer users primarily reach services over private leased-line / VPN style connectivity;
+- the existing GTM/LTM tenant boundaries remain part of the current baseline;
+- consolidation of GTM/LTM is **not** assumed by this WAF study and requires participation from the owning teams;
+- internal users and application-to-application dependencies remain in scope because they can experience different failure modes and may bypass the extranet WAF path.
+
+The wider enterprise may contain other Internet or internal hosting environments, but they are not the primary topology being decided in this document set.
+
 ### Default modelling rule
 
 For readability, worked examples and failure matrices should use **one representative tenant** unless shared infrastructure materially changes the result.
