@@ -35,14 +35,62 @@ Only expand a scenario across multiple tenants where infrastructure is explicitl
 
 ## Primary comparison
 
-### Option 1 — Clustered WAF + local-only routing
+### Option 1 — LTM-fronted scalable WAF pool
 
-- firewall-owned external VIP;
-- LTM in front of the WAF tier;
-- WAF deployed as an HA cluster;
-- normal application traffic remains in the local site;
-- no cross-site WAF borrowing;
-- no cross-site App A -> App B contingency unless separately declared.
+The first WAF topology is a **pool of WAF devices behind a pair of LTMs**.
+
+Representative path:
+
+```text
+Firewall-owned application VIP
+            |
+        LTM HA pair
+            |
+     +------+------+------+
+     |             |      |
+    WAF1          WAF2   WAF3 ... WAFn
+     |             |      |
+     +------+------+------+
+            |
+      protected backend
+      application VIP(s)
+```
+
+Key characteristics:
+
+- the LTM tier presents the upstream service and load-balances traffic across the WAF pool;
+- the WAF pool may initially contain **2 WAF devices**;
+- the pool can scale horizontally to **3 or more WAF devices** when traffic, throughput, inspection load or resilience requirements increase;
+- WAF devices are treated as pool members rather than as a fixed two-node active/standby WAF pair;
+- each WAF may expose or use the required downstream/application-facing VIPs or protected service definitions to reach the backend applications;
+- LTM health monitoring should remove an unhealthy WAF member from service;
+- planned maintenance should allow a WAF member to be drained/removed without taking the whole protected service down;
+- total capacity should be assessed under degraded conditions, e.g. whether the remaining WAF members can carry the load after loss of one member;
+- the failure analysis must distinguish **one WAF member failure**, **multiple member failure**, and **loss of the entire WAF pool**;
+- the failure analysis must also distinguish **one LTM member failure** from **loss of the entire LTM HA pair**;
+- cross-site routing is a separate design decision and must not be assumed as part of this option unless explicitly enabled.
+
+For this option, the normal local-site data path is:
+
+```text
+External user
+ -> leased-line path
+ -> edge firewall / firewall-owned VIP
+ -> LTM HA pair
+ -> selected healthy WAF pool member
+ -> application / ELB / private-cloud path
+```
+
+Capacity/failure questions to include:
+
+1. With 2 WAFs, can one surviving WAF carry the full required peak load?
+2. With 3+ WAFs, what N+1 or N+2 capacity target is required?
+3. How quickly does the LTM stop sending new traffic to a failed/unhealthy WAF?
+4. What happens to existing HTTP, stateful-web and socket/WebSocket connections pinned to that WAF?
+5. Does the downstream application path remain reachable from every WAF pool member?
+6. Are WAF policies/configuration consistent across all pool members?
+7. Can a new WAF be added to the pool without service interruption?
+8. What is the blast radius of a bad policy/configuration pushed to every WAF member?
 
 ### Option 2 — LTM-balanced active WAFs + local-only routing
 
