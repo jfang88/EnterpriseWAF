@@ -36,15 +36,18 @@ This contains:
 
 Change this file when testing a different topology, health-check strategy, capacity assumption or F5 recovery configuration.
 
-### 3. Derived analysis
+### 3. Derived analyses
 
 Regenerate/update:
 
-- [common_failure_matrix.md](./common_failure_matrix.md)
+- **Lens 1 — failure/recovery:** [common_failure_matrix.md](./common_failure_matrix.md)
+- **Lens 2 — maintainability/change safety:** [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md)
 
-The matrix is a **derived output**. It should be regenerated when the invariant file or analysis-variable file changes.
+Both are **derived outputs**. They should be regenerated when the invariant file or analysis-variable file changes.
 
-Do not copy new assumptions directly into the matrix without first deciding whether they belong in the invariant file or the variable file.
+Do not copy new assumptions directly into either derived analysis without first deciding whether they belong in the invariant file or the variable file.
+
+A new analysis lens should be added as a separate derived document where possible rather than expanding the invariant baseline or mixing unrelated conclusions into the failure matrix.
 
 ---
 
@@ -72,6 +75,47 @@ Also distinguish:
 - X2C — conventional site/application failover;
 - XD1 — App A -> App B remote-dependency fallback.
 
+
+## Mandatory maintainability / change-safety lens
+
+After completing the failure/recovery analysis, regenerate:
+
+- [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md)
+
+Assess every W1-W4 topology for:
+
+- monitoring difficulty and operational visibility;
+- firmware/software upgrades;
+- WAF policy/signature deployment;
+- LTM/GTM rule/configuration deployment;
+- config-sync blast radius;
+- BIG-IQ or equivalent centralized change control;
+- rolling, canary and blue-green feasibility;
+- pool/member drain behavior;
+- application drain/reconnect/state requirements;
+- rollback;
+- maintenance capacity;
+- staggered node/site change waves;
+- whether one unplanned failure can still be tolerated during one planned maintenance event;
+- component, path and end-to-end 99.95% availability potential.
+
+Treat 99.95% as a target to test, not as an assumed result.
+
+For every change scenario identify:
+
+- change unit;
+- capacity removed during change;
+- remaining failure tolerance;
+- drain method;
+- config-sync behavior;
+- canary/blue-green option;
+- monitoring/acceptance criteria;
+- rollback trigger/path;
+- application behavior required;
+- whether Site 1 and Site 2 can be staggered;
+- whether the change can meet the availability target.
+
+Do not deliberately create configuration drift between HA peers merely to simulate blue-green when the product expects synchronized HA configuration. Prefer a separate pool member, virtual/pool, policy staging, reserve WAF, extra WAF, application version, or site as the canary/blue-green boundary.
 
 ## Mandatory cross-site recovery study
 
@@ -233,7 +277,9 @@ If these are absent, explicitly mark the application **not end-to-end resilient*
 
 # Required output structure
 
-Regenerate the derived matrix with:
+## Lens 1 — failure/recovery
+
+Regenerate the failure matrix with:
 
 1. topology shorthand;
 2. timing model;
@@ -269,6 +315,26 @@ For each scenario identify:
 - compliance requirement;
 - overall recoverability.
 
+## Lens 2 — maintainability/change safety
+
+Regenerate the maintainability analysis with:
+
+1. availability/SLO budget;
+2. F5 operational capabilities;
+3. maintainability principles;
+4. monitoring complexity;
+5. firmware strategy by W1-W4;
+6. LTM maintenance/rule changes;
+7. GTM maintenance;
+8. WAF policy/signature strategy;
+9. blue-green/canary feasibility;
+10. application draining;
+11. 99.95 maintainability test;
+12. topology scorecard;
+13. critical maintainability risks;
+14. recommended operating model;
+15. maintainability conclusions.
+
 ---
 
 # Change-control rule
@@ -284,5 +350,7 @@ Before changing any analysis:
    - No -> leave variables untouched.
 
 3. Regenerate the failure matrix from those inputs.
+4. Regenerate the maintainability/change-safety analysis from the same inputs.
+5. Keep findings in their derived lens; promote a fact into invariants or variables only when it is genuinely a reusable input.
 
 This separation is intended to prevent the baseline from drifting every time a new WAF option or failure scenario is considered.
