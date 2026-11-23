@@ -43,9 +43,31 @@ These are modelling categories, not guaranteed SLAs.
 | **T1 — HA peer failover** | roughly 3+ seconds peer-loss detection under common/default-style BIG-IP HA behavior, plus traffic-group/network convergence; validate in production design |
 | **T2 — local pool-member health** | often up to the configured LTM monitor timeout; many monitor types default around 5s interval / 16s timeout |
 | **T3 — direct GTM monitor** | BIG-IP DNS direct HTTP/HTTPS/TCP monitoring commonly defaults around 30s interval / 120s timeout unless tuned |
-| **T4 — DNS/site convergence** | health detection + GTM decision + TTL/cache + client re-resolution/retry + alternate-site readiness |
+| **T4 — DNS/site convergence** | health detection + GTM decision + residual DNS TTL/cache + client re-resolution/retry + alternate-site readiness. F5 GTM A-record pool TTL default is 30s; direct GTM monitor defaults can be 30s/120s |
 | **T5 — warm/cold/manual** | operator/startup/configuration dependent; may be minutes or longer |
 | **T6 — application recovery** | application-specific retry/reconnect/session/state/replay behavior; can dominate RTO even after infrastructure is healthy |
+
+## 2.1 Validated numeric planning windows
+
+Use these explicit planning calculations where applicable:
+
+| Recovery pattern | Planning timing |
+|---|---|
+| BIG-IP HA peer/member takeover | **~3s+** peer-loss detection plus traffic-group/network convergence and T6 for affected flows |
+| LTM withdraws one failed pool/WAF member | **up to ~16s + T6** with common 5s/16s monitor defaults; no DNS term if VIP is unchanged |
+| X2A remote WAF behind surviving local LTM | **~16s-class + T6**, assuming remote member already healthy/policy-ready; no DNS term |
+| GTM site move using fast LTM-health-informed state | illustrative **~16s health + up to 30s residual TTL = ~46s + T6**, plus unmeasured iQuery/propagation |
+| GTM site move using default direct GTM monitor | **up to ~120s health + up to 30s residual TTL = ~150s + T6** |
+| Manual passive-site startup | **T5 + ~46–150s + T6** depending health model; T5 may dominate |
+| App B local-preferred -> B2 through stable LTM service VIP | **~16s-class + App A retry T6** |
+| App B1 -> B2 through DNS/GTM | **~46–150s + T6**, plus application-specific DNS/connection-pool caching |
+
+Important:
+
+- a 30s DNS TTL does not migrate an existing TCP/WebSocket connection;
+- clients with cached old answers can continue to select the failed VIP until the remaining TTL expires;
+- applications can retain addresses/connections beyond authoritative TTL;
+- after LTM marks a member down, new traffic uses healthy members, but established connections on the failed member can still reset/hang until client/application recovery.
 
 # 3. Control-plane, namespace and ingress failures
 
