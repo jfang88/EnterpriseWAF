@@ -89,10 +89,10 @@ application
 
 ## W3 — tenant-preferred WAFs plus shared enterprise reserve
 
-Per site, each tenant has its preferred WAF capacity behind its tenant LTM. One or more shared reserve WAFs may be available to multiple tenant pools.
+Per site, each tenant has its preferred WAF capacity behind a **tenant LTM service**. One or more shared reserve WAFs may be available to multiple tenant pools.
 
 ```text
-Tenant LTM pair
+Tenant LTM DSC service
     |
 +---+---+
 |       |
@@ -104,11 +104,114 @@ WAF1   WAF2
 R-WAF1     R-WAF2
 ```
 
-- Preferred tenant WAFs handle normal traffic.
-- Shared reserve WAFs can join a tenant pool when preferred WAF capacity is lost.
-- Shared reserve introduces cross-tenant capacity, policy-isolation and operational dependencies.
-- The same logical preferred-plus-reserve model may exist in Site 2.
-- Site-level GTM recovery remains available in addition to reserve-WAF recovery.
+Preferred tenant WAFs handle normal traffic. Shared reserve WAFs can join a tenant pool when preferred WAF capacity is lost.
+
+### W3-L2 — two-device tenant LTM Sync-Failover pair
+
+This is the baseline/default W3 LTM model.
+
+```text
+Tenant VIP / traffic group
+          |
+      LTM-A active
+      LTM-B standby
+          |
+ preferred/reserve WAFs
+```
+
+Benefits:
+
+- simplest DSC operating model;
+- mature active/standby failover;
+- one LTM member can be maintained while the peer serves traffic.
+
+Limitation:
+
+- during maintenance of one LTM, the tenant LTM service is effectively single-device;
+- complete loss of the LTM pair removes access to both preferred and reserve WAFs behind it.
+
+### Optional W3-L3 comparison — three-device tenant LTM Sync-Failover group
+
+F5 DSC supports up to **eight devices** in a Sync-Failover device group.
+
+For one tenant traffic group/VIP:
+
+```text
+Tenant VIP / traffic group
+          |
+      active: LTM-A
+ next-active: LTM-B
+ additional: LTM-C
+          |
+ preferred/reserve WAFs
+```
+
+A single traffic group is active on one BIG-IP at a time; three devices do **not** mean one tenant VIP is simultaneously active on all three.
+
+For multiple traffic groups, active load can be distributed:
+
+```text
+TG-A active on LTM-A
+TG-B active on LTM-B
+TG-C active on LTM-C
+```
+
+F5 supports ordered and load-aware next-active selection.
+
+Benefits:
+
+- one LTM can be removed for maintenance while **two LTMs still remain**;
+- subject to capacity, a second LTM failure during maintenance can be survived locally;
+- multiple traffic groups can be distributed across devices for better hardware utilisation;
+- lowers the chance that an ordinary LTM failure escalates into GTM/site recovery;
+- particularly useful in W3 because reserve WAFs are otherwise unreachable if the entire tenant LTM service is lost.
+
+Trade-offs:
+
+- all three devices remain a **single DSC/configuration change domain**;
+- a bad synchronized LTM/iRule/configuration can affect all three;
+- each traffic group still has one active owner and one next-active target at a time;
+- connection/state mirroring behavior must be validated for the chosen traffic-group/next-active design;
+- more failover order, capacity and operational testing is required;
+- three devices improve availability/maintenance headroom more than they improve a single VIP's throughput.
+
+### W3-LI — multiple independent LTMs
+
+Multiple independent LTMs are technically possible only when another mechanism distributes traffic to them, for example distinct VIPs, upstream routing/ECMP, firewall steering or GTM/DNS.
+
+This is **not** the preferred default for one tenant service because:
+
+- the front-door VIP/traffic ownership problem has to be solved elsewhere;
+- connection/persistence state is not shared automatically as one DSC service;
+- config consistency and rollback become more complex;
+- upstream health and routing become another failure domain;
+- troubleshooting becomes harder.
+
+Independent LTMs can make sense when they intentionally serve **different tenants, applications, VIP sets or fault domains**, rather than trying to behave as one HA LTM service.
+
+### W3 recommendation
+
+Use **W3-L2 (two LTMs per site)** as the enterprise baseline/default. W3-L3 is only an optional comparison and should not be assumed in failure or capacity calculations unless explicitly selected.
+
+Consider **W3-L3** when:
+
+- 99.95%/maintenance requirements justify retaining redundancy while one LTM is out for change;
+- there are enough traffic groups to distribute useful active load;
+- the third device's capacity is genuinely available during failure;
+- operational teams can manage/test the additional DSC complexity.
+
+Do not add a third LTM solely to make a two-device HA pair "more clustered." Its strongest business case is **maintenance + second-failure tolerance** and multi-traffic-group utilisation.
+
+For the detailed distinction between DSC clustering and true load-balanced WAF pools, see [appendix_ltm_waf_2_vs_3_nodes.md](./appendix_ltm_waf_2_vs_3_nodes.md).
+
+Shared reserve WAF risks remain:
+
+- cross-tenant capacity contention;
+- policy isolation;
+- reserve policy readiness;
+- reserve exhaustion during concurrent tenant failures/maintenance.
+
+The same logical preferred-plus-reserve model may exist in Site 2. Site-level GTM recovery remains available in addition to local LTM/WAF recovery.
 
 ## W4 — asymmetric WAF cluster plus extra active/spare node in Site 1
 
@@ -412,11 +515,21 @@ Many BIG-IP LTM active monitor types use defaults around:
 
 F5 documentation states the timeout should generally be about three times the interval plus one second for these monitors.
 
-Model:
+Validated behavior:
 
-- member removal with defaults: up to roughly the configured timeout;
-- new connections then use remaining healthy pool members;
-- existing connections through the failed member may reset.
+- while a failed member is still considered healthy, some new connections/requests can still be selected to it and fail;
+- once the member is marked down, BIG-IP LTM stops sending new connections to that member and redirects new traffic to another healthy pool member;
+- this can make a pool-member failure a relatively short **local recovery event** when healthy capacity remains;
+- already-established TCP/WebSocket connections on the failed member are **not automatically migrated** to another member;
+- F5's default Action On Service Down behavior is `None`, so an existing connection may remain until it ends, resets, or its profile/application timeout expires unless a different supported action is deliberately configured.
+
+Planning model:
+
+- **new requests/connections:** up to approximately the configured member-monitor timeout (often ~16s with the documented defaults), then healthy-member selection;
+- **existing connection on failed member:** monitor timing does not bound the user outage; add client/application timeout + reconnect/retry (T6);
+- **unaffected existing connections on healthy members:** no direct interruption.
+
+Do not describe this as "zero interruption" unless the affected connection is preserved by a tested HA/mirroring mechanism or the client/application retry is effectively transparent.
 
 Tune monitor intervals only after testing false-positive/flapping risk.
 
@@ -433,20 +546,54 @@ For F5-to-F5 environments, prefer integrating BIG-IP DNS with LTM health via the
 
 ## T4 — DNS/site failover convergence
 
-End-user site recovery is:
+### DNS answer TTL
+
+F5's current iControl REST reference for BIG-IP DNS/GTM A-record pools documents a default pool **TTL of 30 seconds**.
+
+The TTL means the returned IP address is valid in the resolver/client cache for that period before a fresh DNS lookup is required.
+
+Therefore, after GTM decides that Site 1 is unhealthy:
+
+- **new uncached DNS queries** can receive the healthy Site 2 answer immediately after the GTM health state changes;
+- a resolver/client that already cached the Site 1 answer may continue using it for the **remaining TTL**, up to approximately 30 seconds if the configured TTL is left at the documented default;
+- an already-established TCP/TLS/WebSocket connection does **not** move merely because the DNS TTL expires;
+- an application may continue using an old connection or its own DNS cache beyond the authoritative TTL, so client/application behavior must be tested.
+
+Do not confuse:
+
+- **GTM health-monitor interval/timeout** — how long GTM takes to decide an endpoint is unavailable; with many direct GTM HTTP/HTTPS/TCP monitors the documented defaults are 30s interval / 120s timeout; and
+- **DNS answer TTL** — how long an already-returned IP can remain cached; the documented GTM pool default is 30s.
+
+End-user site recovery is therefore:
 
 ```text
 health detection
  + GTM decision/update
- + DNS TTL / recursive-cache expiry
- + client/application DNS cache
- + connection retry/re-resolution
+ + residual DNS TTL/cache
+ + client/application reconnect or retry
  + alternate-site application readiness
 ```
 
-Therefore GTM failover is not a single product failover number.
+### Validated planning examples
 
-A manual passive-site application startup can dominate the total RTO even when GTM detects the failure quickly.
+These are calculations from documented defaults, **not F5 SLAs**:
+
+1. **Direct GTM monitor model**
+   - health withdrawal: up to ~120s with default-style direct GTM monitor timeout;
+   - residual DNS answer TTL: up to ~30s;
+   - planning boundary before fresh DNS resolution: roughly **up to ~150s + T6**, assuming alternate site is already ready.
+
+2. **LTM health exported to GTM / iQuery model**
+   - local application/WAF-path health may be detected on the LTM's faster monitor timescale (for example ~16s with common defaults);
+   - GTM/iQuery propagation must still be measured;
+   - if GTM changes its answer at about that point, residual DNS TTL can add up to ~30s;
+   - an illustrative lower-latency planning case is therefore **~46s + T6**, but this is not a vendor guarantee and must be measured end-to-end.
+
+3. **Manual passive-site application**
+   - add T5 before the alternate site can safely be advertised/used;
+   - T5 can dominate the RTO and make DNS/F5 timing a minor component.
+
+A manual passive-site application startup can therefore dominate the total RTO even when GTM detects failure quickly.
 
 ## T5 — warm/cold/manual recovery
 
@@ -480,6 +627,74 @@ T6 can dominate user-visible RTO even when F5 failover has already completed.
 F5 traffic-group auto-failback supports configurable delay; F5 documentation shows a default of 60 seconds when auto-failback is enabled and notes 40–60 seconds can allow state mirroring to re-establish.
 
 For critical services, prefer controlled failback rather than immediate oscillation.
+
+## T8 — DNS cache versus existing connection behavior
+
+Treat these separately in every failure scenario:
+
+| Client state | What DNS failover changes |
+|---|---|
+| No cached answer / new lookup | Receives the new healthy GTM answer after health withdrawal |
+| Cached old answer | Can continue selecting the old IP until remaining TTL/cache expires |
+| Existing TCP/TLS/WebSocket connection | DNS does not move it; it continues until the path fails, closes or times out |
+| Application with its own DNS/connection pool | May retain old endpoint longer than DNS TTL; must explicitly refresh/re-resolve |
+| Stateless retrying client | Can recover quickly once it re-resolves/opens a new connection |
+| Long-lived/stateful client | Requires T6 reconnect/state/session recovery |
+
+This is why a 30-second DNS TTL does **not** mean "30-second site failover" and does **not** cap the outage of an existing connection.
+
+## T9 — platform/cloud firewall (CFW) recovery
+
+CFW recovery is a separate timing domain from F5 LTM/WAF and application ELB recovery.
+
+No numeric default is assumed because the platform firewall product, HA mode, state synchronization, route convergence and health integration are deployment-specific.
+
+Analyse three distinct cases:
+
+### T9A — one CFW HA member fails
+
+If the CFW HA service keeps the same logical path/VIP and state/routing converges correctly:
+
+- **no DNS TTL should be involved**;
+- new connections should continue through the surviving CFW member;
+- existing TCP/WebSocket connections may survive only if firewall/NAT/session state is preserved;
+- otherwise add T6 reconnect/re-auth/replay.
+
+Target: keep this as a **local seconds-scale HA event**, but use measured CFW data rather than inventing a default.
+
+### T9B — entire local CFW context/service fails
+
+If the CFW is the only path to the local ELB/application:
+
+- the local application can be healthy but unreachable;
+- X2A remote-WAF route-back does **not** help if traffic must still traverse the failed Site 1 CFW;
+- recovery requires an alternate local CFW path, alternate application/site path, or CFW restoration.
+
+If site failover is required and CFW failure is promptly reflected in the GTM/application health state:
+
+- use the existing **~46s + T6 illustrative fast-health case** or **up to ~150s + T6 direct-GTM-default case**;
+- add T5 if the alternate application/site is not ready.
+
+### T9C — CFW false green
+
+This is the critical case:
+
+```text
+GTM/LTM/WAF healthy
+        |
+        v
+CFW path broken
+        |
+        v
+ELB/app unreachable
+```
+
+If monitoring stops at the WAF/front-end, the bad site can remain advertised and recovery can be **unbounded until another monitor or operator detects the problem**.
+
+Recommendation:
+
+- application/site readiness must prove reachability through the CFW to the ELB/application, or otherwise consume an authoritative signal that represents that full path;
+- internal service health must also include CFW reachability where internal App A -> B/C traffic traverses the same CFW.
 
 # 6. F5 connection mirroring implications
 
@@ -525,6 +740,11 @@ Official F5 references reviewed for this analysis:
 - BIG-IP LTM health/performance monitoring: https://techdocs.f5.com/en-us/bigip-17-0-0/big-ip-local-traffic-manager-implementations/implementing-health-and-performance-monitoring.html
 - BIG-IP LTM monitor settings: https://techdocs.f5.com/en-us/bigip-16-0-0/big-ip-local-traffic-manager-monitors-reference/monitors-settings-reference.html
 - BIG-IP DNS monitor settings: https://techdocs.f5.com/en-us/bigip-14-0-0/big-ip-dns-monitors-reference/monitors-settings-reference.html
+- BIG-IP DNS/GTM A-record pool TTL (default 30s): https://clouddocs.f5.com/api/icontrol-rest/APIRef_tm_gtm_pool_a.html
+- BIG-IP DSC Sync-Failover device groups (maximum eight devices): https://techdocs.f5.com/en-us/bigip-14-1-0/big-ip-device-service-clustering-administration-14-1-0/working-with-device-groups.html
+- BIG-IP DSC traffic groups / ordered and load-aware failover: https://techdocs.f5.com/en-us/bigip-14-1-0/big-ip-device-service-clustering-administration-14-1-0/managing-failover.html
+- BIG-IP LTM current health monitoring: https://techdocs.f5.com/en-us/bigip-17-0-0/big-ip-local-traffic-manager-implementations/implementing-health-and-performance-monitoring.html
+- BIG-IP pool action when service becomes unavailable: https://techdocs.f5.com/content/kb/en-us/products/big-ip_ltm/manuals/product/ltm-basics-13-0-0/_jcr_content/pdfAttach/download/file.res/BIG-IP_Local_Traffic_Management__Basics.pdf
 - BIG-IP DNS + LTM integration/iQuery: https://techdocs.f5.com/en-us/bigip-17-5-0/big-ip-dns-implementations/integrating-big-ip-dns-into-a-network-with-big-ip-ltm-systems.html
 - BIG-IP DNS Global Availability: https://techdocs.f5.com/en-us/bigip-15-0-0/big-ip-dns-load-balancing/about-load-balancing-and-resource-availability.html
 - BIG-IP DNS Topology load balancing: https://techdocs.f5.com/en-us/bigip-15-0-0/big-ip-dns-load-balancing/using-topology-load-balancing-to-distribute-dns-requests-to-specific-resources.html
