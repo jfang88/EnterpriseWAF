@@ -412,11 +412,21 @@ Many BIG-IP LTM active monitor types use defaults around:
 
 F5 documentation states the timeout should generally be about three times the interval plus one second for these monitors.
 
-Model:
+Validated behavior:
 
-- member removal with defaults: up to roughly the configured timeout;
-- new connections then use remaining healthy pool members;
-- existing connections through the failed member may reset.
+- while a failed member is still considered healthy, some new connections/requests can still be selected to it and fail;
+- once the member is marked down, BIG-IP LTM stops sending new connections to that member and redirects new traffic to another healthy pool member;
+- this can make a pool-member failure a relatively short **local recovery event** when healthy capacity remains;
+- already-established TCP/WebSocket connections on the failed member are **not automatically migrated** to another member;
+- F5's default Action On Service Down behavior is `None`, so an existing connection may remain until it ends, resets, or its profile/application timeout expires unless a different supported action is deliberately configured.
+
+Planning model:
+
+- **new requests/connections:** up to approximately the configured member-monitor timeout (often ~16s with the documented defaults), then healthy-member selection;
+- **existing connection on failed member:** monitor timing does not bound the user outage; add client/application timeout + reconnect/retry (T6);
+- **unaffected existing connections on healthy members:** no direct interruption.
+
+Do not describe this as "zero interruption" unless the affected connection is preserved by a tested HA/mirroring mechanism or the client/application retry is effectively transparent.
 
 Tune monitor intervals only after testing false-positive/flapping risk.
 
@@ -433,20 +443,54 @@ For F5-to-F5 environments, prefer integrating BIG-IP DNS with LTM health via the
 
 ## T4 — DNS/site failover convergence
 
-End-user site recovery is:
+### DNS answer TTL
+
+F5's current iControl REST reference for BIG-IP DNS/GTM A-record pools documents a default pool **TTL of 30 seconds**.
+
+The TTL means the returned IP address is valid in the resolver/client cache for that period before a fresh DNS lookup is required.
+
+Therefore, after GTM decides that Site 1 is unhealthy:
+
+- **new uncached DNS queries** can receive the healthy Site 2 answer immediately after the GTM health state changes;
+- a resolver/client that already cached the Site 1 answer may continue using it for the **remaining TTL**, up to approximately 30 seconds if the configured TTL is left at the documented default;
+- an already-established TCP/TLS/WebSocket connection does **not** move merely because the DNS TTL expires;
+- an application may continue using an old connection or its own DNS cache beyond the authoritative TTL, so client/application behavior must be tested.
+
+Do not confuse:
+
+- **GTM health-monitor interval/timeout** — how long GTM takes to decide an endpoint is unavailable; with many direct GTM HTTP/HTTPS/TCP monitors the documented defaults are 30s interval / 120s timeout; and
+- **DNS answer TTL** — how long an already-returned IP can remain cached; the documented GTM pool default is 30s.
+
+End-user site recovery is therefore:
 
 ```text
 health detection
  + GTM decision/update
- + DNS TTL / recursive-cache expiry
- + client/application DNS cache
- + connection retry/re-resolution
+ + residual DNS TTL/cache
+ + client/application reconnect or retry
  + alternate-site application readiness
 ```
 
-Therefore GTM failover is not a single product failover number.
+### Validated planning examples
 
-A manual passive-site application startup can dominate the total RTO even when GTM detects the failure quickly.
+These are calculations from documented defaults, **not F5 SLAs**:
+
+1. **Direct GTM monitor model**
+   - health withdrawal: up to ~120s with default-style direct GTM monitor timeout;
+   - residual DNS answer TTL: up to ~30s;
+   - planning boundary before fresh DNS resolution: roughly **up to ~150s + T6**, assuming alternate site is already ready.
+
+2. **LTM health exported to GTM / iQuery model**
+   - local application/WAF-path health may be detected on the LTM's faster monitor timescale (for example ~16s with common defaults);
+   - GTM/iQuery propagation must still be measured;
+   - if GTM changes its answer at about that point, residual DNS TTL can add up to ~30s;
+   - an illustrative lower-latency planning case is therefore **~46s + T6**, but this is not a vendor guarantee and must be measured end-to-end.
+
+3. **Manual passive-site application**
+   - add T5 before the alternate site can safely be advertised/used;
+   - T5 can dominate the RTO and make DNS/F5 timing a minor component.
+
+A manual passive-site application startup can therefore dominate the total RTO even when GTM detects failure quickly.
 
 ## T5 — warm/cold/manual recovery
 
@@ -480,6 +524,21 @@ T6 can dominate user-visible RTO even when F5 failover has already completed.
 F5 traffic-group auto-failback supports configurable delay; F5 documentation shows a default of 60 seconds when auto-failback is enabled and notes 40–60 seconds can allow state mirroring to re-establish.
 
 For critical services, prefer controlled failback rather than immediate oscillation.
+
+## T8 — DNS cache versus existing connection behavior
+
+Treat these separately in every failure scenario:
+
+| Client state | What DNS failover changes |
+|---|---|
+| No cached answer / new lookup | Receives the new healthy GTM answer after health withdrawal |
+| Cached old answer | Can continue selecting the old IP until remaining TTL/cache expires |
+| Existing TCP/TLS/WebSocket connection | DNS does not move it; it continues until the path fails, closes or times out |
+| Application with its own DNS/connection pool | May retain old endpoint longer than DNS TTL; must explicitly refresh/re-resolve |
+| Stateless retrying client | Can recover quickly once it re-resolves/opens a new connection |
+| Long-lived/stateful client | Requires T6 reconnect/state/session recovery |
+
+This is why a 30-second DNS TTL does **not** mean "30-second site failover" and does **not** cap the outage of an existing connection.
 
 # 6. F5 connection mirroring implications
 
@@ -525,6 +584,9 @@ Official F5 references reviewed for this analysis:
 - BIG-IP LTM health/performance monitoring: https://techdocs.f5.com/en-us/bigip-17-0-0/big-ip-local-traffic-manager-implementations/implementing-health-and-performance-monitoring.html
 - BIG-IP LTM monitor settings: https://techdocs.f5.com/en-us/bigip-16-0-0/big-ip-local-traffic-manager-monitors-reference/monitors-settings-reference.html
 - BIG-IP DNS monitor settings: https://techdocs.f5.com/en-us/bigip-14-0-0/big-ip-dns-monitors-reference/monitors-settings-reference.html
+- BIG-IP DNS/GTM A-record pool TTL (default 30s): https://clouddocs.f5.com/api/icontrol-rest/APIRef_tm_gtm_pool_a.html
+- BIG-IP LTM current health monitoring: https://techdocs.f5.com/en-us/bigip-17-0-0/big-ip-local-traffic-manager-implementations/implementing-health-and-performance-monitoring.html
+- BIG-IP pool action when service becomes unavailable: https://techdocs.f5.com/content/kb/en-us/products/big-ip_ltm/manuals/product/ltm-basics-13-0-0/_jcr_content/pdfAttach/download/file.res/BIG-IP_Local_Traffic_Management__Basics.pdf
 - BIG-IP DNS + LTM integration/iQuery: https://techdocs.f5.com/en-us/bigip-17-5-0/big-ip-dns-implementations/integrating-big-ip-dns-into-a-network-with-big-ip-ltm-systems.html
 - BIG-IP DNS Global Availability: https://techdocs.f5.com/en-us/bigip-15-0-0/big-ip-dns-load-balancing/about-load-balancing-and-resource-availability.html
 - BIG-IP DNS Topology load balancing: https://techdocs.f5.com/en-us/bigip-15-0-0/big-ip-dns-load-balancing/using-topology-load-balancing-to-distribute-dns-requests-to-specific-resources.html
