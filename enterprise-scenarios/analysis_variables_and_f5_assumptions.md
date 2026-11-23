@@ -328,6 +328,41 @@ Recommended analysis model for two sites:
 
 BIG-IP DNS supports multiple health monitors and availability requirements such as **All**, **At Least**, and **Require** successful probes. Use these deliberately so a cross-site probe failure does not create an unnecessary site outage.
 
+## G4 — internal namespace / internal endpoint resolution
+
+Internal DNS/GTM behavior is a separate analysis variable from the external namespace.
+
+For each internal service/application, record one of these models:
+
+### G4A — enterprise DNS resolves directly
+
+    App/User -> internal DNS -> internal VIP/endpoint
+
+### G4B — enterprise DNS delegates/forwards selected name to GTM
+
+    App/User -> internal DNS
+             -> GTM/BIG-IP DNS
+             -> internal service VIP/endpoint
+
+### G4C — stable internal service VIP with GTM behind the service abstraction
+
+    App/User -> internal DNS -> stable service name/VIP
+                              -> health-aware local/remote members
+
+Analyse:
+
+- internal DNS availability;
+- conditional-forward/delegation availability;
+- GTM internal-name availability;
+- internal TTL/application DNS cache;
+- whether applications re-resolve after dependency failure;
+- whether GTM returns only endpoints reachable from the internal network;
+- whether internal and external names have different health policies;
+- whether App A/B/C dependencies should use local-preferred/remote-fallback internal answers;
+- whether an internal GTM/DNS failure can cascade across multiple applications even while external ingress remains healthy.
+
+Do not assume the internal DNS architecture must be changed merely because GTM is available. The analysis should identify the dependency and failure behavior first.
+
 # 4. GTM DNS response preference
 
 ## Active/passive applications
