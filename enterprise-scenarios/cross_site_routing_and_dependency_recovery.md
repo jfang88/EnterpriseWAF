@@ -401,7 +401,53 @@ These are independent recovery paths and should be tested independently.
 | Bad WAF policy pushed everywhere | Logical WAF outage | Remote WAF with same bad policy does not help | None | Common-mode config |
 | Site 1 fully lost | GTM -> Site 2 app | Route-back impossible | None | Full DR required |
 
-## 13. Recommended recovery hierarchy
+### 12.1 Cascading failures when cross-site capability is unavailable
+
+Cross-site capability is most valuable because it prevents a small local failure from being promoted into a larger service/site event.
+
+| Initial fault | With approved cross-site path | Without cross-site path | Cascade risk |
+|---|---|---|---|
+| all local WAFs fail, LTM/app healthy | X2A uses Site 2 WAF and routes back; ~16s-class + T6 | external outage until local repair or GTM moves whole service/site | WAF-tier event becomes site/app DR |
+| local LTM+WAF tier fails, app healthy | X2B uses Site 2 front-end and routes to Site 1 app | healthy app must move to Site 2 or remain externally unavailable | front-end fault becomes application move |
+| B1 fails, A1 healthy | XD1 routes A1 to B2 | A1 waits/fails; A may be marked unhealthy | dependency fault becomes A outage |
+| B1 shared by A/C/D fails | A/C/D can remain Site 1 using B2 | all dependent apps can fail readiness together | multiple GTM withdrawals and Site 2 surge |
+| remote B2 exists but no A1->B2 route | route enables dependency recovery | B2 capacity is unusable | healthy remote service provides no recovery |
+| local maintenance consumes WAF capacity | remote WAF can preserve headroom | no spare path during maintenance | one extra failure causes outage |
+
+### Example cascade with no remote B routing
+
+```text
+B1 fails
+  |
+  +--> A1 timeout/retry
+  +--> C1 timeout/retry
+  +--> D1 timeout/retry
+          |
+          v
+  connection/thread pools saturate
+          |
+          v
+  readiness checks fail
+          |
+          v
+  GTM withdraws A/C/D Site 1 VIPs
+          |
+          v
+  cached external/internal DNS may retain Site 1 answers
+  for up to the configured residual TTL (30s default GTM pool TTL)
+          |
+          v
+  A/C/D reconnect/fail to Site 2
+          |
+          v
+  B2 + identity + database + C dependencies receive surge
+```
+
+A dependency event that could have recovered in approximately **~16s + retry** behind a stable service VIP can therefore become **~46–150s + T6** of application/site recovery, or **R4/manual** if the alternate dependencies are not already ready.
+
+This is the core cascading-failure argument for controlled cross-site dependency routing.
+
+# 13. Recommended recovery hierarchy
 
     1. Survive member failure locally
        |
