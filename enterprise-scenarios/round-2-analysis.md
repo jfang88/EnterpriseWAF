@@ -48,6 +48,62 @@ This round should focus on comparing the same enterprise environment under a sma
 4. Application A calling Application B.
 5. Operations/support users where relevant.
 
+
+## Application types to access / protect
+
+The failure analysis must distinguish application behaviour because infrastructure failover can have very different user impact depending on where application state is kept.
+
+### App Type 1 — Stateless web applications
+
+A stateless web application does not depend on application-session state stored only in the specific web/application instance that handled the previous request.
+
+Typical characteristics:
+
+- HTTP/HTTPS request-response traffic;
+- any application instance can normally process the next request;
+- user/session state is either absent or stored in a shared/external service;
+- requests can normally be retried through another healthy WAF, LTM, ELB or backend instance;
+- application-instance failure should not require session affinity to the failed instance;
+- horizontal scaling and member replacement are relatively straightforward.
+
+Representative path:
+
+```text
+User
+ |
+Firewall-owned VIP
+ |
+LTM
+ |
+WAF pool / WAF service
+ |
+Application ELB
+ |
++---- Web/App instance 1
++---- Web/App instance 2
+```
+
+Expected failure behaviour:
+
+- failure of one WAF should cause new requests to use another healthy WAF;
+- failure of one application instance should cause the ELB/LB to select another healthy instance;
+- an in-flight request may fail and need retry;
+- a local WAF-tier failure may use a remote WAF contingency path if that architecture option supports it;
+- a site failure may require GTM/DNS to return the alternate site's reachable VIP;
+- application recovery should not depend on recovering state from the failed web node.
+
+For each stateless-web failure scenario, capture:
+
+1. whether an in-flight request is lost;
+2. whether the client/browser must retry;
+3. whether a new connection is required;
+4. whether authentication/session state is actually external/shared and therefore portable;
+5. whether the next request can use any healthy backend instance;
+6. whether DNS/GTM changes are required or a lower layer can recover locally;
+7. whether internal users bypassing the WAF see a different outcome.
+
+**Important:** classify an application as stateless only if the required business/session state is genuinely portable. An application that keeps login/session/cart/workflow state only in local process memory should be analysed as stateful even if most HTTP requests appear stateless.
+
 ## Common control-plane choices
 
 Analyse DNS/GTM separately from the WAF architecture:
