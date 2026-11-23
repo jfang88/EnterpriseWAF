@@ -1,10 +1,10 @@
 # Cross-Site WAF/LTM Routing and Application Dependency Recovery
 
-Status: Derived design study
-
-Stable baseline: enterprise_scenario_invariants.md  
-Changeable assumptions: analysis_variables_and_f5_assumptions.md  
-Related matrix: common_failure_matrix.md
+**Status:** Derived design study  
+**Canonical shorthand/topology:** [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md)  
+**Stable baseline:** [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)  
+**Changeable assumptions:** [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)  
+**Related matrix:** [common_failure_matrix.md](./common_failure_matrix.md)
 
 ## 1. Purpose
 
@@ -67,7 +67,11 @@ Normal:
         |
     +---+---+
     |       |
-    WAF1   WAF2       preferred/local
+    WAF-1   WAF-2       preferred/local
+        |
+    Site 1 CFW
+        |
+    Site 1 ELB/service
         |
     Site 1 application
 
@@ -81,8 +85,12 @@ Contingency:
         |
         +--------------------> Site 2 WAF
                                   |
-                                  | route back
+                                  | inter-site route back
                                   v
+                            Site 1 CFW
+                                  |
+                            Site 1 ELB/service
+                                  |
                             Site 1 application
 
 This is the cleanest cross-site WAF-borrowing pattern because the client's firewall VIP and local LTM remain unchanged.
@@ -154,6 +162,10 @@ Normal:
       |
     Site 1 WAF
       |
+    Site 1 CFW
+      |
+    Site 1 ELB/service
+      |
     Site 1 application
 
 Contingency:
@@ -166,7 +178,11 @@ Contingency:
       |
     Site 2 WAF
       |
-      +---- inter-site route ----> Site 1 application
+      +---- inter-site route ----> Site 1 CFW
+                                     |
+                                  Site 1 ELB/service
+                                     |
+                                  Site 1 application
 
 This pattern can recover from complete Site 1 delivery-tier loss while keeping the Site 1 application running.
 
@@ -182,7 +198,7 @@ This pattern can recover from complete Site 1 delivery-tier loss while keeping t
 - external clients must be able to route to Site 2;
 - resolver/client caching affects RTO;
 - front end and application are now in different sites;
-- depends simultaneously on Site 2 front end, Site 1 app and the inter-site link;
+- depends simultaneously on Site 2 front end, Site 1 CFW/ELB/app and the inter-site link;
 - operational diagnosis is more complex;
 - if the Site 1 app then fails, another recovery is needed.
 
@@ -207,6 +223,10 @@ This is generally slower than X2A but may still be much faster than manual appli
     Site 2 LTM
       |
     Site 2 WAF
+      |
+    Site 2 CFW
+      |
+    Site 2 ELB/service
       |
     Site 2 application
 
@@ -233,7 +253,8 @@ Use this when the Site 1 application itself is unhealthy, its required data/stat
                     |       |           |           |
                     v       +------> Can Site 2     outage/local
                  X2A               LTM/WAF route    recovery
-                                    back safely?
+                                    back through
+                                    Site 1 CFW?
                                       |      |
                                      yes    no
                                       |      |
@@ -248,9 +269,9 @@ W1-W3 are assumed to exist with the same logical topology in both sites. W4 is i
 
 | Topology | Benefit from route-back | Main drawback |
 |---|---|---|
-| W1 - independent WAF pool in each site | High. A Site 1 LTM can use a Site 2 WAF as lower-priority contingency if routing/policy allow it | Connection reset on failed member; routing/capacity complexity |
+| W1 - independent active WAF pool in each site | High. A Site 1 LTM can use a Site 2 WAF as lower-priority contingency if routing/policy allow it | Connection reset on failed member; routing/capacity complexity |
 | W2 - WAF HA cluster in each site | Medium. Most useful after whole local cluster loss | First failure already handled locally; remote transition is larger |
-| W3 - preferred WAFs + shared reserves in each site | Very high. Reserve WAF can be local or remote | Reserve exhaustion and cross-tenant policy/capacity risk |
+| W3 - preferred active WAFs + shared reserves in each site | Very high. Reserve WAF can be local or remote | Reserve exhaustion and cross-tenant policy/capacity risk |
 | W4 - Site 1 cluster + extra WAF; Site 2 cluster only | High while Site 1 is active because the extra WAF provides another local recovery tier | Site 2 has less local headroom during DR/site failover; asymmetry complicates capacity and testing |
 
 Practical interpretation:
@@ -264,56 +285,56 @@ Practical interpretation:
 
 Baseline:
 
-    App A1 --------------> App B1
-                             X failed
+    App A @ Site 1 ------------> App B @ Site 1
+                                      X failed
 
-    App B2 remains healthy in Site 2
+    App B @ Site 2 remains healthy
 
-If A1 is hard-coded to B1:
+If App A @ Site 1 is hard-coded to local B:
 
-    B1 fails
-      -> A1 loses dependency
-      -> A1 may be declared unhealthy
-      -> A may fail to Site 2
+    App B @ Site 1 fails
+      -> App A loses dependency
+      -> App A may be declared unhealthy
+      -> App A may fail to Site 2
       -> other B-dependent applications may also fail
       -> unnecessary cascade
 
 Preferred pattern:
 
-    App A1
+    App A @ Site 1
        |
        v
     B Service VIP / LTM
        |
-       +---- preferred ----> B1 Site 1
+       +---- preferred ----> App B @ Site 1
        |
-       +---- fallback -----> B2 Site 2
+       +---- fallback -----> App B @ Site 2
 
 Normal:
 
-    A1 -> B Service VIP -> B1
+    App A @ Site 1 -> B Service VIP -> App B @ Site 1
 
-B1 failure:
+Local B failure:
 
-    A1 -> B Service VIP -> B2
+    App A @ Site 1 -> B Service VIP -> App B @ Site 2
 
-A1 remains in Site 1.
+App A remains in Site 1.
 
 ### Benefits
 
-- prevents a B1 failure from forcing A1 to move;
+- prevents a local B failure from forcing App A to move;
 - avoids cascading movement of A/C/D if they all depend on B;
-- local LTM health can withdraw B1 faster than DNS-cache-based discovery;
+- local LTM health can withdraw local B faster than DNS-cache-based discovery;
 - Priority Group Activation is a good F5 building block for local preferred and remote lower-priority members;
 - keeps the recovery domain at B rather than A + B.
 
 ### Drawbacks
 
-- B2 must be safe for remote consumers;
+- remote B must be safe for remote consumers;
 - state/database consistency may prohibit remote-active access;
 - cross-site latency may affect synchronous calls;
-- B2 must have contingency capacity;
-- A1 -> B2 firewall/routing must exist;
+- remote B must have contingency capacity;
+- App A -> remote B firewall/routing must exist;
 - authentication, certificate trust and service identity must work cross-site;
 - App A still needs timeouts, retries and connection refresh;
 - long-lived A->B connections need reconnect behavior.
@@ -324,7 +345,7 @@ A1 remains in Site 1.
 
 Prefer when:
 
-- B1 and B2 are reachable through the same service layer;
+- local and remote B are reachable through the same service layer;
 - fast failover is important;
 - local-preferred/remote-fallback is desired;
 - DNS caching would create unacceptable delay.
@@ -347,7 +368,7 @@ Risks:
 - app may not promptly re-resolve;
 - TTL becomes part of RTO.
 
-For critical synchronous A -> B dependencies, prefer a stable internal service VIP or service-discovery abstraction rather than exposing B1/B2 addresses directly.
+For critical synchronous A -> B dependencies, prefer a stable internal service VIP or service-discovery abstraction rather than exposing site-specific B addresses directly.
 
 ## 10. Application-code requirements
 
@@ -379,35 +400,35 @@ App B should have:
 
 | Missing behavior | Recoverability impact |
 |---|---|
-| No timeout | A hangs on dead B1; rerouting does not fix the already-hung call |
-| No retry | A fails even though B2 is available |
-| Aggressive/unbounded retry | Retry storm can overload B2 and cascade |
+| No timeout | App A hangs on dead local B; rerouting does not fix the already-hung call |
+| No retry | App A fails even though remote B is available |
+| Aggressive/unbounded retry | Retry storm can overload remote B and cascade |
 | Non-idempotent retry | Duplicate transaction risk |
-| Site-bound state | B2 is reachable but unsafe/unusable |
-| No connection refresh | A can remain pinned to dead B1 |
-| Hard-coded B1 | Infrastructure cannot redirect cleanly |
-| No circuit breaker | Many A instances can overwhelm B/recovery path |
+| Site-bound state | remote B is reachable but unsafe/unusable |
+| No connection refresh | App A can remain pinned to dead local B |
+| Hard-coded local B | Infrastructure cannot redirect cleanly |
+| No circuit breaker | Many App A instances can overwhelm B/recovery path |
 
-If A cannot safely retry/reconnect to B2, cross-site routing must not be counted as a valid end-to-end recovery mechanism.
+If App A cannot safely retry/reconnect to remote B, cross-site routing must not be counted as a valid end-to-end recovery mechanism.
 
 ## 11. Failure-mode overlay
 
     +-------------------------- SITE 1 --------------------------+
-    | Edge FW -> LTM -> Local WAF -> App A1                    |
-    |              |                       |                    |
-    |              |                       +--> App B1          |
-    +--------------|--------------------------------------------+
+    | Edge FW -> LTM -> Local WAF -> CFW -> ELB -> App A       |
+    |              |                               |             |
+    |              |                               +--> App B    |
+    +--------------|---------------------------------------------+
                    |
                    | X2A: remote WAF contingency
                    v
     +-------------------------- SITE 2 --------------------------+
-    | Edge FW -> LTM -> Remote WAF -> App A2 / App B2          |
+    | Edge FW -> LTM -> Remote WAF -> CFW -> ELB -> App A/B    |
     +--------------------------|--------------------------------+
                                |
-                               +---- X2B route-back ---> App A1
+                               +---- X2B route-back ---> Site 1 CFW/ELB/App A
 
     GTM can move external ingress Site 1 -> Site 2.
-    App A1 can independently move dependency B1 -> B2.
+    App A @ Site 1 can independently move dependency from local B -> remote B.
 
 These are independent recovery paths and should be tested independently.
 
@@ -417,9 +438,9 @@ These are independent recovery paths and should be tested independently.
 |---|---|---|---|---|
 | One local WAF fails | Local pool/cluster handles | Usually do not use cross-site | Low | Avoid needless complexity |
 | All local WAFs fail; LTM healthy | App/site failover or outage | X2A uses remote WAF, primary app stays | High | Hairpin/inter-site dependency |
-| Local LTM + WAF fail; app healthy | App/site failover | X2B uses remote front end and routes back | High if DR app startup is slow | DNS delay and split-site path |
+| Local LTM + WAF fail; app healthy | App/site failover | X2B uses remote front end and routes back through primary CFW/ELB | High if DR app startup is slow | DNS delay and split-site path |
 | Local app fails | App/site failover | Route-back does not help | None | Must not route to failed app |
-| App B1 fails; B2 healthy | A may fail/cascade | Route A1 -> B2 | Very high | State/latency/capacity |
+| Local App B fails; remote B healthy | App A may fail/cascade | route App A -> remote B | Very high | State/latency/capacity |
 | Inter-site link fails while local healthy | No impact | Remove contingency only | Good isolation | Bad health logic can cause false outage |
 | Inter-site link fails while X2 active | Recovery path fails | Need local restoration or full site recovery | None | Second failure while degraded |
 | Bad WAF policy pushed everywhere | Logical WAF outage | Remote WAF with same bad policy does not help | None | Common-mode config |
@@ -431,21 +452,21 @@ Cross-site capability is most valuable because it prevents a small local failure
 
 | Initial fault | With approved cross-site path | Without cross-site path | Cascade risk |
 |---|---|---|---|
-| all local WAFs fail, LTM/app healthy | X2A uses Site 2 WAF and routes back; ~16s-class + T6 | external outage until local repair or GTM moves whole service/site | WAF-tier event becomes site/app DR |
-| local LTM+WAF tier fails, app healthy | X2B uses Site 2 front-end and routes to Site 1 app | healthy app must move to Site 2 or remain externally unavailable | front-end fault becomes application move |
-| B1 fails, A1 healthy | XD1 routes A1 to B2 | A1 waits/fails; A may be marked unhealthy | dependency fault becomes A outage |
-| B1 shared by A/C/D fails | A/C/D can remain Site 1 using B2 | all dependent apps can fail readiness together | multiple GTM withdrawals and Site 2 surge |
-| remote B2 exists but no A1->B2 route | route enables dependency recovery | B2 capacity is unusable | healthy remote service provides no recovery |
+| all local WAFs fail, LTM/app healthy | X2A uses Site 2 WAF and routes back through Site 1 CFW/ELB; ~16s-class + T6 | external outage until local repair or GTM moves whole service/site | WAF-tier event becomes site/app DR |
+| local LTM+WAF tier fails, app healthy | X2B uses Site 2 front-end and routes to Site 1 CFW/ELB/app | healthy app must move to Site 2 or remain externally unavailable | front-end fault becomes application move |
+| local App B fails, App A healthy | XD1 routes App A to remote App B | App A waits/fails; A may be marked unhealthy | dependency fault becomes A outage |
+| local B shared by A/C/D fails | A/C/D can remain Site 1 using remote B | all dependent apps can fail readiness together | multiple GTM withdrawals and Site 2 surge |
+| remote B exists but no App A -> remote B route | route enables dependency recovery | remote B capacity is unusable | healthy remote service provides no recovery |
 | local maintenance consumes WAF capacity | remote WAF can preserve headroom | no spare path during maintenance | one extra failure causes outage |
 
 ### Example cascade with no remote B routing
 
 ```text
-B1 fails
+App B @ Site 1 fails
   |
-  +--> A1 timeout/retry
-  +--> C1 timeout/retry
-  +--> D1 timeout/retry
+  +--> App A timeout/retry
+  +--> App C timeout/retry
+  +--> App D timeout/retry
           |
           v
   connection/thread pools saturate
@@ -464,7 +485,7 @@ B1 fails
   A/C/D reconnect/fail to Site 2
           |
           v
-  B2 + identity + database + C dependencies receive surge
+  remote B + identity + database + C dependencies receive surge
 ```
 
 A dependency event that could have recovered in approximately **~16s + retry** behind a stable service VIP can therefore become **~46–150s + T6** of application/site recovery, or **R4/manual** if the alternate dependencies are not already ready.

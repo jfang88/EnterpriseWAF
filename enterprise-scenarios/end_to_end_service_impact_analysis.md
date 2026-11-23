@@ -1,6 +1,7 @@
 # End-to-End Service Impact and Recoverability Analysis
 
 **Status:** Primary derived output for failure/recovery  
+**Canonical shorthand/topology:** [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md)  
 **Stable baseline:** [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)  
 **Changeable assumptions:** [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)  
 **Technical component matrix:** [common_failure_matrix.md](./common_failure_matrix.md)  
@@ -34,6 +35,8 @@ Every infrastructure failure must therefore be translated into:
 ---
 
 # 2. End-to-end service paths
+
+For the full reference drawing, see [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md).
 
 ## External human/API path
 
@@ -126,17 +129,19 @@ Model total service interruption as:
       + session/state/dependency recovery
       + manual startup where required
 
-Timing shorthand from the assumptions file:
+Timing shorthand from the assumptions/canonical reference:
 
 | ID | Meaning | Typical modelling basis |
 |---|---|---|
 | **T1** | BIG-IP HA peer/device failover | seconds-scale; approximately 3+ sec peer-loss detection plus network convergence |
 | **T2** | LTM/WAF pool-member detection | commonly around configured monitor timeout; many F5 monitor defaults around 5s interval / 16s timeout |
 | **T3** | Direct GTM monitor detection | commonly much slower; example defaults around 30s interval / 120s timeout |
-| **T4** | DNS/site convergence | health detection + GTM decision + TTL/cache + re-resolution + alternate-site readiness |
+| **T4** | DNS/site-selection convergence **after the health decision** | GTM answer change + residual TTL/cache + client re-resolution/retry; add T5/T6 separately |
 | **T5** | Warm/cold/manual recovery | minutes or longer depending operational procedure |
 | **T6** | Application recovery | retry/reconnect/re-auth/state/replay/reconciliation |
 | **T7** | Failback | controlled restoration to preferred path/site |
+
+T8 and T9 are also defined in the canonical reference for DNS/cache/existing-connection behavior and CFW recovery respectively.
 
 These are not guaranteed SLAs.
 
@@ -167,7 +172,7 @@ Where:
 - **T_restore** — workflow/subscription/message replay/snapshot/business reconciliation;
 - **T_ready** — passive application, dependency, state or data becomes safe to serve.
 
-Only add terms that are actually sequential. If steps overlap, measure the real end-to-end recovery rather than double-counting.
+Only add terms that are actually sequential. If steps overlap, measure the real end-to-end recovery rather than double-counting. In particular, **do not include T5/T6 work inside T4 and then add T5/T6 again.**
 
 Measure p50/p95/p99 separately for:
 
@@ -188,7 +193,7 @@ The table below makes the timing assumptions explicit. Values are **planning bou
 Important distinction:
 
 - if the **service VIP stays the same** and LTM can select another healthy member, there is **no DNS TTL term**;
-- if recovery requires **GTM to return a different VIP/site**, add GTM health detection + residual DNS TTL/cache + client retry/re-resolution;
+- if recovery requires **GTM to return a different VIP/site**, add GTM health detection + T4 DNS/cache/re-resolution + T6 application recovery;
 - existing TCP/TLS/WebSocket connections are not moved merely because DNS changes or a pool member is marked down.
 
 | Failure / recovery use case | Infrastructure detection / steering | DNS TTL involved? | User-visible planning boundary | What existing clients experience |
@@ -200,15 +205,15 @@ Important distinction:
 | **Whole local CFW service fails; ELB/app healthy; GTM health sees through-path failure** | withdraw site/path and use alternate CFW/site | **Yes if site/VIP changes** | **~46s + T6** illustrative fast-health case or **up to ~150s + T6** direct-GTM-default case; add T5 if DR app not ready | Existing connections through failed CFW are lost; cached clients may retry old VIP until TTL expires |
 | **CFW fails but health remains false-green** | front-end remains advertised although app path is broken | DNS may continue returning bad site | **potentially unbounded** until through-path readiness/operator detects failure | Clients can repeatedly reconnect to the same broken site/path |
 | **One app/backend member behind LTM fails** | If using equivalent LTM active monitor defaults: **up to ~16s**; other ELB/platform monitor timing must be measured separately | **No** if service VIP is stable | **monitor timeout + T6** | New traffic goes to healthy member after withdrawal; in-flight request may fail |
-| **All local WAF members fail but local LTM can use preconfigured remote WAF (X2A)** | local LTM detects loss/priority threshold, commonly on **~16s-class** monitor timing | **No** | approximately **~16s + T6** if remote WAF is already healthy/policy-ready | Existing WAF connections break/reconnect; no site DNS move required |
+| **All local WAF members fail but local LTM can use preconfigured remote WAF (X2A)** | local LTM detects loss/priority threshold, commonly on **~16s-class** monitor timing | **No** | approximately **~16s + T6** if remote WAF is already healthy/policy-ready and target-site CFW/ELB/app remain healthy | Existing WAF connections break/reconnect; no site DNS move required |
 | **All local WAF members fail and no cross-site WAF is available** | must recover local WAF or trigger site/front-end recovery | **Yes if site/VIP changes** | with direct GTM default monitor: **up to ~120s health + up to 30s residual TTL = ~150s + T6**; with faster LTM/iQuery health and prompt propagation, an illustrative case is **~16s + up to 30s = ~46s + T6** | Cached clients can keep using old Site 1 VIP until TTL/cache expires; existing connections need failure/retry before re-resolution |
 | **Whole local LTM pair fails; use Site 2 front-end (X2B/X2C)** | GTM/site health withdrawal | **Yes** | same site-change boundary: roughly **~46s + T6** in a fast LTM-health-informed model, or **up to ~150s + T6** with default direct GTM monitor timing | Existing connections to Site 1 fail; cached clients may retry Site 1 until TTL/cache expires |
 | **Whole Site 1 fails; Site 2 app already ready** | GTM detects Site 1 unavailable, returns Site 2 | **Yes** | **~46s + T6** illustrative fast-health case; **up to ~150s + T6** default-direct-monitor case | New uncached clients recover first; cached clients are slower; sockets reconnect/re-auth/replay |
 | **Whole Site 1 fails; Site 2 app requires manual startup** | same DNS/site timing, but application readiness adds T5 | **Yes** | **T5 + ~46–150s + T6**, with T5 potentially minutes or longer | Infrastructure may be ready before business service is ready |
-| **App B1 fails behind stable internal LTM service VIP; B2 reachable** | local LTM member monitor, commonly **up to ~16s** | **No** | approximately **~16s + App A retry T6** | A may see failed/slow calls during detection; new calls use B2 after withdrawal |
-| **App B1 fails and A discovers B via internal DNS/GTM** | GTM/internal service health detection | **Yes** | direct GTM default model: **up to ~150s + T6**; faster LTM/iQuery-informed model can approach **~46s + T6**, subject to application DNS cache | A can keep old B1 address/connection until its own cache/connection refreshes; TTL alone does not force re-resolution |
+| **App B @ Site 1 fails behind stable internal LTM service VIP; App B @ Site 2 reachable** | local LTM member monitor, commonly **up to ~16s** | **No** | approximately **~16s + App A retry T6** | App A may see failed/slow calls during detection; new calls use remote B after withdrawal |
+| **App B @ Site 1 fails and App A discovers B via internal DNS/GTM** | GTM/internal service health detection | **Yes** | direct GTM default model: **up to ~150s + T6**; faster LTM/iQuery-informed model can approach **~46s + T6**, subject to application DNS cache | App A can keep old B address/connection until its own cache/connection refreshes; TTL alone does not force re-resolution |
 | **External namespace GTM answer changes Site 1 -> Site 2** | authoritative answer changes after health withdrawal | **Yes: default GTM pool TTL 30s** | add **0–30s residual TTL** after the health decision, plus T6 | Newly resolving users get Site 2; cached users may still hit Site 1 |
-| **Internal namespace/GTM answer changes B1 -> B2 or Site 1 -> Site 2** | same principle, but internal resolver/app cache also matters | **Yes if GTM/DNS changes endpoint** | add **0–30s GTM TTL by default** plus any internal/app caching and T6 | application connection pools/JVMs may retain old address longer; must test |
+| **Internal namespace/GTM answer changes local -> remote dependency or Site 1 -> Site 2** | same principle, but internal resolver/app cache also matters | **Yes if GTM/DNS changes endpoint** | add **0–30s GTM TTL by default** plus any internal/app caching and T6 | application connection pools/JVMs may retain old address longer; must test |
 | **Bad WAF/LTM policy/configuration** | health monitors may remain green | Usually **No useful DNS fix** | **T5 rollback/manual recovery**; potentially unbounded without detection/rollback | Users can remain down despite all devices being physically healthy |
 | **Application listener green but business function broken** | port/IP monitor may not detect it | DNS may keep returning bad site | potentially **unbounded** until readiness monitor/operator detects it | Users get errors/hangs; classic false-green condition |
 | **WebSocket/long-lived connection loses any stateful hop** | underlying infrastructure timing as above | only if endpoint/site changes | **infra timing + reconnect/re-auth/resubscribe/replay T6** | TTL does not migrate the live socket; app logic determines real recovery |
@@ -313,12 +318,12 @@ The table below intentionally describes the **service/user outcome first**.
 | **Application ELB/service tier fails** | Application unavailable through that site/path | Same | Internal users may also fail if same ELB used | Dependent apps may fail/cascade | alternate ELB/site + T4/T6 | **Conditional** on redundant application service path |
 | **App is listener-up but business-not-ready** | Users get errors/hangs despite green infrastructure | Same | Same | Dependencies may propagate failure | potentially unbounded if only IP/port health is used | **No reliable auto recovery** without application-readiness health |
 | **Session/state store fails** | Users may be logged out, lose workflow or receive errors | Same | Same | Multiple apps may fail together if store shared | data/state recovery + T6; often much longer than F5 failover | **Not by WAF/LTM/GTM alone** |
-| **App B fails; App A is healthy; no cross-site B routing** | Users of App A functions needing B may fail; unrelated A functions may remain | API callers of A may see dependency errors | Internal A users see same business failure | A/C/etc. may cascade if all depend on B | application timeout/retry, then potentially T4/T5 if whole apps are failed over | **Poorly recoverable** if A is hard-coded/local-only to B1 |
-| **App B fails; App A is healthy; XD1 remote B enabled** | Users may see transient delay/retry but A stays up | Same | Same | A/C remain Site 1 and use B2 | dependency monitor + application retry; often T2/T6 class rather than site failover | **Yes**, if B2 state/capacity and A retry logic are compliant |
+| **App B fails; App A is healthy; no cross-site B routing** | Users of App A functions needing B may fail; unrelated A functions may remain | API callers of A may see dependency errors | Internal A users see same business failure | A/C/etc. may cascade if all depend on B | application timeout/retry, then potentially T4/T5 if whole apps are failed over | **Poorly recoverable** if A is hard-coded/local-only to local B |
+| **App B fails; App A is healthy; XD1 remote B enabled** | Users may see transient delay/retry but A stays up | Same | Same | A/C remain Site 1 and use remote B | dependency monitor + application retry; often T2/T6 class rather than site failover | **Yes**, if remote B state/capacity and A retry logic are compliant |
 | **App B is slow/hung, not hard down** | Users may experience long waits/timeouts | API clients may exhaust connection pools | Internal same | A/C can thread-starve and cascade | determined by app timeout/circuit breaker, not F5 failover | **Only if app has bounded timeouts/circuit breaking** |
 | **Inter-site link fails while local services healthy** | No impact if local path does not depend on remote resources | Same | Same | Local dependencies remain healthy; remote fallback unavailable | none for local service | **Yes**, provided health logic does not falsely withdraw local site |
-| **Inter-site link fails while using remote WAF or B2** | Existing degraded recovery path fails | Same | Internal/dependent apps using remote service also fail | App A may lose B2; remote WAF route-back disappears | route detection + T4/T6 or local restoration | **Conditional**, second failure while degraded |
-| **Primary site front-end fails; primary app healthy; X2B available** | Users move to Site 2 ingress then route back to Site 1 app | Same | Internal may continue directly to Site 1 app | Dependencies can remain Site 1 | T4 + T6 | **Yes**, but degraded split-site state |
+| **Inter-site link fails while using remote WAF or remote B** | Existing degraded recovery path fails | Same | Internal/dependent apps using remote service also fail | App A may lose remote B; remote WAF route-back disappears | route detection + T4/T6 or local restoration | **Conditional**, second failure while degraded |
+| **Primary site front-end fails; primary app healthy; X2B available** | Users move to Site 2 ingress then route back through Site 1 CFW/ELB to Site 1 app | Same | Internal may continue directly to Site 1 app | Dependencies can remain Site 1 | T4 + T6 | **Yes**, but degraded split-site state |
 | **Primary application fails; front-end healthy** | Users cannot be restored by WAF/LTM failover alone | Same | Internal also affected | Dependencies/callers may cascade | application/site recovery = T4 + T5 + T6 depending readiness | **Only through application/DR recovery** |
 | **Whole Site 1 fails; Site 2 app already ready** | New/retrying users move to Site 2 | Same | Internal users require Site 2 route/DNS/service path | A/B/C must all have compatible Site 2 state/dependencies or selective remote dependency paths | T4 + T6 | **Yes**, if Site 2 is genuinely ready |
 | **Whole Site 1 fails; Site 2 app stopped/manual DR** | Full outage until application/dependencies are started and advertised | Same | Same | A/B/C startup order/dependencies can dominate RTO | T5 + T4 + T6; potentially minutes or longer | **Yes manually**, but not short-RTO automatic recovery |
@@ -402,9 +407,9 @@ This can convert a roughly **16-second-class local pool withdrawal** into a **~4
 | One WAF member | local pool/cluster recovery | same local recovery | normally contained |
 | Entire local WAF tier; app healthy | X2A remote WAF, ~16s-class + T6 | local repair or move whole service/site via GTM | a WAF failure becomes external service/site recovery |
 | Local LTM/WAF front-end loss; app healthy | X2B remote front-end route-back | full application/site failover | healthy application is moved because delivery tier failed |
-| B1 dependency fails; A1 healthy | XD1 route A1 to B2, ~16s-class + retry when using stable service VIP | A1 loses dependency or A must fail site | B failure can make A/C/D appear unhealthy |
-| B1 fails and A/C/D all depend on B | all remain local and use B2 if capacity/state permit | multiple applications can fail together | many apps hit Site 2 simultaneously; DR capacity/reconnect storm risk |
-| B2 exists but no route from A1 | route can use B2 if approved | B2 is unusable despite being healthy | no benefit from remote capacity; A outage persists |
+| Local App B dependency fails; App A healthy | XD1 route App A to remote App B, ~16s-class + retry when using stable service VIP | App A loses dependency or A must fail site | B failure can make A/C/D appear unhealthy |
+| Local B fails and A/C/D all depend on B | all remain local and use remote B if capacity/state permit | multiple applications can fail together | many apps hit Site 2 simultaneously; DR capacity/reconnect storm risk |
+| Remote B exists but no route from local A | approved route can use remote B | remote B is unusable despite being healthy | no benefit from remote capacity; A outage persists |
 | Site 1 WAF maintenance with local capacity exhausted | temporary remote WAF capacity | maintenance can consume last local redundancy | planned change plus one fault becomes outage |
 | Site 1 application member fails | local ELB/member recovery | local ELB/member recovery | no cross-site required if local app capacity remains |
 | Whole Site 1 CFW fails; ELB/app healthy | alternate CFW/site path if engineered | healthy ELB/app becomes unreachable; GTM may move whole application/site | **CFW failure amplification:** shared CFW outage can make many apps look failed and trigger multiple site moves |
@@ -431,7 +436,9 @@ Cross-site capability should not be mandatory for normal service, but where it i
       -> Site 1 firewall
       -> Site 1 LTM
       -> Site 2 WAF
-      -> route back
+      -> inter-site route
+      -> Site 1 CFW
+      -> Site 1 ELB
       -> Site 1 application
 
 Expected user outcome:
@@ -449,7 +456,9 @@ This is particularly valuable when Site 1 application DR is slow/manual.
     external user
       -> GTM selects Site 2
       -> Site 2 firewall/LTM/WAF
-      -> route back
+      -> inter-site route
+      -> Site 1 CFW
+      -> Site 1 ELB
       -> healthy Site 1 application
 
 Expected user outcome:
@@ -463,6 +472,8 @@ Expected user outcome:
 
     external/internal users
       -> Site 2 front-end
+      -> Site 2 CFW
+      -> Site 2 ELB/service
       -> Site 2 application
 
 Expected user outcome depends heavily on:
@@ -492,33 +503,33 @@ Example:
 
 ## No dependency failover
 
-If B1 fails and A1 is hard-coded to B1:
+If App B @ Site 1 fails and App A @ Site 1 is hard-coded to it:
 
-    B1 fails
-      -> A1 requests hang/fail
-      -> A may become unhealthy
-      -> users of A see outage
-      -> A may fail to Site 2
-      -> C/D/E that also depend on B1 may fail
+    App B @ Site 1 fails
+      -> App A @ Site 1 requests hang/fail
+      -> App A may become unhealthy
+      -> users of App A see outage
+      -> App A may fail to Site 2
+      -> App C / App D / App E that also depend on local B may fail
       -> Site 2 receives many applications at once
       -> capacity surge / cascade
 
 User story:
 
-- infrastructure for A may be completely healthy;
-- users still see A as failed because one dependency is unavailable;
-- failing A's WAF/LTM/site does not fix the root cause if B dependency design is unchanged.
+- infrastructure for App A may be completely healthy;
+- users still see App A as failed because one dependency is unavailable;
+- failing App A's WAF/LTM/site does not fix the root cause if App B dependency design is unchanged.
 
 ## No cross-site dependency path: cascading service failure
 
-Assume A1, C1 and D1 all consume B1 and there is no usable route/service abstraction to B2.
+Assume App A, App C and App D @ Site 1 all consume App B @ Site 1 and there is no usable route/service abstraction to App B @ Site 2.
 
 ```text
-B1 fails
+App B @ Site 1 fails
   |
-  +--> A1 waits for timeout / retries B1
-  +--> C1 waits for timeout / retries B1
-  +--> D1 waits for timeout / retries B1
+  +--> App A waits for timeout / retries local B
+  +--> App C waits for timeout / retries local B
+  +--> App D waits for timeout / retries local B
            |
            v
    threads / connection pools fill
@@ -536,7 +547,7 @@ B1 fails
    Site 2 receives reconnect + login + dependency surge
 ```
 
-The initial B1 fault may therefore cascade through several timing layers:
+The initial App B fault may therefore cascade through several timing layers:
 
 1. each application's own connect/read timeout;
 2. retry/backoff period;
@@ -548,28 +559,28 @@ The initial B1 fault may therefore cascade through several timing layers:
 
 This can turn a dependency-member failure that could have been a **~16s-class local service-VIP event** into a **~46–150s+ site recovery**, or R4/manual recovery if Site 2 dependencies are not already ready.
 
-Site failover may also fail to solve the root problem if Site 2 A/C/D still resolve B incorrectly or if B2 depends on an unavailable C/data service.
+Site failover may also fail to solve the root problem if Site 2 A/C/D still resolve B incorrectly or if remote B depends on an unavailable C/data service.
 
 ## Local-preferred / remote-fallback dependency
 
-    A1 -> B service VIP
-             |
-             +-- B1 preferred
-             +-- B2 remote fallback
+    App A @ Site 1 -> B service VIP
+                         |
+                         +-- App B @ Site 1 preferred
+                         +-- App B @ Site 2 remote fallback
 
 Then:
 
-    B1 fails
-      -> service VIP withdraws B1
-      -> A retries/connects to B2
-      -> A remains in Site 1
+    App B @ Site 1 fails
+      -> service VIP withdraws local B
+      -> App A retries/connects to App B @ Site 2
+      -> App A remains in Site 1
       -> users experience transient delay/retry instead of full A outage
 
 This is a major resilience improvement.
 
 ## App C dependency
 
-If B depends on C, B2 is only a valid recovery target if B2 can also reach a healthy compatible C.
+If B depends on C, remote B is only a valid recovery target if it can also reach a healthy compatible C.
 
 Therefore dependency recovery must test the **whole dependency chain**, not one hop.
 
@@ -590,7 +601,7 @@ For each App A/B/C chain record:
 
 # 8. Application-type-specific outage expectations
 
-## Stateless web
+## AT1 — Stateless web
 
 If designed correctly:
 
@@ -604,7 +615,7 @@ If state is actually local:
 - users may be logged out or lose workflow;
 - effective outage is longer than infrastructure failover.
 
-## Stateful web
+## AT2 — Stateful web
 
 Infrastructure may recover in seconds while users remain broken.
 
@@ -617,7 +628,7 @@ Expected user impact may include:
 
 State portability is therefore a hard recovery dependency.
 
-## WebSocket / long-lived
+## AT3 — WebSocket / long-lived
 
 Expected during many failures:
 
@@ -635,7 +646,7 @@ Without that application logic:
 - users can still remain disconnected indefinitely;
 - the service is not end-to-end resilient.
 
-## Non-web/L4
+## AT4 — Non-web/L4
 
 The WAF may be irrelevant.
 
@@ -701,7 +712,7 @@ With X2A:
 - external users: short interruption/reconnect;
 - internal users: no impact;
 - app remains local;
-- remote WAF becomes temporary inspection path.
+- remote WAF becomes temporary inspection path and routes through the local CFW/ELB to the local application.
 
 With X2A, indicative recovery can remain around the **local ~16s monitor class + T6** with no DNS change.
 
@@ -720,14 +731,14 @@ Without XD1:
 
 With XD1 and compliant apps:
 
-- A retries B service;
-- traffic moves to B2;
-- A remains local;
+- App A retries B service;
+- traffic moves to remote App B;
+- App A remains local;
 - user impact is transient/degraded latency.
 
 If B is behind a stable internal LTM service VIP, the infrastructure part can remain approximately **~16s-class + App A retry**, without DNS TTL.
 
-If A uses DNS/GTM to move B1 -> B2, add GTM detection + residual DNS TTL and application re-resolution; this can be **~46–150s + T6** depending on the health model and cache behavior.
+If App A uses DNS/GTM to move local B -> remote B, add GTM detection + residual DNS TTL and application re-resolution; this can be **~46–150s + T6** depending on the health model and cache behavior.
 
 Overall: XD1 can turn application cascade into **R1/R2**.
 
@@ -839,10 +850,10 @@ The earlier main architecture/WebSocket analyses contained a strong failure-inje
 
 ### Dependency and cross-site
 
-27. B1 fails while A1 remains healthy and no remote B is available;
-28. B1 fails and A1 uses B2 successfully;
-29. B1 fails when A/C/D all depend on B and retry simultaneously;
-30. B2 is reachable but its required C dependency is unavailable;
+27. local App B fails while local App A remains healthy and no remote B is available;
+28. local App B fails and local App A uses remote App B successfully;
+29. local App B fails when A/C/D all depend on it and retry simultaneously;
+30. remote App B is reachable but its required App C dependency is unavailable;
 31. remote WAF route-back and remote App B fallback under peak-like load.
 
 ### Long-lived/application recovery

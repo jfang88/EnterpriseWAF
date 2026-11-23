@@ -1,6 +1,7 @@
 # Deployment Options, Resilience and Four-Tenant Cost Summary
 
 **Status:** Primary architecture comparison summary  
+**Canonical shorthand/topology:** [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md)  
 **Baseline:** [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)  
 **Detailed service impact:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)  
 **Technical failures:** [common_failure_matrix.md](./common_failure_matrix.md)  
@@ -23,16 +24,18 @@ A single WAF or backend failure should remain a **local member failure**. It sho
 
 ## 1.1 Topology shorthand — read this before the comparison
 
+The canonical definitions are maintained in [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md).
+
 | ID | Meaning |
 |---|---|
 | **W1** | Dedicated/tenant LTM HA pair -> **independent active WAF pool** (2..N WAFs) |
 | **W2** | **WAF HA/DSC cluster**, with or without ingress LTM; one active owner per traffic group |
-| **W3** | Tenant LTM pair -> tenant-preferred WAFs + **shared reserve WAF capacity** |
+| **W3** | Tenant LTM pair -> tenant-preferred active WAFs + **shared reserve WAF capacity** |
 | **W4** | Asymmetric: Site 1 WAF HA cluster + extra WAF; Site 2 WAF HA cluster only |
 | **S1** | **Tenant-specific LTM pairs -> shared independent active WAF pool** |
 | **S2** | **Shared LTM pair -> shared independent active WAF pool** |
-| **X2A** | Surviving local LTM uses remote WAF and routes back to the local application path |
-| **X2B** | Remote front end routes back to the healthy primary-site application path |
+| **X2A** | Surviving local LTM uses remote WAF and routes back through the healthy local CFW/ELB/application path |
+| **X2B** | Remote front end routes back to the healthy primary-site CFW/ELB/application path |
 | **X2C** | Full application/site failover |
 | **XD1** | Local App A uses remote App B fallback |
 
@@ -42,18 +45,18 @@ The important distinction is:
 - **W2/W4 WAF HA cluster:** one device owns a traffic group; another device is the HA failover target.
 - **W3:** combines tenant-preferred active WAFs with shared reserve capacity.
 
-Detailed diagrams are in section 3 below and in [executive_recommendation.md](./executive_recommendation.md).
+Detailed diagrams are in section 3 below, [executive_recommendation.md](./executive_recommendation.md), and the canonical reference.
 
 ## 1.2 Timing reference — T1 to T9
 
-The detailed timing definitions live in [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md#5-f5-monitoring-and-recovery-time-assumptions). The table below is the quick reference used throughout this summary.
+The detailed timing definitions live in [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md#5-f5-monitoring-and-recovery-time-assumptions). The canonical definitions are also summarized in [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md).
 
 | ID | Meaning | Planning value / interpretation | When to add it |
 |---|---|---|---|
 | **T1** | BIG-IP HA peer/device failover | approximately **3+ seconds peer-loss detection**, plus traffic-group/network convergence | LTM/WAF/GTM HA peer or traffic-group ownership change |
 | **T2** | LTM pool-member / WAF-member health detection | commonly **up to ~16s** with 5s interval / 16s timeout defaults | failed independent WAF, backend or service member behind a stable LTM VIP |
 | **T3** | Direct BIG-IP DNS/GTM health monitor | common HTTP/HTTPS/TCP defaults around **30s interval / 120s timeout** | GTM directly decides an endpoint/site is unavailable |
-| **T4** | DNS/site failover convergence | health decision + GTM answer change + residual DNS TTL/cache + retry/re-resolution; GTM A-record pool TTL default is **30s** | whenever recovery changes the returned site/VIP |
+| **T4** | DNS/site-selection convergence **after the health decision** | GTM answer change + residual DNS TTL/cache + client re-resolution/retry; GTM A-record pool TTL default is **30s** | whenever recovery changes the returned site/VIP; add T5/T6 separately |
 | **T5** | Warm/cold/manual recovery | **minutes or longer; no fixed product value** | operator action, passive-site startup, routing repair, config/policy rollback |
 | **T6** | Application recovery | **application-specific** | retry, reconnect, re-auth, session/state restore, resubscribe, replay/reconciliation |
 | **T7** | Failback | controlled restoration; F5 auto-failback delay is configurable and commonly modelled around **60s when enabled** | return to preferred device/site after recovery |
@@ -65,8 +68,8 @@ The detailed timing definitions live in [analysis_variables_and_f5_assumptions.m
 Examples:
 
 - **~16s + T6** = LTM detects/withdraws the failed member, then the application/client still has to recover.
-- **T4 + T6** = site/VIP changes through DNS/GTM, then the application/client reconnects/restores state.
-- **T5 + T4 + T6** = manual/passive-site preparation first, then DNS/site convergence, then application recovery.
+- **T3 + T4 + T6** = direct GTM health detection, then DNS/site-selection convergence, then application/client recovery.
+- **T5 + T4 + T6** = manual/passive-site preparation, then DNS/site selection, then application recovery.
 - **~46s + T6** = illustrative fast-health site move: ~16s local health + up to 30s residual DNS TTL, plus application recovery.
 - **up to ~150s + T6** = default-style direct GTM health timeout (~120s) + up to 30s residual DNS TTL, plus application recovery.
 - **T9 + T6** = CFW HA/recovery timing plus any socket/session/application recovery.
@@ -130,9 +133,9 @@ Firewall VIP
     |
 LTM HA pair
     |
-+---+---+---+
-|   |   |   |
-W1  W2  W3 ... Wn
++-----+-----+-----+
+|     |     |     |
+WAF-1 WAF-2 WAF-3 ... WAF-n
     |
    CFW
     |
@@ -177,7 +180,7 @@ active/standby for a traffic group
 ~~~text
 Tenant LTM pair
     |
-preferred WAF1 + WAF2
+preferred WAF-1 + WAF-2
     |
 shared reserve WAF capacity
     |
@@ -203,8 +206,12 @@ Site 1                         Site 2
 LTM pair                       LTM pair
    |                              |
 WAF HA cluster                WAF HA cluster
-   |
-extra independent WAF
+   |                              |
+extra independent WAF             |
+   |                              |
+  CFW                            CFW
+   |                              |
+ ELB/app                        ELB/app
 ~~~
 
 - Site 1 can survive broader WAF failure than a simple two-node cluster.
@@ -241,7 +248,7 @@ Cross-site capability should reduce **failure-domain escalation**. It should not
 | **Both/all local WAFs fail; LTM+CFW+app healthy** | Restore WAF locally or move service/site | **X2A:** local LTM can use remote WAF and route back to healthy local CFW/app | Can change site-failover event into **~16s-class + T6** local-ingress recovery |
 | **Local LTM+WAF tier fails; CFW/app healthy** | Full app/site move or outage | **X2B:** Site 2 front end can route back to Site 1 CFW/app | Avoids moving a healthy application; still needs GTM/DNS convergence |
 | **Local CFW fails; local app healthy** | Restore CFW or move app/site | Remote WAF alone does **not** help; need alternate CFW/site application path | Cross-site WAF is not a substitute for CFW resilience |
-| **B1 fails; A1 healthy** | A may fail/cascade/site-move | **XD1:** A stays local and uses B2 | Prevents dependency failure becoming application/site failure |
+| **App B @ Site 1 fails; App A @ Site 1 healthy** | A may fail/cascade/site-move | **XD1:** A stays local and uses App B @ Site 2 | Prevents dependency failure becoming application/site failure |
 | **Whole site fails** | Site 2 full recovery | Site 2 full recovery | Route-back cannot recover a lost site |
 
 ## Indicative recovery classes
@@ -251,17 +258,17 @@ Cross-site capability should reduce **failure-domain escalation**. It should not
 - X2A remote WAF with same client VIP: **~16s-class + T6**, if remote WAF and local CFW/app path are ready;
 - GTM/site move using fast local health: illustrative **~46s + T6** including up to 30s residual DNS TTL;
 - GTM/site move with default-style direct GTM monitoring: **up to ~150s + T6**;
-- manual passive-site startup: **T5 + site recovery + T6**;
+- manual passive-site startup: **T5 + T4 + T6**, with T5 potentially dominant;
 - CFW false-green or application false-green: potentially **unbounded** until correct readiness detects it.
 
 # 6. Application-type comparison
 
 | Application type | Single member failure | WAF/LTM/CFW path change | Site/dependency failover | Main acceptance requirement |
 |---|---|---|---|---|
-| **Stateless web** | Usually one failed request/retry | New request can use healthy path | Re-resolve/retry to ready site | safe retry, external/shared state, idempotency |
-| **Stateful web** | May lose session/transaction affinity | Session may need reconstruction or re-login | State/data must exist at alternate path/site | portable/replicated state and transaction reconciliation |
-| **WebSocket / long-lived** | Socket on failed path normally breaks unless supported mirroring preserves it | reconnect + re-auth + resubscribe | re-resolve + reconnect + replay/snapshot | reconnect/backoff, durable cursor/state, replay, idempotency |
-| **Non-web / L4** | Protocol-specific connection loss | reconnect/retry; WAF may be irrelevant | protocol/DNS/service failover | documented protocol retry, re-resolution, transaction replay |
+| **AT1 — Stateless web** | Usually one failed request/retry | New request can use healthy path | Re-resolve/retry to ready site | safe retry, external/shared state, idempotency |
+| **AT2 — Stateful web** | May lose session/transaction affinity | Session may need reconstruction or re-login | State/data must exist at alternate path/site | portable/replicated state and transaction reconciliation |
+| **AT3 — WebSocket / long-lived** | Socket on failed path normally breaks unless supported mirroring preserves it | reconnect + re-auth + resubscribe | re-resolve + reconnect + replay/snapshot | reconnect/backoff, durable cursor/state, replay, idempotency |
+| **AT4 — Non-web / L4** | Protocol-specific connection loss | reconnect/retry; WAF may be irrelevant | protocol/DNS/service failover | documented protocol retry, re-resolution, transaction replay |
 
 A W2 cluster can look better than W1 for the **first WAF failure** of a WebSocket because mirroring may preserve supported connections.
 
@@ -288,7 +295,7 @@ For stateful and WebSocket applications, the application design can dominate the
 | **Whole ELB/service** | app unavailable | dependent apps fail | redundant ELB/service | site/app recovery | dependency cascade |
 | **App readiness false-green** | errors/hangs | dependencies error/hang | app readiness must withdraw service | site if alternate app ready | potentially unbounded |
 | **State/session/data service** | sessions/workflows fail | multiple apps can fail | state/data HA | alternate state/site | high common-mode |
-| **App B dependency** | App A features fail | A/C/D may all fail | stable service VIP/local alternate | XD1 B2 | major cascade if timeouts/retries poor |
+| **App B dependency** | App A features fail | A/C/D may all fail | stable service VIP/local alternate | XD1 remote App B | major cascade if timeouts/retries poor |
 | **Whole site** | full site loss | internal/app dependencies also move | none | Site 2 full recovery | DR capacity/readiness dominates |
 
 # 8. Four-tenant cost and sharing model
@@ -486,15 +493,15 @@ Shared cross-site capacity must therefore be sized for **aggregate tenant failov
 ## Dependency cascade
 
 ~~~text
-B1 fails
-  -> A1/C1/D1 timeout/retry
+App B @ Site 1 fails
+  -> App A / C / D @ Site 1 timeout/retry
   -> readiness fails
   -> several applications move site
   -> DNS/reconnect/login surge
-  -> B2/DB/identity surge
+  -> remote B / DB / identity surge
 ~~~
 
-XD1 local-preferred/remote-fallback dependency routing keeps A/C/D local when B2 is safe and reachable.
+XD1 local-preferred/remote-fallback dependency routing keeps A/C/D local when remote App B is safe and reachable.
 
 # 11. Recommended comparison set
 

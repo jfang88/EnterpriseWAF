@@ -1,7 +1,8 @@
 # Enterprise Scenario Invariants
 
 **Status:** Stable baseline for EnterpriseWAF scenario analysis  
-**Change policy:** Change this file only when the real enterprise environment or supported application requirements change. Do not change it merely to make one topology look better.
+**Change policy:** Change this file only when the real enterprise environment or supported application requirements change. Do not change it merely to make one topology look better.  
+**Canonical shorthand/topology:** [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md)
 
 ## 1. Purpose
 
@@ -291,7 +292,7 @@ Dependency health, dependency routing and cascading failure across App A / App B
 
 The WAF/infrastructure design must be assessed against all applicable application classes.
 
-### A1 — stateless web applications
+### AT1 — stateless web applications
 
 Characteristics:
 
@@ -302,7 +303,7 @@ Characteristics:
 
 A system is not truly stateless if important login/cart/workflow state exists only in one local process.
 
-### A2 — stateful web applications
+### AT2 — stateful web applications
 
 Characteristics:
 
@@ -311,7 +312,7 @@ Characteristics:
 - state may reside in local memory, cache, shared session service or database;
 - infrastructure failover is not sufficient unless required state is available after the move.
 
-### A3 — socket / WebSocket / long-lived connection applications
+### AT3 — socket / WebSocket / long-lived connection applications
 
 Characteristics:
 
@@ -320,7 +321,7 @@ Characteristics:
 - DNS changes do not migrate an established socket;
 - application reconnect and state restoration are required for robust recovery.
 
-### A4 — non-web applications that bypass WAF
+### AT4 — non-web applications that bypass WAF
 
 Examples include:
 
@@ -381,7 +382,6 @@ Use these objectives for all options:
 14. Treat external namespace and internal namespace as separate control-plane dependencies; failure of one must not automatically be reported as failure of the other.
 15. For App A/B/C dependencies, include internal DNS/GTM resolution behavior in the recovery path where the application resolves dependency endpoints dynamically.
 16. Treat the platform/cloud firewall (CFW) in front of private-cloud ELB/service endpoints as a separate failure and maintenance domain from the ELB/application itself.
-
 
 ## 14. Maintainability and availability analysis objectives
 

@@ -1,6 +1,7 @@
 # Maintainability, Change Safety and Availability Analysis
 
 **Status:** Derived analysis — second lens after failure/recovery  
+**Canonical shorthand/topology:** [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md)  
 **Stable baseline:** [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)  
 **Changeable assumptions:** [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)  
 **Failure analysis:** [common_failure_matrix.md](./common_failure_matrix.md)
@@ -225,9 +226,9 @@ Require:
 
 | Topology | Monitoring difficulty | Why |
 |---|---|---|
-| **W1 — independent WAF pool per site** | **Medium** | More individual WAF nodes, but simple pool/member state; easy to expose capacity and drain state |
+| **W1 — independent active WAF pool per site** | **Medium** | More individual WAF nodes, but simple pool/member state; easy to expose capacity and drain state |
 | **W2 — WAF HA cluster per site** | **Low-Medium** | Fewer logical services; need cluster/traffic-group/sync/mirroring visibility |
-| **W3 — tenant WAFs + shared reserve** | **High** | Must monitor tenant pools, shared reserve capacity, policy residency, cross-tenant allocation and reserve contention |
+| **W3 — tenant-preferred active WAFs + shared reserve** | **High** | Must monitor tenant pools, shared reserve capacity, policy residency, cross-tenant allocation and reserve contention |
 | **W4 — Site 1 cluster + extra WAF; Site 2 cluster only** | **High** | Asymmetric topology; extra Site 1 node has different role/change path; Site 2 has lower maintenance headroom |
 
 Minimum dashboard view should include:
@@ -252,15 +253,15 @@ Minimum dashboard view should include:
 
 ### Recommended rolling process
 
-    Pool: WAF1 WAF2 WAF3 ...
+    Pool: WAF-1 WAF-2 WAF-3 ...
 
-    Drain WAF1
-       -> upgrade WAF1
+    Drain WAF-1
+       -> upgrade WAF-1
        -> validate
        -> canary/re-enable
        -> observe
 
-    Drain WAF2
+    Drain WAF-2
        -> upgrade
        -> validate
        -> re-enable
@@ -366,24 +367,22 @@ Trade-offs:
 
 **Maintainability conclusion:** W3-L3 is attractive when the business wants to remain locally redundant during LTM maintenance. W3-L2 remains simpler where alternate-site recovery is acceptable during the maintenance risk window.
 
-
-
 ### Recommended pattern
 
 Use shared reserve as controlled maintenance capacity:
 
-    Tenant preferred WAFs: A1 A2
-    Shared reserve: R1 R2
+    Tenant preferred WAFs: WAF-1 WAF-2
+    Shared reserve: R-WAF-1 R-WAF-2
 
-    move/drain traffic from A1 -> R1/A2
+    move/drain traffic from WAF-1 -> R-WAF-1 / WAF-2
         |
-    upgrade A1
+    upgrade WAF-1
         |
-    validate A1
+    validate WAF-1
         |
-    return A1
+    return WAF-1
         |
-    repeat A2
+    repeat WAF-2
 
 A reserve WAF can also be used as a blue/green target for a new firmware/policy combination if policy isolation is sound.
 
@@ -690,10 +689,10 @@ A socket application that cannot tolerate deliberate connection movement should 
 
 ## App A -> App B
 
-When changing B:
+When changing local App B:
 
-- drain B1;
-- verify A automatically uses another healthy B;
+- drain local B;
+- verify App A automatically uses another healthy B;
 - observe retry/circuit-breaker behavior;
 - confirm no retry storm;
 - confirm connection pools refresh;
@@ -762,9 +761,9 @@ Device-count efficiency changes the maintenance risk:
 |---|---|---|
 | 4x dedicated tenant W1 | tenant-by-tenant rolling change; smallest blast radius | duplicated capacity and more devices to patch |
 | W3 preferred + shared reserve | reserve can carry one tenant during maintenance | concurrent maintenance/incidents can exhaust reserve |
-| tenant LTMs + shared active WAF pool | fewer WAFs to patch; easy node-by-node WAF rolling changes | each shared WAF change can affect four tenants; aggregate capacity must survive one/two nodes removed |
-| shared LTM + shared WAF pool | lowest device/change count | one change wave can affect every tenant; highest common-mode operational risk |
-| shared WAF HA cluster | simple pair upgrade | while one node is out, all tenants depend on one active WAF owner/capacity boundary |
+| S1 — tenant LTMs + shared active WAF pool | fewer WAFs to patch; easy node-by-node WAF rolling changes | each shared WAF change can affect four tenants; aggregate capacity must survive one/two nodes removed |
+| S2 — shared LTM + shared WAF pool | lowest device/change count | one change wave can affect every tenant; highest common-mode operational risk |
+| S3 — shared WAF HA cluster | simple pair upgrade | while one node is out, all tenants depend on one active WAF owner/capacity boundary |
 
 For business-critical tenants, reduced device count is only a benefit when the organization can prove that the larger shared change domain still meets the availability target.
 
@@ -777,12 +776,12 @@ This is an **architectural-potential** assessment. It is not a measured SLA.
 | Option | 99.95 maintainability potential | Reason |
 |---|---|---|
 | **Dedicated W1 with 3+ independent WAFs** | **Very strong** | one WAF can be drained while two remain; best canary/rolling flexibility and tenant isolation |
-| **Tenant LTM + shared active WAF pool sized for aggregate N-2** | **Very strong if controls mature** | excellent rolling capacity, but shared policy/configuration must not create a four-tenant common-mode outage |
+| **S1 — tenant LTM + shared active WAF pool sized for aggregate N-2** | **Very strong if controls mature** | excellent rolling capacity, but shared policy/configuration must not create a four-tenant common-mode outage |
 | **W3 preferred + shared reserve** | **Strong** | reserve can preserve redundancy during maintenance; depends on reserve admission, policy readiness and non-contention |
 | **W2b two-node WAF HA cluster** | **Strong but less margin** | coordinated rolling change is practical, but one WAF maintenance event leaves only one local WAF owner |
 | **W4a** | **Strong but asymmetric** | Site 1 has strong change headroom; Site 2 falls back to W2-like pair behavior |
-| **Shared LTM + shared active WAF pool** | **Conditional** | WAF pool may be resilient, but shared LTM/change domain can affect all tenants |
-| **Shared LTM + shared two-node WAF cluster** | **Lowest confidence for critical service** | both ingress and WAF tiers have large shared common-mode blast radius |
+| **S2 — shared LTM + shared active WAF pool** | **Conditional** | WAF pool may be resilient, but shared LTM/change domain can affect all tenants |
+| **S3 — shared LTM + shared two-node WAF cluster** | **Lowest confidence for critical service** | both ingress and WAF tiers have large shared common-mode blast radius |
 
 To protect the 99.95 budget, routine maintenance should normally contribute **seconds or zero outage**, not planned multi-minute outages.
 
@@ -823,7 +822,7 @@ For 99.95-sensitive services, 3-node W1, W3 reserve, W4 Site 1 extra WAF, or alt
 
 In W3, reserve WAFs must be capacity-booked.
 
-Do not schedule maintenance that consumes R1/R2 if:
+Do not schedule maintenance that consumes shared reserve if:
 
 - another tenant already uses reserve;
 - one site is degraded;
@@ -845,7 +844,7 @@ Examples:
 
 - WebSocket never reconnects;
 - stateful session is node-local;
-- App A holds a persistent B1 connection forever;
+- App A holds a persistent local-B connection forever;
 - client does not re-resolve DNS.
 
 These should be recorded as **application maintainability non-compliance**.
