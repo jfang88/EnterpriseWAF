@@ -331,6 +331,50 @@ The shared reserve should be counted as a common capacity/failure dependency and
 
 See [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md) for the four-tenant device-count and resilience comparison.
 
+# 1B. WAF platform versus application-policy coupling
+
+Treat the WAF as two layers for target-state design.
+
+## Shared enforcement platform
+
+WAF compute/runtime may be pooled within an approved security zone when:
+
+- aggregate N-1/N-2 capacity is proven;
+- application policies remain isolated;
+- per-application health, logging and rollback are available;
+- one application's traffic or emergency change cannot exhaust unrelated applications;
+- the shared blast radius is acceptable.
+
+## Application-coupled policy
+
+WAF policy must be managed as part of the application/API lifecycle because it can depend on:
+
+- routes/URLs and methods;
+- schemas;
+- authentication flows;
+- WebSocket endpoints;
+- uploads/body sizes;
+- application-specific exceptions;
+- rate/bot controls.
+
+A shared WAF pool must not imply a single common application policy or one global enforcement change.
+
+## Security-zone sharing boundary
+
+If applications converge onto one or two private on-premise clouds, compare sharing by **security/trust zone or cloud platform** instead of automatically preserving historic tenant stacks.
+
+Illustrative zones:
+
+- Internet-facing application delivery;
+- Intranet/Extranet application delivery;
+- additional regulatory/criticality zones where required.
+
+Internet and Intranet/Extranet WAF runtime should normally remain separate failure/capacity/change domains so Internet attack load or emergency policy changes do not consume internal-service resilience.
+
+This is a target-state design variable, not yet an invariant.
+
+See [high_level_architecture.md](./high_level_architecture.md).
+
 # 2. Cross-site dataplane variables
 
 Cross-site routing is not a single design. Model the following separately.

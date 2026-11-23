@@ -2,19 +2,21 @@
 
 This folder contains the current authoritative EnterpriseWAF scenario-analysis set.
 
-If you only want the current conclusions, start with:
+If you only want the current architecture and conclusions, start with:
 
-1. **[Executive architecture and 99.95% recommendation](./executive_recommendation.md)** — final recommendation and ranked options
-2. **[Deployment options, resilience and four-tenant cost summary](./deployment_options_resilience_summary.md)** — detailed architecture/topology comparison
-3. **[End-to-end service impact and recoverability](./end_to_end_service_impact_analysis.md)** — primary user/service failure story
-4. [Maintainability / change-management analysis](./maintainability_change_management_analysis.md)
-5. [Cross-site routing and dependency recovery](./cross_site_routing_and_dependency_recovery.md)
-6. [Common technical failure matrix](./common_failure_matrix.md) — component-level supporting detail
+1. **[High-level EnterpriseWAF architecture](./high_level_architecture.md)** — canonical consumers/DNS/network/application relationship view
+2. **[Executive architecture and 99.95% recommendation](./executive_recommendation.md)** — final recommendation and ranked options
+3. **[Deployment options, resilience and four-tenant cost summary](./deployment_options_resilience_summary.md)** — detailed architecture/topology comparison
+4. **[End-to-end service impact and recoverability](./end_to_end_service_impact_analysis.md)** — primary user/service failure story
+5. [Maintainability / change-management analysis](./maintainability_change_management_analysis.md)
+6. [Cross-site routing and dependency recovery](./cross_site_routing_and_dependency_recovery.md)
+7. [Common technical failure matrix](./common_failure_matrix.md) — component-level supporting detail
 
 ## Document map
 
 | File | Type | Purpose | Change frequency |
 |---|---|---|---|
+| [high_level_architecture.md](./high_level_architecture.md) | **Canonical architecture overview** | External/internal consumers, DNS, network paths, LTM/WAF/CFW/ELB, cloud hosting, App A/B/C/D dependencies and WAF platform-vs-policy distinction | Update when the target logical architecture changes |
 | [executive_recommendation.md](./executive_recommendation.md) | **Executive decision summary** | Final recommendation, 99.95 potential, ranked options and approval gates | Update when conclusions materially change |
 | [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md) | **Primary architecture summary** | W1-W4, dedicated/shared four-tenant cost, N-1/N-2/tier failure tolerance, cross-site comparison and application-type resilience | Regenerate when topology/capacity/tenancy assumptions change |
 | [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md) | **Invariant input** | Stable enterprise context, application types, sites, tenant model, design objectives and 99.95 maintainability objective | Rare |
@@ -178,6 +180,7 @@ When re-running the work:
 
 For quick access:
 
+- **High-level architecture:** [high_level_architecture.md](./high_level_architecture.md)
 - **Executive recommendation:** [executive_recommendation.md](./executive_recommendation.md)
 - **Architecture/topology summary:** [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md)
 - **Primary failure/resilience result:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)
