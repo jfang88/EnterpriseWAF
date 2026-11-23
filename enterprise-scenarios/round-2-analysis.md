@@ -4,7 +4,8 @@
 >
 > - [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)
 > - [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)
-> - [common_failure_matrix.md](./common_failure_matrix.md)
+> - [common_failure_matrix.md](./common_failure_matrix.md) — Lens 1: failure/recovery
+> - [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md) — Lens 2: maintainability/change safety
 > - [enterprise_scenario_analysis_prompt.md](./enterprise_scenario_analysis_prompt.md) is now the regeneration prompt.
 >
 > This Round 2 file remains useful as working history, but the files above are the authoritative set for further analysis.
