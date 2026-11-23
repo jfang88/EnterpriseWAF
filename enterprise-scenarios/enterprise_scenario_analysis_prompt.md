@@ -291,6 +291,22 @@ For active/active/locality designs, analyse Topology load balancing only when LD
 
 Never assume the site containing the GTM that answered the query is automatically the preferred application site.
 
+## CFW timing/recovery requirement
+
+For private-cloud paths, explicitly analyse:
+
+- one CFW HA member failure with the same local service path retained;
+- complete local CFW context/service failure;
+- CFW false-green where WAF/front-end is healthy but CFW -> ELB/application is unreachable.
+
+Do not assign an invented numeric CFW HA default. Record CFW HA timing as **measured/TBD** until the firewall product/configuration is known.
+
+However, show the service-level consequence:
+
+- successful CFW HA should remain local with **no DNS TTL**;
+- whole CFW failure that triggers site recovery uses the existing GTM/DNS recovery timing (~46–150s + T6 depending health model);
+- false-green CFW can be unbounded until through-path readiness detects it.
+
 ## F5 timing rules
 
 ### Numeric recovery timing requirement
