@@ -201,7 +201,7 @@ Analyse:
 - external systems/API clients using the external namespace;
 - internal users using **internal enterprise DNS**, with selected internal service names optionally delegated/forwarded to GTM;
 - internal applications resolving App B/App C/internal service endpoints through internal DNS and, where configured, GTM;
-- internal users that may bypass WAF and connect directly to internal LTM/ELB/service endpoints;
+- internal users that may bypass WAF and connect through internal LTM/service VIP -> CFW -> ELB/service endpoints for private-cloud applications;
 - Application A -> Application B -> Application C and shared-dependency chains;
 - non-web services that bypass WAF.
 
