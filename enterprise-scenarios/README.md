@@ -20,7 +20,6 @@ If you only want the current conclusions, start with:
 | [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md) | **Derived output — Lens 2** | Monitoring, firmware, WAF/LTM/GTM changes, blue-green/canary, draining, rollback and 99.95 maintainability assessment | Regenerate when inputs change |
 | [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md) | **Derived supporting study** | Cross-site WAF/LTM route-back and App A -> App B dependency recovery | Update when cross-site model changes |
 | [enterprise_scenario_analysis_prompt.md](./enterprise_scenario_analysis_prompt.md) | **Regeneration/orchestration prompt** | Instructions for consistently rebuilding both analysis lenses from the invariant + variable inputs | Update when analysis scope changes |
-| [round-2-analysis.md](./round-2-analysis.md) | **Working history** | Earlier Round 2 notes and evolution of assumptions | Not authoritative |
 
 ## The key rule
 
@@ -145,7 +144,7 @@ When re-running the work:
 5. Regenerate/review [common_failure_matrix.md](./common_failure_matrix.md) as the technical supporting matrix.
 6. Regenerate/review [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md).
 7. Update [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md) if cross-site assumptions changed.
-8. Keep `round-2-analysis.md` as history rather than promoting new assumptions from it implicitly.
+8. Use the [archive](../archive/README.md) only for historical traceability; do not promote archived assumptions implicitly.
 
 ## Output locations
 
@@ -159,20 +158,11 @@ For quick access:
 - **Changeable assumptions:** [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)
 - **Regeneration prompt:** [enterprise_scenario_analysis_prompt.md](./enterprise_scenario_analysis_prompt.md)
 
-## Working history
+## Archive and specialist references
 
-`round-2-analysis.md` records the evolution of the analysis and is useful for context, but it should not be treated as the source of truth when it conflicts with the invariant, variable or derived-output files above.
+Historical versions and working notes are under [`../archive/`](../archive/README.md). They are retained for traceability, not as inputs to the current analysis.
 
-## Relationship to the four older root documents
-
-The current folder replaces the older root-level architecture/failure documents as the source of truth.
-
-| Older document | Disposition |
-|---|---|
-| `../waf_architecture_options_cross_site_resilience.md` | Superseded as primary architecture analysis. Unique recovery/test concepts have been carried forward. |
-| `../f5_failover_failure_V4_matrix_footnotes.md` | Superseded old topology-specific matrix. Do not use its exact topology/timing as current baseline. |
-| `../f5_failover_failure_matrix-v3.md` | Obsolete predecessor to V4. Historical only. |
-| `../waf_websocket_resilience_cloud_patterns.md` | Retained as specialist WebSocket/SSE/application-resilience guidance. Current W1-W4 topology and timing files take precedence. |
+The root-level [WebSocket resilience document](../waf_websocket_resilience_cloud_patterns.md) remains a current specialist reference for application reconnect/replay/SSE behavior. Current W1-W4 topology, DNS namespace and F5 timing assumptions in this folder take precedence.
 
 ### Branch rule
 
