@@ -118,6 +118,30 @@ For many BIG-IP LTM active monitors, the documented default-style timing is arou
 - remote WAF must already have the correct application/tenant policy;
 - remote capacity may be contended.
 
+## 3.1 CFW requirement for route-back
+
+For private-cloud targets, X2A/X2B do not terminate at the application directly. The route-back path must traverse a healthy, reachable platform/cloud firewall (CFW) before the ELB/application:
+
+```text
+remote/local WAF
+  -> approved route
+  -> target-site CFW
+  -> target-site ELB/service
+  -> application
+```
+
+Therefore validate:
+
+- remote WAF -> target CFW routing;
+- CFW policy for cross-site source paths;
+- NAT/SNAT and original-client identity;
+- return-path symmetry;
+- CFW HA/state behavior;
+- whether CFW failure independently forces site/application recovery;
+- whether the alternate site CFW has capacity for contingency load.
+
+A remote WAF cannot recover a healthy application if the target site's CFW is the failed layer.
+
 ## 4. Pattern X2B - local LTM/WAF tier fails; use remote front-end and route back
 
 Normal:
