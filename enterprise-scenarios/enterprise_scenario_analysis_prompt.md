@@ -61,9 +61,9 @@ Analyse all selected WAF topology options:
 - W1 — LTM-fronted scalable independent WAF pool;
 - W2 — WAF HA cluster, with and without ingress LTM where relevant;
 - W3 — tenant-preferred WAFs plus shared reserve WAFs;
-- W4 — WAF HA cluster plus local spare, normally replicated in both sites.
+- W4 — asymmetric design: Site 1 WAF HA cluster + one extra active/spare WAF; Site 2 WAF HA cluster only. Analyse both W4a (LTM in front) and W4b (no ingress LTM in front of WAF).
 
-W1-W4 are per-site topology patterns. The same logical F5 GTM/LTM/WAF arrangement is assumed in both sites unless a scenario explicitly models asymmetry. GTM site recovery is part of each topology and is not a separate WAF option.
+W1-W3 normally use the same logical WAF topology in both sites. W4 is the deliberate asymmetry exception: Site 1 has the cluster plus an extra active/spare WAF, while Site 2 has the cluster only. GTM/LTM roles remain similar per site unless a scenario explicitly says otherwise. GTM site recovery is part of each topology and is not a separate WAF option.
 
 Also distinguish:
 
