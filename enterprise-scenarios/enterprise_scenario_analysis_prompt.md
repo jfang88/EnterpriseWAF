@@ -4,7 +4,28 @@
 
 Use this prompt to regenerate or refresh the EnterpriseWAF failure analysis **without changing the stable enterprise baseline**.
 
-The analysis is deliberately split into three source layers.
+The analysis is deliberately split into canonical terminology/topology, stable inputs, changeable inputs and derived outputs.
+
+### 0. Canonical shorthand and topology
+
+Read first:
+
+- [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md)
+
+Treat this as the authoritative source for:
+
+- W1-W4 topology meanings;
+- D1/S1/S2/S3 tenancy/sharing meanings;
+- X1/X2A/X2B/X2C/XD1 recovery meanings;
+- T1-T9 timing meanings;
+- AT1-AT4 application-type shorthand;
+- the canonical external/internal/CFW/ELB/App A/B/C logical path.
+
+Do not reuse `W1/W2/W3` as WAF-node names. Use `WAF-1/WAF-2/WAF-3`.
+
+Do not reuse `S1/S2` as generic site labels. Use `Site 1 / Site 2`.
+
+Prefer `App A @ Site 1` and `App B @ Site 2` rather than ambiguous application-instance labels such as `A1/B2`.
 
 ### 1. Stable invariants
 
@@ -26,7 +47,8 @@ Read:
 
 This contains:
 
-- W1-W4 candidate WAF topologies, each normally replicated across both sites;
+- W1-W4 candidate WAF topologies, each normally replicated across both sites except the deliberate W4 asymmetry;
+- D1/S1/S2/S3 tenancy/sharing choices;
 - local-only versus controlled cross-site routing;
 - GTM health-check models;
 - GTM response/preference models;
@@ -45,10 +67,11 @@ Regenerate/update:
 - **Lens 1 — primary end-to-end service impact/recovery:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)
 - **Lens 1 technical appendix:** [common_failure_matrix.md](./common_failure_matrix.md)
 - **Lens 2 — maintainability/change safety:** [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md)
+- **Cross-site/dependency study:** [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md)
 
-Both are **derived outputs**. They should be regenerated when the invariant file or analysis-variable file changes.
+These are **derived outputs**. They should be regenerated when the invariant file, variable file, or canonical shorthand/topology changes.
 
-Do not copy new assumptions directly into either derived analysis without first deciding whether they belong in the invariant file or the variable file.
+Do not copy new assumptions directly into a derived analysis without first deciding whether they belong in the invariant file or the variable file.
 
 A new analysis lens should be added as a separate derived document where possible rather than expanding the invariant baseline or mixing unrelated conclusions into the failure matrix.
 
@@ -58,38 +81,38 @@ A new analysis lens should be added as a separate derived document where possibl
 
 You are reviewing a dual-site enterprise application-delivery architecture using F5 BIG-IP DNS/GTM, LTM and Advanced WAF/ASM.
 
-Use the invariant and variable files above.
+Use the canonical, invariant and variable files above.
 
 ## Mandatory comparison dimensions
 
-Analyse all selected WAF topology options:
+Analyse all selected WAF topology options using the canonical definitions:
 
-- W1 — LTM-fronted scalable independent WAF pool;
-- W2 — WAF HA cluster, with and without ingress LTM where relevant;
-- W3 — tenant-preferred WAFs plus shared reserve WAFs;
-- W4 — asymmetric design: Site 1 WAF HA cluster + one extra active/spare WAF; Site 2 WAF HA cluster only. Analyse both W4a (LTM in front) and W4b (no ingress LTM in front of WAF).
+- **W1** — LTM-fronted scalable independent **active** WAF pool;
+- **W2** — WAF HA/DSC cluster, with and without ingress LTM where relevant;
+- **W3** — tenant-preferred **active** WAFs plus shared reserve WAFs;
+- **W4** — asymmetric design: Site 1 WAF HA cluster + one extra active/spare WAF; Site 2 WAF HA cluster only. Analyse both W4a (LTM in front) and W4b (no ingress LTM in front of WAF).
 
 W1-W3 normally use the same logical WAF topology in both sites. W4 is the deliberate asymmetry exception: Site 1 has the cluster plus an extra active/spare WAF, while Site 2 has the cluster only. GTM/LTM roles remain similar per site unless a scenario explicitly says otherwise. GTM site recovery is part of each topology and is not a separate WAF option.
 
 Also distinguish:
 
-- X1 — local-only dataplane routing;
-- X2A/X2B — controlled cross-site WAF/front-end contingency where technically applicable;
-- X2C — conventional site/application failover;
-- XD1 — App A -> App B remote-dependency fallback.
-
+- **X1** — local-only dataplane routing;
+- **X2A** — surviving local LTM uses a remote WAF and routes back through the healthy local CFW/ELB/application path;
+- **X2B** — remote front end routes back through the healthy primary-site CFW/ELB/application path;
+- **X2C** — conventional site/application failover;
+- **XD1** — App A remains local and uses remote App B through a health-aware service abstraction.
 
 ## Mandatory tenancy, sharing and four-tenant cost comparison
 
 Treat tenancy/sharing as a design axis separate from W1-W4.
 
-Use an illustrative **four-tenant** planning case and compare:
+Use an illustrative **four-tenant** planning case and compare canonical patterns:
 
-- fully dedicated tenant LTM + WAF capacity;
-- dedicated tenant LTMs + shared independent active WAF pool;
-- W3 dedicated preferred WAFs + shared reserve;
-- shared LTM + shared WAF pool;
-- shared WAF HA cluster where relevant.
+- **D1** — fully dedicated tenant LTM + WAF capacity;
+- **S1** — dedicated tenant LTMs + shared independent active WAF pool;
+- **W3 hybrid** — dedicated preferred WAFs + shared reserve;
+- **S2** — shared LTM + shared independent active WAF pool;
+- **S3** — shared WAF HA cluster where relevant.
 
 For each pattern show:
 
@@ -154,14 +177,14 @@ Explicitly trace whether the absence of cross-site routing causes:
 
 - WAF failure -> whole application/site failover;
 - front-end failure -> healthy application move;
-- B1 dependency failure -> A/C/D readiness failure;
+- local App B dependency failure -> App A/C/D readiness failure;
 - multiple application GTM withdrawals;
 - Site 2 capacity surge;
 - reconnect/login storm;
 - dependency/database/identity overload;
 - manual DR.
 
-Quantify the change in recovery class/timing where possible (for example ~16s-class local recovery versus ~46–150s+ site recovery).
+Quantify the change in recovery class/timing where possible, for example ~16s-class local/dependency recovery versus ~46–150s+ site recovery.
 
 ## Mandatory cross-site recovery study
 
@@ -169,14 +192,41 @@ Also read and regenerate/update when relevant:
 
 - [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md)
 
-Distinguish these mechanisms:
+Do not describe X2A/X2B/X2C/XD1 simply as "cross-site routing." Their detection, DNS dependency, latency, capacity and failure modes differ materially.
 
-- **X2A:** surviving local LTM borrows remote WAF and routes back to the primary application;
-- **X2B:** remote site's firewall/LTM/WAF becomes the front end and routes back to the healthy primary-site application;
-- **X2C:** conventional full application/site failover;
-- **XD1:** App A remains local and uses remote App B through a health-aware service VIP/service-discovery layer.
+## Mandatory end-to-end topology/path
 
-Do not describe them all simply as "cross-site routing". Their detection, DNS dependency, latency, capacity and failure modes differ materially.
+Use the canonical reference path for private-cloud hosted applications:
+
+```text
+External user/API
+  -> external/customer DNS
+  -> enterprise external DNS/GTM
+  -> leased line / VPN
+  -> edge firewall / application VIP
+  -> tenant LTM HA pair where present
+  -> WAF topology
+  -> CFW
+  -> ELB/service
+  -> App A
+  -> internal dependency DNS/service abstraction
+  -> App B
+  -> App C / shared dependencies
+```
+
+Internal path:
+
+```text
+Internal user/system
+  -> internal enterprise DNS
+  -> optional internal GTM/service name
+  -> internal LTM/service VIP
+  -> CFW
+  -> ELB/service
+  -> application
+```
+
+If a hosting pattern bypasses CFW, ELB, WAF or LTM, say so explicitly rather than silently omitting the layer.
 
 ## Mandatory end-to-end service outcome
 
@@ -261,12 +311,12 @@ For CFW failures state:
 
 ## Mandatory application types
 
-Every failure scenario must state the applicable application type:
+Every failure scenario must state the applicable application type using the canonical IDs:
 
-1. stateless web;
-2. stateful web;
-3. socket/WebSocket/long-lived connection;
-4. non-web/L4 application bypassing WAF.
+1. **AT1** — stateless web;
+2. **AT2** — stateful web;
+3. **AT3** — socket/WebSocket/long-lived connection;
+4. **AT4** — non-web/L4 application bypassing WAF.
 
 Do not call infrastructure failover successful until the application-specific recovery requirement is also satisfied.
 
@@ -337,6 +387,8 @@ However, show the service-level consequence:
 
 ## F5 timing rules
 
+The canonical timing meanings are T1-T9 in [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md) and [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md).
+
 ### Numeric recovery timing requirement
 
 The primary output must contain an explicit timing table with numeric planning windows where defaults support them.
@@ -348,8 +400,8 @@ At minimum show:
 - GTM DNS A-record pool TTL: 30s default;
 - direct GTM monitor: 30s interval / 120s timeout for common HTTP/HTTPS/TCP-style monitors;
 - illustrative fast site move: ~16s local health + up to 30s residual TTL = ~46s + T6, plus measured iQuery/propagation;
-- default-direct-monitor site move: up to ~120s + up to 30s TTL = ~150s + T6;
-- manual DR: T5 + DNS/site timing + T6.
+- default-direct-monitor site move: T3 (~120s timeout) + T4 (up to ~30s residual TTL/cache) = up to ~150s + T6;
+- manual DR: T5 + T4 + T6, with the applicable health-detection term stated separately.
 
 Explicitly distinguish:
 
@@ -364,13 +416,17 @@ Do not state that LTM member failover is interruption-free for a connection alre
 
 Do not invent a single vendor failover number.
 
-Use the timing model in the variables file:
+### T4 canonical rule
 
-- BIG-IP HA peer failure: seconds-scale, approximately 3+ seconds peer-loss detection under common/default-style settings plus data-plane convergence;
-- LTM pool-member failure: driven by configured monitor interval/timeout, often around the documented 5s/16s defaults for many LTM monitors;
-- direct BIG-IP DNS health: often much slower with documented 30s/120s defaults unless tuned;
-- DNS/site recovery: health detection + GTM decision + DNS cache/TTL + client re-resolution + application readiness;
-- warm/cold/manual application startup: operator/process dependent.
+**T4 starts after the relevant health decision.** It means:
+
+```text
+GTM answer/site-selection update
+ + residual DNS TTL/cache
+ + client re-resolution/retry to the selected endpoint
+```
+
+Do **not** include T3 health detection, T5 alternate-site startup/readiness, or T6 application/session/socket restoration inside T4 and then add them again.
 
 For every timing value state whether it is:
 
@@ -383,7 +439,7 @@ For every timing value state whether it is:
 
 Call out application code/configuration prerequisites.
 
-### Stateless web
+### AT1 — Stateless web
 
 Require:
 
@@ -392,7 +448,7 @@ Require:
 - shared/external state;
 - readiness monitoring.
 
-### Stateful web
+### AT2 — Stateful web
 
 Require:
 
@@ -402,7 +458,7 @@ Require:
 - transaction reconciliation;
 - compatible alternate-site data.
 
-### Socket/WebSocket
+### AT3 — Socket/WebSocket
 
 Require:
 
@@ -428,7 +484,7 @@ Require:
 - idempotent retry semantics;
 - dependency failover without unnecessary site failover.
 
-### Non-web
+### AT4 — Non-web
 
 Require:
 
@@ -448,16 +504,17 @@ If these are absent, explicitly mark the application **not end-to-end resilient*
 Regenerate [executive_recommendation.md](./executive_recommendation.md) with:
 
 1. a self-contained topology legend for **W1/W2/W3/W4/S1/S2** before any ranked table, with plain-English descriptions and small diagrams;
-2. a short legend for X2A/X2B/X2C/XD1;
-3. a ranked final recommendation rather than only neutral comparison;
-4. the preferred four-tenant cost/resilience option;
-5. the preferred highest-isolation option;
-6. a 99.95% architectural-potential rating for each major option;
-7. common/credible failure and maintenance events that should remain R0/R1;
-8. failures where R2 cross-site component/dependency recovery materially improves the outcome;
-9. options not recommended as the default and why;
-10. required change controls and application compliance;
-11. explicit decision/acceptance gates before claiming the 99.95 target.
+2. a link to the canonical shorthand/topology reference;
+3. a short legend for X2A/X2B/X2C/XD1;
+4. a ranked final recommendation rather than only neutral comparison;
+5. the preferred four-tenant cost/resilience option;
+6. the preferred highest-isolation option;
+7. a 99.95% architectural-potential rating for each major option;
+8. common/credible failure and maintenance events that should remain R0/R1;
+9. failures where R2 cross-site component/dependency recovery materially improves the outcome;
+10. options not recommended as the default and why;
+11. required change controls and application compliance;
+12. explicit decision/acceptance gates before claiming the 99.95 target.
 
 Do not claim that any topology **meets** 99.95 until fault-injection and maintenance testing provide measured end-to-end evidence. Use terms such as **high potential**, **credible**, or **conditional** until proven.
 
@@ -465,16 +522,17 @@ Do not claim that any topology **meets** 99.95 until fault-injection and mainten
 
 Regenerate [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md) with:
 
-- a self-contained **T1-T9 reference table** near the top so timing shorthand can be understood without opening another document;
-- a link back to the detailed timing assumptions;
-- examples showing how T4/T5/T6/T9 combine in service recovery.
+- canonical W/S/X topology shorthand near the top;
+- a self-contained **T1-T9 reference table**;
+- a link back to the canonical reference and detailed timing assumptions;
+- examples showing how T3/T4/T5/T6/T9 combine without double-counting.
 
 Then include:
 
 1. W1-W4 topology summary;
 2. one-node / two-node / whole-cluster-or-pool resilience;
 3. cross-site versus no-cross-site comparison;
-4. stateless/stateful/WebSocket/non-web comparison;
+4. AT1/AT2/AT3/AT4 application-type comparison;
 5. failure scenarios from DNS/circuit/firewall through LTM/WAF/CFW/ELB/app/state/dependency/site;
 6. four-tenant dedicated/shared device-count and blast-radius comparison;
 7. explicit conclusions on cost efficiency versus isolation/common-mode risk.
@@ -490,8 +548,8 @@ Then regenerate [common_failure_matrix.md](./common_failure_matrix.md) as the te
 3. control-plane/ingress failure table;
 4. LTM failure table;
 5. WAF failure table;
-6. backend/application failure table;
-7. cross-site failure table;
+6. CFW/backend/application failure table;
+7. cross-site/dependency failure table;
 8. full-site failure table;
 9. socket/long-lived behavior;
 10. non-web bypass behavior;
@@ -529,15 +587,16 @@ Regenerate the maintainability analysis with:
 4. monitoring complexity;
 5. firmware strategy by W1-W4;
 6. LTM maintenance/rule changes;
-7. GTM maintenance;
-8. WAF policy/signature strategy;
-9. blue-green/canary feasibility;
-10. application draining;
-11. 99.95 maintainability test;
-12. topology scorecard;
-13. critical maintainability risks;
-14. recommended operating model;
-15. maintainability conclusions.
+7. CFW maintenance;
+8. GTM maintenance;
+9. WAF policy/signature strategy;
+10. blue-green/canary feasibility;
+11. application draining;
+12. 99.95 maintainability test;
+13. topology scorecard;
+14. critical maintainability risks;
+15. recommended operating model;
+16. maintainability conclusions.
 
 ---
 
@@ -545,17 +604,21 @@ Regenerate the maintainability analysis with:
 
 Before changing any analysis:
 
-1. Ask: **Did the real enterprise environment change?**
+1. Ask: **Did canonical shorthand/topology change?**
+   - Yes -> update `architecture_shorthand_topology_reference.md` first, then reconcile downstream documents.
+
+2. Ask: **Did the real enterprise environment change?**
    - Yes -> update invariants.
    - No -> leave invariants untouched.
 
-2. Ask: **Did a topology/health/timing assumption change?**
+3. Ask: **Did a topology/health/timing assumption change?**
    - Yes -> update variables.
    - No -> leave variables untouched.
 
-3. Regenerate the end-to-end service impact/recoverability analysis.
-4. Regenerate the technical common failure matrix that supports it.
-5. Regenerate the maintainability/change-safety analysis from the same inputs.
-6. Keep findings in their derived lens; promote a fact into invariants or variables only when it is genuinely a reusable input.
+4. Regenerate the executive/deployment summaries.
+5. Regenerate the end-to-end service impact/recoverability analysis.
+6. Regenerate the technical common failure matrix that supports it.
+7. Regenerate the maintainability/change-safety analysis from the same inputs.
+8. Keep findings in their derived lens; promote a fact into invariants or variables only when it is genuinely a reusable input.
 
-This separation is intended to prevent the baseline from drifting every time a new WAF option or failure scenario is considered.
+This separation is intended to prevent the baseline and terminology from drifting every time a new WAF option or failure scenario is considered.
