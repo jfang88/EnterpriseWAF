@@ -1,5 +1,11 @@
 # F5 GTM/LTM/WAF Dual-Site Failure Matrix and Private DNS Considerations
 
+> **ARCHIVED — obsolete V3 predecessor**
+>
+> This file is retained for historical context only. Current authoritative analysis is in [enterprise-scenarios/](../enterprise-scenarios/README.md).
+>
+> Do not use this archived file as the current topology, timing, or decision baseline.
+
 This document reflects a dual-site private B2B topology where each site contains a 2-node GTM cluster plus 1 standalone GTM, a 2-node LTM cluster plus 1 standalone LTM, and a 2-node WAF cluster plus 1 standalone WAF. At the service-IP layer, clustered components should appear as **one IP per cluster service**, so the logical topology exposed to clients and upstream health logic is simplified. The GTM layer therefore exposes **four GTM service IPs in total**: two primary service IPs mapped to Site A and two secondary service IPs mapped to Site B. Each site also exposes **two LTM service IPs** and **two WAF service IPs**, with each clustered pair represented by one service IP and the standalone device represented by one service IP. The application sits behind an AWS Application Load Balancer (ALB) in each site.[cite:33][cite:50][cite:7]
 
 The timing assumptions use common default health-monitor values unless noted otherwise: GTM BIG-IP monitor interval 30 seconds and timeout 90 seconds[cite:33], LTM HTTP/HTTPS monitor interval 5 seconds and timeout 16 seconds[cite:36][cite:17], and ALB target-group health checks with a 30-second interval, 2 failed checks to mark a target unhealthy, and 5 successful checks to mark a target healthy again[cite:7][cite:21].

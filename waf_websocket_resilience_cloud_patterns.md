@@ -1,5 +1,14 @@
 # WebSocket Resilience Through Enterprise WAF and Load-Balancer Tiers
 
+> **STATUS — CURRENT SPECIALIST APPLICATION-RESILIENCE REFERENCE**
+>
+> The WebSocket/SSE guidance in this document remains relevant: reconnect, bounded retry/backoff+jitter, portable authentication/session state, replay/snapshot recovery, idempotency, draining, reconnect-storm testing and application-level recovery.
+>
+> Its older **Design A / Design B** infrastructure labels are historical. For current W1-W4 topology, DNS namespaces, F5 timing and end-to-end service-impact conclusions, use [enterprise-scenarios/](./enterprise-scenarios/README.md).
+>
+> Where this file conflicts with the current invariant/variable documents, the current enterprise-scenarios set takes precedence.
+
+
 **Status:** Design guidance / architecture decision record  
 **Last reviewed:** 2026-09-29  
 **Scope:** Dual-site Enterprise WAF architecture supporting HTTP/HTTPS and WebSocket traffic
@@ -8,7 +17,7 @@
 
 This document is a companion to:
 
-- [Enterprise WAF Architecture Options and Cross-Site Resilience](./waf_architecture_options_cross_site_resilience.md)
+- [Enterprise WAF Architecture Options and Cross-Site Resilience](./archive/waf_architecture_options_cross_site_resilience.md)
 - [F5 Failover Failure V4 Matrix and Footnotes](./f5_failover_failure_V4_matrix_footnotes.md)
 
 The existing documents cover broader WAF topology, cross-site routing, GTM/LTM failure domains, and application failover. This document focuses specifically on long-lived WebSocket connections and how to design for infrastructure failures.
@@ -84,7 +93,7 @@ B: external VIP on LTM HA -> independent WAF pool -> application ELB internal VI
 ELB -> DCS VMware VM pool OR HCS VM pool OR HCS Kubernetes ingress -> Pods
 ~~~
 
-See the [full logical flow and two-design comparison](./waf_architecture_options_cross_site_resilience.md#24-explicit-end-to-end-topology-and-ownership). The other site's GTM and VIP provide an alternate only when the client can reach that site and its application/data services are ready.
+See the [full logical flow and two-design comparison](./archive/waf_architecture_options_cross_site_resilience.md#24-explicit-end-to-end-topology-and-ownership). The other site's GTM and VIP provide an alternate only when the client can reach that site and its application/data services are ready.
 
 ---
 
@@ -336,7 +345,7 @@ This allows:
 
 ## End-to-end reliability controls
 
-The WAF design is one part of the application delivery service. Each layer must restore **new connections** after its own failure; no layer should promise to preserve an established socket through every possible fault. Design A has WAF cluster HA with no separate ingress LTM; Design B has LTM HA in front of independent WAFs. The [full fault analysis](./waf_architecture_options_cross_site_resilience.md#16a-end-to-end-failure-analysis-for-designs-a-and-b) models both.
+The WAF design is one part of the application delivery service. Each layer must restore **new connections** after its own failure; no layer should promise to preserve an established socket through every possible fault. Design A has WAF cluster HA with no separate ingress LTM; Design B has LTM HA in front of independent WAFs. The [full fault analysis](./archive/waf_architecture_options_cross_site_resilience.md#16a-end-to-end-failure-analysis-for-designs-a-and-b) models both.
 
 | Layer / failure domain | Reliability control | Recovery boundary and verification |
 |---|---|---|
@@ -425,7 +434,7 @@ Sequence numbers are scoped to a named stream/partition and epoch; independent s
 | Identity, session, event or authoritative store fails | An ingress path may remain green while application recovery is impossible. | Fail readiness where required, avoid pretending a reconnected socket is consistent, and enter the documented degraded mode until the state service is available. |
 | Site 1 becomes unavailable | GTM may advertise Site 2 only after application, state and dependencies are ready and client networks can reach its VIP. | New connection, reauthentication, resubscription and replay/snapshot against Site 2's consistent state; reconcile pending commands before retry. |
 
-Application teams should demonstrate these behaviors with a real long-lived socket while abruptly terminating the selected ELB path and selected Pod/VM, not just by taking a backend out of rotation. Repeat with graceful drain, a silent blackhole, expired replay cursor, lost command acknowledgement, passive-site promotion and a mass reconnect. Measure both **time to reconnect** and **time to correct business state**. See [Section 17](#17-minimum-application-requirements-for-resilient-websockets), [Section 19](#19-testing-plan) and the [main paper's end-to-end failure table](./waf_architecture_options_cross_site_resilience.md#16a-end-to-end-failure-analysis-for-designs-a-and-b).
+Application teams should demonstrate these behaviors with a real long-lived socket while abruptly terminating the selected ELB path and selected Pod/VM, not just by taking a backend out of rotation. Repeat with graceful drain, a silent blackhole, expired replay cursor, lost command acknowledgement, passive-site promotion and a mass reconnect. Measure both **time to reconnect** and **time to correct business state**. See [Section 17](#17-minimum-application-requirements-for-resilient-websockets), [Section 19](#19-testing-plan) and the [main paper's end-to-end failure table](./archive/waf_architecture_options_cross_site_resilience.md#16a-end-to-end-failure-analysis-for-designs-a-and-b).
 
 ---
 
@@ -815,7 +824,7 @@ Capacity testing must therefore measure both:
 
 # 15. Failure scenarios and expected WebSocket impact
 
-This concise table applies to both topologies. For node-versus-entire-pair failures, the two site firewall HA pairs, client DNS/circuits, DCS/HCS backends, application ELB L3/L4 versus L7 behavior and proposed recovery-time bands, use the [complete two-design failure analysis](./waf_architecture_options_cross_site_resilience.md#16a-end-to-end-failure-analysis-for-designs-a-and-b). Design A has no ingress LTM; its WAF HA cluster owns the external VIP. Design B has an LTM HA external VIP and independent WAF members.
+This concise table applies to both topologies. For node-versus-entire-pair failures, the two site firewall HA pairs, client DNS/circuits, DCS/HCS backends, application ELB L3/L4 versus L7 behavior and proposed recovery-time bands, use the [complete two-design failure analysis](./archive/waf_architecture_options_cross_site_resilience.md#16a-end-to-end-failure-analysis-for-designs-a-and-b). Design A has no ingress LTM; its WAF HA cluster owns the external VIP. Design B has an LTM HA external VIP and independent WAF members.
 
 | Failure | Existing HTTP | Existing WebSocket | Recovery / mitigation |
 |---|---|---|---|
@@ -904,7 +913,7 @@ The LTM HA pair owns the external VIP. Its pool monitors must withdraw a broken 
 
 ## Recommended decision rule
 
-Use **load-balanced active WAFs** as the preferred general architecture when the extra ingress LTM tier, through-path health, capacity, policy consistency and applications' WebSocket recovery are justified and verified. Design A remains a valid simpler ingress design when the cluster failure domain and single-event mirroring limitations are acceptable. See the [comparison and failure-time model](./waf_architecture_options_cross_site_resilience.md#16a-end-to-end-failure-analysis-for-designs-a-and-b).
+Use **load-balanced active WAFs** as the preferred general architecture when the extra ingress LTM tier, through-path health, capacity, policy consistency and applications' WebSocket recovery are justified and verified. Design A remains a valid simpler ingress design when the cluster failure domain and single-event mirroring limitations are acceptable. See the [comparison and failure-time model](./archive/waf_architecture_options_cross_site_resilience.md#16a-end-to-end-failure-analysis-for-designs-a-and-b).
 
 Use **connection mirroring** where a documented business/technical requirement justifies the extra complexity and testing.
 
@@ -962,7 +971,7 @@ Infrastructure and application deployment procedures shall drain long-lived conn
 
 ## WS-011 - Full-stack recovery and business state
 
-Application recovery shall be tested after client/DNS/firewall, circuit, full WAF HA pair or WAF pool, full LTM HA pair (Design B), application ELB L3/L4 or L7, DCS VM/cluster, HCS VM/cluster, Kubernetes ingress/Pod/node/cluster and full-site failures. HTTP clients must distinguish safe retries from ambiguous writes and use authoritative result lookup. WebSocket clients must not infer message delivery or order outcome from a successful reconnect. Measure the recovery-time components and proposed acceptance bands in [Section 16A of the main paper](./waf_architecture_options_cross_site_resilience.md#16a-end-to-end-failure-analysis-for-designs-a-and-b).
+Application recovery shall be tested after client/DNS/firewall, circuit, full WAF HA pair or WAF pool, full LTM HA pair (Design B), application ELB L3/L4 or L7, DCS VM/cluster, HCS VM/cluster, Kubernetes ingress/Pod/node/cluster and full-site failures. HTTP clients must distinguish safe retries from ambiguous writes and use authoritative result lookup. WebSocket clients must not infer message delivery or order outcome from a successful reconnect. Measure the recovery-time components and proposed acceptance bands in [Section 16A of the main paper](./archive/waf_architecture_options_cross_site_resilience.md#16a-end-to-end-failure-analysis-for-designs-a-and-b).
 
 ---
 
@@ -1029,7 +1038,7 @@ Capture:
 
 ## INF-009 - Application ELB mode and backend failure domains
 
-Document whether the on-premises ELB forwards at L3/L4 with a selected TCP flow or terminates at L7 and creates a new HTTP/TLS/backend connection. Pure L3 IP routing alone is not application load balancing. Validate TLS/mTLS termination and re-encryption, original-client trust, NAT and return symmetry, health, WebSocket upgrade, idle/maximum connection age and draining. DCS VMware VMs, HCS VMs and HCS Kubernetes ingress/Services/Pods must be monitored and failed independently; losing an ELB, ingress, VM or Pod can still destroy an established socket. See the [mode-specific failure rows](./waf_architecture_options_cross_site_resilience.md#16a3-ingress-waf-and-application-elb).
+Document whether the on-premises ELB forwards at L3/L4 with a selected TCP flow or terminates at L7 and creates a new HTTP/TLS/backend connection. Pure L3 IP routing alone is not application load balancing. Validate TLS/mTLS termination and re-encryption, original-client trust, NAT and return symmetry, health, WebSocket upgrade, idle/maximum connection age and draining. DCS VMware VMs, HCS VMs and HCS Kubernetes ingress/Services/Pods must be monitored and failed independently; losing an ELB, ingress, VM or Pod can still destroy an established socket. See the [mode-specific failure rows](./archive/waf_architecture_options_cross_site_resilience.md#16a3-ingress-waf-and-application-elb).
 
 ---
 

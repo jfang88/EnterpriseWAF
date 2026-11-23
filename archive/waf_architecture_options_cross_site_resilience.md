@@ -1,5 +1,11 @@
 # Enterprise WAF Architecture Options and Cross-Site Resilience
 
+> **ARCHIVED — superseded architecture analysis**
+>
+> This file is retained for historical context only. Current authoritative analysis is in [enterprise-scenarios/](.../enterprise-scenarios/README.md).
+>
+> Do not use this archived file as the current topology, timing, or decision baseline.
+
 ## Purpose
 
 This page compares two WAF deployment models and two routing models for a dual-site enterprise application environment:
@@ -989,7 +995,7 @@ F5 [connection mirroring limitations](https://techdocs.f5.com/en-us/bigip-17-0-0
 
 **HTTP:** Classify safe reads, idempotent updates and business commands. Bound retries with backoff/jitter. Assign stable operation or client-order IDs to retryable writes and expose an authoritative lookup for ambiguous outcomes. Do not treat a lost HTTP response as proof the write failed. Isolate application-specific health so an unrelated service does not evacuate the site.
 
-**WebSocket:** Detect close and silent stall via a heartbeat deadline; re-resolve where appropriate; reconnect with bounded backoff and jitter; reauthenticate; restore subscriptions; replay from a scoped durable cursor where offered; otherwise load a snapshot and reconcile. Deduplicate events and commands and persist safely processed cursor state when browser/device restarts matter. Mirror features do not replace recovery. See [WebSocket application requirements](./waf_websocket_resilience_cloud_patterns.md#17-minimum-application-requirements-for-resilient-websockets).
+**WebSocket:** Detect close and silent stall via a heartbeat deadline; re-resolve where appropriate; reconnect with bounded backoff and jitter; reauthenticate; restore subscriptions; replay from a scoped durable cursor where offered; otherwise load a snapshot and reconcile. Deduplicate events and commands and persist safely processed cursor state when browser/device restarts matter. Mirror features do not replace recovery. See [WebSocket application requirements](../waf_websocket_resilience_cloud_patterns.md#17-minimum-application-requirements-for-resilient-websockets).
 
 Maintain an application register of client populations per circuit/firewall/site; each site VIP and DNS path; A/B topology; TLS/mTLS, identity and NAT boundaries; ELB L3/L4 versus L7 mode; DCS/HCS VM or Kubernetes topology; health and dependency/data authority; every timeout/drain setting; p95/p99 `T_detect/T_path/T_DNS/T_retry/T_auth/T_restore/T_ready`; observed HTTP/WS transaction loss; and load under member, pair, tier and site failures. Include ambiguous writes and events sent just before disconnection in failure tests.
 

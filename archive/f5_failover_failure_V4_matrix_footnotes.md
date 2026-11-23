@@ -1,5 +1,11 @@
 # F5 GTM/LTM/WAF Dual-Site Failure Matrix and Private DNS Considerations
 
+> **ARCHIVED — superseded V4 topology-specific failure matrix**
+>
+> This file is retained for historical context only. Current authoritative analysis is in [enterprise-scenarios/](../enterprise-scenarios/README.md).
+>
+> Do not use this archived file as the current topology, timing, or decision baseline.
+
 This version uses a consistent reference style: inline bracketed references such as [^1] and [^5], with a clickable source table in the appendix.
 
 ## Overview
