@@ -37,9 +37,11 @@ The analysis is deliberately separated into **stable inputs**, **changeable inpu
               +---------+---------+
               |                   |
               v                   v
-    Lens 1: failure       Lens 2: maintainability
-    common_failure_       maintainability_change_
-    matrix.md             management_analysis.md
+    Lens 1: service       Lens 2: maintainability
+    impact/recovery       /change safety
+              |
+              +--> end_to_end_service_impact_analysis.md
+              +--> common_failure_matrix.md (technical appendix)
 
 Supporting derived study:
 `cross_site_routing_and_dependency_recovery.md`
@@ -58,7 +60,7 @@ The current baseline assumes:
 - externally reachable application VIPs live on the firewall tier;
 - internal users may bypass the WAF and use internal service/ELB paths;
 - applications may run on-premises, on VMs, Kubernetes or PaaS;
-- Application A -> Application B dependencies are treated as first-class resilience scenarios.
+- Application A -> Application B -> Application C and shared-dependency chains are treated as first-class resilience scenarios.
 
 Supported application types include:
 
@@ -69,13 +71,19 @@ Supported application types include:
 
 ## Analysis lenses
 
-### Lens 1 — Failure and recovery
+### Lens 1 — End-to-end service impact and recovery
 
-Primary output:
+**Primary output:**
 
-- [Common failure matrix](./enterprise-scenarios/common_failure_matrix.md)
+- [End-to-end service impact and recoverability analysis](./enterprise-scenarios/end_to_end_service_impact_analysis.md)
 
-Covers GTM/DNS, leased-line, firewall, LTM, WAF, backend, cross-site, dependency and full-site failures, including application-specific recovery requirements and F5 recovery-time drivers.
+This is the main service/user story. It explains what external human users, external API/system clients, internal users and App A/B/C dependencies experience, how long the interruption lasts, and whether recovery is automatic, manual or not possible with the current design.
+
+**Technical supporting matrix:**
+
+- [Common technical failure matrix](./enterprise-scenarios/common_failure_matrix.md)
+
+The technical matrix contains the component-by-component F5/infrastructure detail and timing drivers used to support the end-to-end service conclusions.
 
 ### Lens 2 — Maintainability and change safety
 
