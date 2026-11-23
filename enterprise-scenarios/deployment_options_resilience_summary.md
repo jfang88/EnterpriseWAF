@@ -21,7 +21,30 @@ The central conclusion is:
 
 A single WAF or backend failure should remain a **local member failure**. It should not automatically become a DNS/site/application failover.
 
-## 1.1 Timing reference — T1 to T9
+## 1.1 Topology shorthand — read this before the comparison
+
+| ID | Meaning |
+|---|---|
+| **W1** | Dedicated/tenant LTM HA pair -> **independent active WAF pool** (2..N WAFs) |
+| **W2** | **WAF HA/DSC cluster**, with or without ingress LTM; one active owner per traffic group |
+| **W3** | Tenant LTM pair -> tenant-preferred WAFs + **shared reserve WAF capacity** |
+| **W4** | Asymmetric: Site 1 WAF HA cluster + extra WAF; Site 2 WAF HA cluster only |
+| **S1** | **Tenant-specific LTM pairs -> shared independent active WAF pool** |
+| **S2** | **Shared LTM pair -> shared independent active WAF pool** |
+| **X2A** | Surviving local LTM uses remote WAF and routes back to the local application path |
+| **X2B** | Remote front end routes back to the healthy primary-site application path |
+| **X2C** | Full application/site failover |
+| **XD1** | Local App A uses remote App B fallback |
+
+The important distinction is:
+
+- **W1/S1/S2 active WAF pool:** multiple healthy independent WAFs can process the same service concurrently.
+- **W2/W4 WAF HA cluster:** one device owns a traffic group; another device is the HA failover target.
+- **W3:** combines tenant-preferred active WAFs with shared reserve capacity.
+
+Detailed diagrams are in section 3 below and in [executive_recommendation.md](./executive_recommendation.md).
+
+## 1.2 Timing reference — T1 to T9
 
 The detailed timing definitions live in [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md#5-f5-monitoring-and-recovery-time-assumptions). The table below is the quick reference used throughout this summary.
 
@@ -50,7 +73,7 @@ Examples:
 
 These are **engineering planning values, not SLAs**. Measure the end-to-end time from fault injection to the first successful business transaction for each actor/application type.
 
-## 1.2 Executive recommendation
+## 1.3 Executive recommendation
 
 For the final ranked recommendation and 99.95% assessment, see [executive_recommendation.md](./executive_recommendation.md).
 

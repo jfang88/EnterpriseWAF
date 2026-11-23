@@ -141,6 +141,25 @@ The **baseline is two LTMs per site** in a 2-device Sync-Failover pair (**W3-L2*
 
 The brackets indicate variants with/without an ingress LTM where relevant.
 
+### S1 — tenant LTMs + shared active WAF pool
+
+    Tenant 1 LTM pair --\
+    Tenant 2 LTM pair ---\
+    Tenant 3 LTM pair ----> shared independent active WAF pool
+    Tenant 4 LTM pair ---/
+
+S1 is a **tenancy/sharing pattern**, not a replacement definition for W1. It applies the independent-active-pool idea across several tenant LTM boundaries.
+
+### S2 — shared LTM + shared active WAF pool
+
+    Tenants 1..4
+         |
+    shared LTM pair
+         |
+    shared independent active WAF pool
+
+S2 has the largest shared ingress failure/change domain among the active-pool options.
+
 ## Analysis sequence
 
 When re-running the work:

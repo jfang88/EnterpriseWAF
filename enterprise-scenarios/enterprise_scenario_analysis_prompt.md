@@ -447,15 +447,17 @@ If these are absent, explicitly mark the application **not end-to-end resilient*
 
 Regenerate [executive_recommendation.md](./executive_recommendation.md) with:
 
-1. a ranked final recommendation rather than only neutral comparison;
-2. the preferred four-tenant cost/resilience option;
-3. the preferred highest-isolation option;
-4. a 99.95% architectural-potential rating for each major option;
-5. common/credible failure and maintenance events that should remain R0/R1;
-6. failures where R2 cross-site component/dependency recovery materially improves the outcome;
-7. options not recommended as the default and why;
-8. required change controls and application compliance;
-9. explicit decision/acceptance gates before claiming the 99.95 target.
+1. a self-contained topology legend for **W1/W2/W3/W4/S1/S2** before any ranked table, with plain-English descriptions and small diagrams;
+2. a short legend for X2A/X2B/X2C/XD1;
+3. a ranked final recommendation rather than only neutral comparison;
+4. the preferred four-tenant cost/resilience option;
+5. the preferred highest-isolation option;
+6. a 99.95% architectural-potential rating for each major option;
+7. common/credible failure and maintenance events that should remain R0/R1;
+8. failures where R2 cross-site component/dependency recovery materially improves the outcome;
+9. options not recommended as the default and why;
+10. required change controls and application compliance;
+11. explicit decision/acceptance gates before claiming the 99.95 target.
 
 Do not claim that any topology **meets** 99.95 until fault-injection and maintenance testing provide measured end-to-end evidence. Use terms such as **high potential**, **credible**, or **conditional** until proven.
 
