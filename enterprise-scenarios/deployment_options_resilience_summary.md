@@ -50,6 +50,22 @@ Examples:
 
 These are **engineering planning values, not SLAs**. Measure the end-to-end time from fault injection to the first successful business transaction for each actor/application type.
 
+## 1.2 Executive recommendation
+
+For the final ranked recommendation and 99.95% assessment, see [executive_recommendation.md](./executive_recommendation.md).
+
+In summary:
+
+| Priority | Preferred design | Why |
+|---|---|---|
+| **Best four-tenant cost/resilience balance** | tenant-specific 2-LTM HA pair + shared independent active WAF pool | preserves tenant ingress boundaries while sharing horizontally useful WAF capacity |
+| **Best isolation / highest-confidence maintainability** | dedicated W1 with 2 LTMs + 3 independent WAFs per tenant/site | strongest local maintenance and N-2-style headroom with smallest cross-tenant blast radius |
+| **Good but more complex** | W3 preferred WAFs + shared reserve | strong recovery if reserve is guaranteed, but shared reserve governance is complex |
+| **Simple but less maintenance margin** | W2b two-node WAF HA cluster | good first-failure HA/mirroring; pair boundary leaves less redundancy during maintenance |
+| **Not preferred as critical-service default** | shared LTM + shared WAF service | lowest device count but largest common-mode/cross-tenant blast radius |
+
+The 99.95% target is most credible when normal changes are effectively no-outage, common failures stay R0/R1, and whole-tier/dependency failures can use R2 recovery rather than forcing a site move.
+
 # 2. Common stack
 
 For a private-cloud web application, analyse failures from top to bottom:
