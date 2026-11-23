@@ -123,18 +123,40 @@ Before modifying the analysis:
 
 Site-level GTM recovery is common to all topologies and is **not** a separate WAF topology.
 
-## Authoritative vs working/legacy documents
+## Authoritative vs legacy/supporting documents
 
-The files under `enterprise-scenarios/` listed in its README are the current authoritative set for this analysis.
+The files under `enterprise-scenarios/` listed in its README are the current authoritative analysis set.
 
-The following root-level documents are older/reference material and may contain assumptions that pre-date the current invariant/variable model:
+The older root-level documents have now been audited:
 
-- `waf_architecture_options_cross_site_resilience.md`
-- `f5_failover_failure_V4_matrix_footnotes.md`
-- `f5_failover_failure_matrix-v3.md`
-- `waf_websocket_resilience_cloud_patterns.md`
+| Document | Current status | What remains useful |
+|---|---|---|
+| `waf_architecture_options_cross_site_resilience.md` | **Superseded as the primary architecture paper** | Historical detail on dependency routing, recovery-time decomposition, failure injection, access blast radius and traffic symmetry; useful concepts have been carried forward |
+| `f5_failover_failure_V4_matrix_footnotes.md` | **Superseded topology-specific matrix** | Historical F5/DNS monitor reasoning and footnoted sources; topology no longer matches W1-W4 |
+| `f5_failover_failure_matrix-v3.md` | **Obsolete predecessor to V4** | Keep only for Git history/reference; do not use for current decisions |
+| `waf_websocket_resilience_cloud_patterns.md` | **Still relevant specialist application-resilience reference** | Reconnect, retry/backoff, durable state, replay, draining, reconnect-storm testing, cloud patterns and SSE; use current W1-W4 docs for infrastructure topology |
 
-Use them as background unless/until they are explicitly reconciled with the authoritative scenario set.
+Do not use the old Design A/Design B labels or V3/V4 timing tables as the current baseline.
+
+## Branch strategy
+
+The repository currently has only two branches:
+
+- `main`
+- `analysis/enterprise-scenarios-round-2`
+
+That is enough.
+
+Recommended operating model:
+
+1. keep `main` as the single authoritative branch;
+2. use at most **one active analysis/change branch** for a coherent review;
+3. do not create a new branch for each analysis lens or MD file;
+4. merge the current PR when the authoritative set is accepted;
+5. delete the analysis branch after merge;
+6. make future coherent updates in a new short-lived branch/PR only when needed.
+
+The current complexity is mainly document history/duplication, not branch count.
 
 ## Current development status
 
