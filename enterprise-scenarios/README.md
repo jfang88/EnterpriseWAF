@@ -20,6 +20,7 @@ If you only want the current conclusions, start with:
 | [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md) | **Derived output — Lens 2** | Monitoring, firmware, WAF/LTM/GTM changes, blue-green/canary, draining, rollback and 99.95 maintainability assessment | Regenerate when inputs change |
 | [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md) | **Derived supporting study** | Cross-site WAF/LTM route-back and App A -> App B dependency recovery | Update when cross-site model changes |
 | [enterprise_scenario_analysis_prompt.md](./enterprise_scenario_analysis_prompt.md) | **Regeneration/orchestration prompt** | Instructions for consistently rebuilding both analysis lenses from the invariant + variable inputs | Update when analysis scope changes |
+| [appendix_ltm_waf_2_vs_3_nodes.md](./appendix_ltm_waf_2_vs_3_nodes.md) | **Supporting appendix** | Explains 2 vs 3 LTM/WAF nodes, DSC active/standby vs active-active traffic groups, and independent load-balanced WAF pools | Update when node-count/HA design changes |
 
 ## The key rule
 
@@ -117,7 +118,7 @@ With or without ingress LTM:
 
 ### W3 — tenant WAFs + shared reserve
 
-The tenant LTM service may be a normal 2-device Sync-Failover pair (**W3-L2**) or a 3-device Sync-Failover group (**W3-L3**) when additional maintenance/second-failure headroom is justified.
+The **baseline is two LTMs per site** in a 2-device Sync-Failover pair (**W3-L2**). A 3-device Sync-Failover group (**W3-L3**) is an optional comparison only when additional maintenance/second-failure headroom is being evaluated.
 
     Tenant LTM DSC service
         |
@@ -161,6 +162,7 @@ For quick access:
 - **Baseline:** [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)
 - **Changeable assumptions:** [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)
 - **Regeneration prompt:** [enterprise_scenario_analysis_prompt.md](./enterprise_scenario_analysis_prompt.md)
+- **2 vs 3 LTM/WAF appendix:** [appendix_ltm_waf_2_vs_3_nodes.md](./appendix_ltm_waf_2_vs_3_nodes.md)
 
 ## Archive and specialist references
 
