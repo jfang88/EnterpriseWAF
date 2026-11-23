@@ -104,6 +104,188 @@ For each stateless-web failure scenario, capture:
 
 **Important:** classify an application as stateless only if the required business/session state is genuinely portable. An application that keeps login/session/cart/workflow state only in local process memory should be analysed as stateful even if most HTTP requests appear stateless.
 
+
+### App Type 2 — Stateful web applications
+
+A stateful web application retains user, workflow, transaction or session context that cannot be assumed to be immediately portable between arbitrary backend instances or sites.
+
+Typical characteristics:
+
+- HTTP/HTTPS traffic;
+- session affinity or persistence may be required;
+- session/workflow state may live:
+  - in local application memory;
+  - in a local cache;
+  - in a shared cache/session store;
+  - in a database;
+  - in a site-specific state service;
+- failover may require re-authentication, session recreation, workflow recovery or transaction reconciliation;
+- cross-site recovery depends on whether state is replicated or otherwise accessible from the alternate site.
+
+Representative path:
+
+```text
+User
+ |
+Firewall-owned VIP
+ |
+LTM
+ |
+WAF
+ |
+Application ELB
+ |
++---- App instance 1 ---- local/shared state
++---- App instance 2 ---- local/shared state
+```
+
+Failure analysis must explicitly capture:
+
+1. where application/session state is stored;
+2. whether LTM/ELB persistence is required;
+3. whether state survives backend-member failure;
+4. whether state survives WAF/LTM failover;
+5. whether state is portable across sites;
+6. whether failover causes re-login or workflow restart;
+7. whether partially completed transactions need reconciliation;
+8. whether cross-site routing is safe before data/state services have failed over;
+9. whether internal users and external users see the same state service.
+
+A stateful application can still be highly available, but infrastructure failover alone is not enough unless the state design supports it.
+
+---
+
+### App Type 3 — Socket / WebSocket / long-lived connection applications
+
+This class includes WebSocket and other long-lived TCP/TLS connections that remain attached to a specific network/proxy/backend path for a significant period.
+
+Typical characteristics:
+
+- persistent bidirectional connection;
+- connection state exists across firewall, LTM, WAF, ELB and backend;
+- abrupt failure of a device or backend normally breaks the established connection;
+- moving DNS or a VIP does not migrate an existing socket;
+- resilience depends on application reconnect and state-recovery behaviour.
+
+Representative path:
+
+```text
+Client
+ |
+Firewall VIP
+ |
+LTM
+ |
+WAF
+ |
+ELB
+ |
+Socket/WebSocket backend
+```
+
+Failure analysis must capture:
+
+1. whether the existing connection survives or resets;
+2. how the client detects loss;
+3. reconnect interval, exponential backoff and jitter;
+4. whether the client must re-authenticate;
+5. whether subscriptions/session context must be recreated;
+6. whether sequence numbers, acknowledgements or replay are required;
+7. whether missed messages/events can be recovered;
+8. whether the backend state is durable outside one process/VM/Pod;
+9. whether persistence/affinity is needed while a backend remains healthy;
+10. what happens when reconnect lands on a different backend or different site;
+11. whether a WAF/LTM/site failover requires a fresh TCP/TLS/WebSocket handshake;
+12. whether cross-site routing reduces infrastructure failover but still requires socket reconnect.
+
+For this application type, the design goal is generally:
+
+```text
+detect disconnect
+ -> reconnect
+ -> authenticate
+ -> restore subscriptions/session
+ -> verify current state
+ -> recover/replay missed events
+ -> resume normal operation
+```
+
+Do not assume clustered infrastructure can preserve every live socket. Connection preservation should be treated as an enhancement; application-level reconnect/recovery remains required.
+
+---
+
+### App Type 4 — Non-web applications that bypass the WAF layer
+
+Some applications do not use HTTP/HTTPS and should not traverse the web-application firewall.
+
+Examples may include:
+
+- raw TCP services;
+- message/middleware protocols;
+- database connectivity;
+- SFTP or managed file-transfer services;
+- proprietary application protocols;
+- internal service-to-service flows;
+- other L4 services.
+
+Representative external or partner path where allowed:
+
+```text
+Client / external system
+ |
+leased line / VPN
+ |
+Firewall-owned VIP
+ |
+LTM / L4 load-balancing or direct routed service
+ |
+Application
+```
+
+Representative internal path:
+
+```text
+Internal user / system
+ |
+internal DNS / service resolution
+ |
+LTM / ELB / service VIP
+ |
+Application
+```
+
+The WAF is intentionally absent.
+
+Failure analysis must capture:
+
+1. which security controls replace WAF inspection;
+2. whether the firewall or LTM owns the service VIP;
+3. L4 health-check behaviour;
+4. persistence/affinity requirements;
+5. whether the protocol supports safe retry;
+6. how state is recovered after connection failure;
+7. whether the service can use a remote-site endpoint;
+8. whether GTM/DNS is used for site selection;
+9. whether internal and external paths differ;
+10. whether cross-site routing is allowed for the protocol;
+11. whether return-path symmetry is required through stateful firewall/NAT devices;
+12. whether a failure should be contained at the service layer rather than causing broader site failover.
+
+This class must be analysed separately from WAF-protected web traffic. A WAF outage may have **no impact** on these services, while firewall, LTM, routing, ELB or application failures may still affect them.
+
+---
+
+### Application-type summary
+
+| Type | WAF in path? | Connection model | State concern | Typical recovery |
+|---|---|---|---|---|
+| Stateless web | Yes | Short HTTP/HTTPS requests | Low if state is genuinely external/shared | Retry through healthy path/member |
+| Stateful web | Yes | HTTP/HTTPS, often persistent sessions | Medium/High | Preserve/recover session, possibly re-login/reconcile |
+| Socket/WebSocket | Usually yes for web sockets | Long-lived TCP/TLS | High connection/session continuity concern | Reconnect, re-authenticate, restore/replay state |
+| Non-web | Usually no | Protocol-specific, often L4 | Protocol/application-specific | LTM/routing failover + protocol-specific retry/recovery |
+
+For every failure scenario in this document, state which application type is being analysed because the same infrastructure failure can have very different user-visible outcomes.
+
 ## Common control-plane choices
 
 Analyse DNS/GTM separately from the WAF architecture:
