@@ -1,6 +1,7 @@
 # Executive Recommendation — EnterpriseWAF Architecture and 99.95% Availability
 
 **Status:** Executive decision summary  
+**Canonical shorthand/topology:** [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md)  
 **Primary comparison:** [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md)  
 **Detailed service recovery:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)  
 **Maintainability:** [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md)
@@ -19,13 +20,13 @@ There is no single topology that guarantees 99.95% availability. The target is c
 
 ## 1.1 Topology names used in this document
 
-The shorthand is used only to keep the comparison tables compact. Read the descriptions below before the ranking.
+The shorthand is used only to keep the comparison tables compact. The canonical definitions are maintained in [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md).
 
 | ID | Plain-English description | Normal traffic model | Main trade-off |
 |---|---|---|---|
 | **W1** | **Tenant/dedicated LTM pair in front of independent active WAFs** | LTM load-balances the same service across 2..N active WAFs | Strong horizontal scale and maintenance flexibility; failed sockets normally reconnect |
 | **W2** | **WAF HA/DSC cluster**, optionally behind an LTM | One WAF owns a traffic group; peer is HA standby for that traffic group | Simple HA and possible connection mirroring, but pair/cluster is a hard local boundary |
-| **W3** | **Tenant LTM pair + tenant-preferred WAFs + shared reserve WAFs** | Preferred WAFs serve normally; shared reserve is contingency capacity | Keeps normal-state tenant separation but introduces shared reserve governance/contention |
+| **W3** | **Tenant LTM pair + tenant-preferred active WAFs + shared reserve WAFs** | Preferred WAFs serve normally; shared reserve is contingency capacity | Keeps normal-state tenant separation but introduces shared reserve governance/contention |
 | **W4** | **Asymmetric cluster design**: Site 1 WAF HA cluster + extra WAF; Site 2 cluster only | Site 1 has extra local capacity; Site 2 has only the cluster | Stronger Site 1 resilience but asymmetric DR/maintenance |
 | **S1** | **Tenant-specific LTM pairs feeding one shared independent active WAF pool** | Four tenant LTM pairs share a horizontally active WAF pool | Best cost/resilience candidate if aggregate capacity and tenant policy isolation are strong |
 | **S2** | **Shared LTM pair + shared independent active WAF pool** | Tenants share both ingress LTM and WAF capacity | Lowest device count among active-pool options, but much larger common failure/change domain |
@@ -39,7 +40,7 @@ Tenant firewall/VIP
        |
  +-----+-----+-----+
  |     |     |     |
-WAF1  WAF2  WAF3  ...   all active pool members
+WAF-1 WAF-2 WAF-3 ...   all active pool members
        |
       CFW
        |
@@ -68,11 +69,13 @@ A traffic group has one active WAF owner. This is not the same as W1 where sever
 ~~~text
 Tenant 2-LTM HA pair
        |
-  preferred WAF1 + WAF2
+  preferred WAF-1 + WAF-2
        |
        +------ shared reserve WAF(s)
        |
-      CFW -> ELB/app
+      CFW
+       |
+      ELB/app
 ~~~
 
 Each tenant retains its preferred WAF capacity. Reserve WAFs are shared only for failure/maintenance capacity.
@@ -84,8 +87,12 @@ Site 1                         Site 2
 2-LTM pair                     2-LTM pair
    |                              |
 WAF HA cluster                WAF HA cluster
-   |
-extra WAF
+   |                              |
+extra WAF                         |
+   |                              |
+  CFW                            CFW
+   |                              |
+ ELB/app                        ELB/app
 ~~~
 
 ### S1 — tenant LTMs + shared active WAF pool
@@ -93,8 +100,9 @@ extra WAF
 ~~~text
 Tenant 1 LTM pair --\
 Tenant 2 LTM pair ---\
-Tenant 3 LTM pair ----> shared WAF1/WAF2/WAF3/WAF4...
-Tenant 4 LTM pair ---/             |
+Tenant 3 LTM pair ----> shared WAF-1/WAF-2/WAF-3/WAF-4...
+Tenant 4 LTM pair ---/               |
+                                      v
                                   CFW/ELB/app paths
 ~~~
 
@@ -116,12 +124,12 @@ This saves more devices than S1 but also makes the LTM tier a four-tenant common
 
 ### Cross-site shorthand used later
 
-- **X2A** — local LTM borrows a remote-site WAF and routes back to the healthy local CFW/application.
-- **X2B** — remote-site front end (firewall/LTM/WAF) serves the client and routes back to the healthy primary-site CFW/application.
+- **X2A** — local LTM borrows a remote-site WAF and routes back through the healthy local CFW/ELB/application path.
+- **X2B** — remote-site front end (firewall/LTM/WAF) serves the client and routes back through the healthy primary-site CFW/ELB/application path.
 - **X2C** — conventional full application/site failover.
 - **XD1** — App A stays local but uses a healthy App B in the alternate site.
 
-For the detailed topology/cost analysis see [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md).
+For the full shorthand and end-to-end path, see [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md).
 
 For the current four-tenant comparison, the recommended decision order is:
 
@@ -189,7 +197,7 @@ These are less routine but important because they expose topology quality:
 
 - two WAF failures;
 - entire local WAF pool/cluster failure;
-- one application dependency such as B1 failing;
+- one critical application dependency such as local App B failing;
 - full local front-end/LTM tier failure while application remains healthy;
 - local CFW service failure while application behind it remains healthy.
 
@@ -232,9 +240,9 @@ Independent active WAF pools have an operational advantage over a two-node HA WA
 ~~~text
 LTM
  |
- +-- WAF1 active
- +-- WAF2 active
- +-- WAF3 active
+ +-- WAF-1 active
+ +-- WAF-2 active
+ +-- WAF-3 active
 ~~~
 
 One WAF can be:
@@ -312,8 +320,10 @@ Recommended where routing/security permits it.
 ~~~text
 Site 1 LTM
   -> Site 2 WAF
-  -> route back
-  -> Site 1 CFW/ELB/app
+  -> inter-site route
+  -> Site 1 CFW
+  -> Site 1 ELB
+  -> Site 1 application
 ~~~
 
 This can turn:
@@ -335,12 +345,12 @@ while the healthy application remains in Site 1.
 Also strongly recommended where application semantics allow it.
 
 ~~~text
-A1 -> B service VIP
-      +-- B1 preferred
-      +-- B2 remote fallback
+App A @ Site 1 -> B service VIP
+      +-- App B @ Site 1 preferred
+      +-- App B @ Site 2 remote fallback
 ~~~
 
-This prevents one B1 failure from cascading into A/C/D failures and unnecessary site moves.
+This prevents one local App B failure from cascading into App A/C/D failures and unnecessary site moves.
 
 ## X2B — remote front-end route-back
 
@@ -354,10 +364,10 @@ Infrastructure HA alone cannot make every application 99.95.
 
 | Application | Infrastructure outcome required | Application requirement |
 |---|---|---|
-| **Stateless web** | local pool/member failover | safe retry, idempotency, external/shared state |
-| **Stateful web** | path/site failover plus state availability | portable session/state, re-auth, transaction reconciliation |
-| **WebSocket / long-lived** | connectivity restored | reconnect, backoff+jitter, re-auth, resubscribe, sequence/gap recovery, replay/snapshot |
-| **Non-web/L4** | protocol endpoint restored | protocol-specific reconnect, re-resolution and safe transaction replay |
+| **AT1 — Stateless web** | local pool/member failover | safe retry, idempotency, external/shared state |
+| **AT2 — Stateful web** | path/site failover plus state availability | portable session/state, re-auth, transaction reconciliation |
+| **AT3 — WebSocket / long-lived** | connectivity restored | reconnect, backoff+jitter, re-auth, resubscribe, sequence/gap recovery, replay/snapshot |
+| **AT4 — Non-web/L4** | protocol endpoint restored | protocol-specific reconnect, re-resolution and safe transaction replay |
 
 For WebSocket/stateful applications, a topology should not receive a "high 99.95" rating unless the application has been tested for those recovery behaviours.
 
@@ -449,10 +459,10 @@ Before selecting S1 or dedicated W1, prove:
 4. one-LTM failure and full LTM-pair recovery;
 5. CFW HA and complete CFW-path failure;
 6. cross-site WAF route-back;
-7. App A -> B remote fallback;
+7. App A -> remote App B fallback through XD1;
 8. Site 2 aggregate DR capacity;
 9. WAF bad-policy rollback/canary;
-10. stateless/stateful/WebSocket/non-web recovery;
+10. AT1/AT2/AT3/AT4 application recovery;
 11. actual end-to-end p95/p99 fault-to-successful-transaction times;
 12. planned maintenance with one additional injected failure.
 
