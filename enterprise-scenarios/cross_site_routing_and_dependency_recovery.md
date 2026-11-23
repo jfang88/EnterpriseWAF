@@ -471,6 +471,41 @@ A dependency event that could have recovered in approximately **~16s + retry** b
 
 This is the core cascading-failure argument for controlled cross-site dependency routing.
 
+## 12.2 Shared multi-tenant cross-site recovery
+
+When WAF or LTM capacity is shared across four tenants, cross-site recovery must be designed for the **shared failure domain**, not a representative single tenant.
+
+### Dedicated tenant topology
+
+A tenant-local WAF failure normally causes only that tenant to consume remote WAF/site capacity.
+
+### Shared WAF pool
+
+A whole shared WAF-pool failure can affect all four tenants simultaneously:
+
+~~~text
+shared Site 1 WAF pool fails
+  -> Tenant 1 requires remote WAF/site capacity
+  -> Tenant 2 requires remote WAF/site capacity
+  -> Tenant 3 requires remote WAF/site capacity
+  -> Tenant 4 requires remote WAF/site capacity
+~~~
+
+Therefore:
+
+- Site 2 shared WAF capacity must be sized for the credible aggregate failover load;
+- inter-site links/CFW paths must carry aggregate contingency traffic;
+- reconnect/login/authentication surges are multi-tenant;
+- reserve capacity cannot be counted once per tenant when it is actually shared.
+
+### Shared LTM + shared WAF
+
+This is the largest front-end blast radius. Loss of the shared LTM service can force all tenants to GTM/site recovery even if all local WAFs and applications are healthy.
+
+Use this only when the cross-site design and business SLO accept that shared failure domain.
+
+For cost/resilience comparison, see [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md).
+
 # 13. Recommended recovery hierarchy
 
     1. Survive member failure locally

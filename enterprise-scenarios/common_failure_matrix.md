@@ -177,6 +177,22 @@ XD1 can provide **very high resilience benefit** because it prevents a single de
 
 However, this benefit is valid only when the application protocol supports bounded failure detection and safe retry/reconnect.
 
+# 7A. Shared multi-tenant infrastructure failures
+
+These scenarios apply when four tenants share WAF and/or LTM capacity.
+
+| ID | Shared failure | Dedicated topology outcome | Shared topology outcome | Cross-site implication |
+|---|---|---|---|---|
+| MT01 | One shared active WAF node fails | normally one tenant pool loses one member | all tenants share reduced WAF capacity | prove aggregate N-1; cross-site not normally needed |
+| MT02 | Two shared active WAF nodes fail | only affected tenant loses two members | all tenants may become capacity constrained; service survives only if remaining shared WAFs meet aggregate N-2 | remote shared pool/site may need aggregate load capacity |
+| MT03 | Entire shared WAF pool fails | one tenant loses local WAF tier | all four tenants lose local WAF tier together | X2A or GTM/site recovery must handle simultaneous multi-tenant failover |
+| MT04 | Shared WAF policy/config change is bad | dedicated policy boundary limits blast radius | several/all tenants can fail simultaneously despite healthy hardware | remote site does not help if same bad policy is synchronized there |
+| MT05 | Shared LTM service fails | tenant-specific pair affects one tenant | all tenants behind shared LTM lose local ingress | multiple GTM/site failovers may occur together |
+| MT06 | Shared reserve is exhausted | dedicated third node remains reserved to its tenant | one tenant's incident/maintenance consumes another tenant's recovery headroom | admission/prioritization and cross-site capacity required |
+| MT07 | Shared WAF pool survives but one tenant policy/routing context is wrong | isolated tenant issue | should remain isolated logically; if not, indicates poor multi-tenant control | do not fail all tenants/site for one tenant logical error |
+
+**Sizing rule:** a shared design is only N-1/N-2 resilient when surviving shared nodes can carry the **aggregate credible tenant load**, not merely one tenant's load.
+
 # 8. Full-site failures
 
 | ID | Failure | Recovery path | Timing | W1 | W2 | W3 | W4 |
@@ -342,6 +358,9 @@ For this environment:
 8. Never prefer a site merely because the DNS query happened to land on that site's GTM.
 
 # 13. Resilience summary by topology
+
+For the combined topology + tenancy/cost comparison, including four-tenant dedicated versus shared device counts, see [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md).
+
 
 Ratings assume correct health monitoring, adequate capacity, alternate-site application readiness and compliant applications.
 

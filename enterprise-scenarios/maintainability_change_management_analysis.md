@@ -199,6 +199,28 @@ Monitor:
 
 ---
 
+## MC8 — shared-service change blast radius must be explicit
+
+For four-tenant shared LTM/WAF designs, maintenance and policy changes must be evaluated against **simultaneous multi-tenant impact**.
+
+A shared pool can reduce appliance count, but a bad change to:
+
+- shared LTM policy/iRule;
+- shared WAF policy/signature/configuration;
+- shared routing;
+- shared reserve capacity;
+- shared management/synchronization plane
+
+can affect several tenants at once.
+
+Require:
+
+- tenant-aware canary scope where possible;
+- per-tenant health/transaction validation;
+- aggregate capacity headroom during maintenance;
+- rollback that does not depend on the same failed shared configuration;
+- explicit block on shared maintenance when the alternate site/shared reserve is degraded.
+
 # 5. Monitoring complexity by topology
 
 | Topology | Monitoring difficulty | Why |
@@ -731,6 +753,22 @@ For each topology ask:
 | 99.95 maintainability potential | **High** | **High with careful sequencing** | **High if reserve governance is strong** | **High but asymmetric** |
 
 ---
+
+# 13A. Four-tenant maintainability and cost trade-off
+
+Device-count efficiency changes the maintenance risk:
+
+| Pattern | Maintenance advantage | Maintenance risk |
+|---|---|---|
+| 4x dedicated tenant W1 | tenant-by-tenant rolling change; smallest blast radius | duplicated capacity and more devices to patch |
+| W3 preferred + shared reserve | reserve can carry one tenant during maintenance | concurrent maintenance/incidents can exhaust reserve |
+| tenant LTMs + shared active WAF pool | fewer WAFs to patch; easy node-by-node WAF rolling changes | each shared WAF change can affect four tenants; aggregate capacity must survive one/two nodes removed |
+| shared LTM + shared WAF pool | lowest device/change count | one change wave can affect every tenant; highest common-mode operational risk |
+| shared WAF HA cluster | simple pair upgrade | while one node is out, all tenants depend on one active WAF owner/capacity boundary |
+
+For business-critical tenants, reduced device count is only a benefit when the organization can prove that the larger shared change domain still meets the availability target.
+
+See [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md) for the four-tenant device-count model.
 
 # 14. Critical maintainability failure points
 

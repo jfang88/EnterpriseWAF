@@ -40,6 +40,7 @@ Change this file when testing a different topology, health-check strategy, capac
 
 Regenerate/update:
 
+- **Architecture summary:** [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md)
 - **Lens 1 — primary end-to-end service impact/recovery:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)
 - **Lens 1 technical appendix:** [common_failure_matrix.md](./common_failure_matrix.md)
 - **Lens 2 — maintainability/change safety:** [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md)
@@ -76,6 +77,32 @@ Also distinguish:
 - X2C — conventional site/application failover;
 - XD1 — App A -> App B remote-dependency fallback.
 
+
+## Mandatory tenancy, sharing and four-tenant cost comparison
+
+Treat tenancy/sharing as a design axis separate from W1-W4.
+
+Use an illustrative **four-tenant** planning case and compare:
+
+- fully dedicated tenant LTM + WAF capacity;
+- dedicated tenant LTMs + shared independent active WAF pool;
+- W3 dedicated preferred WAFs + shared reserve;
+- shared LTM + shared WAF pool;
+- shared WAF HA cluster where relevant.
+
+For each pattern show:
+
+- LTM/WAF device-unit count across two sites;
+- N-1 and N-2 WAF failure tolerance, with capacity caveat;
+- complete cluster/pool failure impact;
+- cross-tenant blast radius;
+- maintenance/change blast radius;
+- cross-site aggregate capacity requirement;
+- whether one shared bad policy/configuration can affect all tenants.
+
+Use device-unit count only as a planning proxy; do not present it as vendor pricing.
+
+Do not silently change the invariant tenant count. Four tenants is an explicit comparison case derived from the wider 3–4 tenant estate.
 
 ## Mandatory maintainability / change-safety lens
 
@@ -414,6 +441,18 @@ If these are absent, explicitly mark the application **not end-to-end resilient*
 ---
 
 # Required output structure
+
+## Architecture summary
+
+Regenerate [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md) with:
+
+1. W1-W4 topology summary;
+2. one-node / two-node / whole-cluster-or-pool resilience;
+3. cross-site versus no-cross-site comparison;
+4. stateless/stateful/WebSocket/non-web comparison;
+5. failure scenarios from DNS/circuit/firewall through LTM/WAF/CFW/ELB/app/state/dependency/site;
+6. four-tenant dedicated/shared device-count and blast-radius comparison;
+7. explicit conclusions on cost efficiency versus isolation/common-mode risk.
 
 ## Lens 1 — end-to-end service impact/recovery
 

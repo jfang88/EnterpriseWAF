@@ -14,6 +14,10 @@ For the document map and reading order, see:
 
 - [Enterprise scenario analysis index](./enterprise-scenarios/README.md)
 
+For the quickest architecture comparison, start with:
+
+- [Deployment options, resilience and four-tenant cost summary](./enterprise-scenarios/deployment_options_resilience_summary.md)
+
 ## Current analysis structure
 
 The analysis is deliberately separated into **stable inputs**, **changeable inputs**, and **derived outputs** so that new design options can be evaluated without constantly shifting the baseline.
@@ -74,6 +78,14 @@ Supported application types include:
 4. non-web/L4 applications that may bypass the WAF.
 
 ## Analysis lenses
+
+### Architecture option summary
+
+Primary comparison:
+
+- [Deployment options, resilience and four-tenant cost summary](./enterprise-scenarios/deployment_options_resilience_summary.md)
+
+This compares W1-W4, dedicated versus shared capacity, one/two-node and cluster/tier failure tolerance, cross-site versus local-only recovery, application-type behavior, and an illustrative four-tenant LTM/WAF device-count model.
 
 ### Lens 1 — End-to-end service impact and recovery
 
