@@ -80,13 +80,39 @@ These are modelling categories, not guaranteed SLAs.
 | F20 | Shared session/state store fails | Application-level recovery, alternate state store/site; WAF/LTM failover alone does not help | T6; data-platform RTO | Infrastructure may stay green while app fails | Same | Same | Same | Same |
 | F21 | App B local service fails while App A remains healthy | A should use healthy B2/service VIP if supported; otherwise A may fail/cascade | dependency monitor + T6; X2 if remote B used | WAF topology irrelevant to east-west dependency unless path uses it | Same | Same | Same | Same |
 
-# 7. Cross-site failures
+# 7. Cross-site and dependency-routing failures
 
 | ID | Failure | Recovery path | Timing | W1 | W2 | W3 | W4 | W5 |
 |---|---|---|---|---|---|---|---|---|
-| F22 | Inter-site link fails while all local services are healthy | Keep local services up; remove only remote contingency paths | route detection; no DNS change should be required | X1 no impact; X2 loses remote reserve only | Same | Shared reserve affected only if reserve depends on inter-site link | Site 1 local cluster/spare should remain healthy | **No dataplane impact by design** |
-| F23 | Inter-site link fails while remote WAF/App B is already being used | Revert to local healthy capacity if possible; otherwise application/site recovery | route detection + T2/T4/T6 | Remote sessions fail/reconnect | Same | Reserve traffic may fail if reserve remote | Remote/site contingency may collapse | W5 normally avoids this state |
-| F24 | Cross-site route becomes asymmetric through stateful firewall/NAT | Connections fail despite endpoints being healthy; must restore symmetric route/SNAT design | network troubleshooting; potentially T5 | X2 critical risk | X2 critical risk | Shared remote reserve critical risk | Cross-site use critical risk | Minimal if no remote dataplane borrowing |
+| XS01 | One local WAF fails while other local WAF capacity remains | Recover locally; do not invoke cross-site merely because it exists | T2 / cluster HA | Strong local recovery | Strong cluster recovery | Strong local preferred recovery | Strong cluster recovery | Strong local recovery |
+| XS02 | All local WAFs fail; local LTM and primary app healthy | **X2A:** local LTM activates remote WAF and routes back to primary app | T2 if remote WAF already monitored/configured | **High benefit** | Medium; only after whole cluster loss | **Very high benefit** if reserve/remote WAF available | High after local cluster/spare exhausted | Optional; W5 normally chooses site recovery |
+| XS03 | Local LTM + WAF tier fail; primary app healthy | **X2B:** GTM moves ingress to Site 2 LTM/WAF, which routes back to Site 1 app | T4 + new connection; may still beat manual app DR | High if designed | High for W2b; W2a depends on front-end path | High | High | Medium; contrary to W5's cleaner site model |
+| XS04 | Primary app fails but remote WAF route-back is available | Do not use route-back to failed app; use X2C application/site recovery | T4 + T6 | No route-back benefit | Same | Same | Same | Same |
+| XS05 | Inter-site link fails while all local services healthy | Keep local path up; withdraw only remote contingency | route detection; no DNS/site change | No normal impact | Same | Shared remote reserve unavailable only | Local cluster/spare stays healthy | No dataplane impact by design |
+| XS06 | Inter-site link fails while X2A/X2B is active | Contingency path fails; restore local tier or move full application/site | route detection + T2/T4/T6 | Existing remote sessions fail | Same | Remote reserve traffic fails | Remote contingency collapses | W5 normally avoids this state |
+| XS07 | Cross-site path is asymmetric through stateful firewall/NAT | Correct routing/SNAT before using path; endpoint health alone is insufficient | potentially T5/network repair | Critical X2 risk | Critical X2 risk | Critical if reserve remote | Critical for remote tier | Low if site-local only |
+| XS08 | Remote WAF is healthy but lacks correct tenant/app policy | Treat remote WAF as unavailable; do not activate | config/validation dependent | Critical configuration gate | Same | **Major W3 reserve risk** | Spare/remote cluster gate | Remote site pool must already be equivalent |
+| XS09 | Remote WAF capacity is exhausted | Keep/restore local service or fail application/site | capacity dependent | X2 unavailable | Same | **Major shared-reserve risk** | Remote cluster capacity risk | Site 2 capacity risk |
+| XS10 | Bad WAF policy is synchronized to local and remote WAFs | Roll back policy; topology/routing cannot solve a common-mode logical failure | T5/operator/change rollback | Critical | Critical | Critical | Critical | Critical |
+
+## 7.1 Application A -> Application B dependency recovery
+
+| ID | Dependency failure | Without remote dependency routing | With XD1 local-preferred / remote-fallback | Application-code requirement |
+|---|---|---|---|---|
+| DEP01 | B1 fails; B2 healthy | A1 may fail or force site move | A1 stays in Site 1 and uses B2 | bounded timeout + retry + connection refresh |
+| DEP02 | A1->B1 network path fails but B1 itself is healthy | A1 can fail despite healthy B | LTM/service VIP can select B2 if remote path healthy | retry must be safe/idempotent |
+| DEP03 | B1 slow/hung rather than hard-down | Threads can hang and cascade | Health monitor/circuit breaker can remove B1 and use B2 | connect/read timeout + circuit breaker |
+| DEP04 | B1 fails and many apps depend on it | A/C/D can all fail site simultaneously | Each dependent app can remain local and use B2 | retry budgets/backoff to avoid B2 storm |
+| DEP05 | B2 reachable but data/state not safe for remote use | Site/app failover required | **Do not use XD1** | state consistency is a hard prerequisite |
+| DEP06 | Inter-site link fails while A1 is using B2 | Dependency fails again | revert to B1 if recovered; otherwise degrade/fail A safely | reconnection, retry budget, graceful degradation |
+| DEP07 | A uses persistent connection to B1 | DNS/LTM update does not move existing connection automatically | connection must fail/refresh and reconnect to B2 | connection-pool refresh/reconnect |
+| DEP08 | A request is non-idempotent | retry may duplicate transaction | routing alone is insufficient | idempotency key or reconciliation required |
+
+### Dependency-routing conclusion
+
+XD1 can provide **very high resilience benefit** because it prevents a single dependency failure from becoming a multi-application or site failover.
+
+However, this benefit is valid only when the application protocol supports bounded failure detection and safe retry/reconnect.
 
 # 8. Full-site failures
 
@@ -294,12 +320,15 @@ Across all options, the most important residual risks are:
    Missing reconnect/re-auth/replay logic can turn every infrastructure failure into an extended application outage.
 
 10. **App A -> App B cascading dependency.**  
-    Poor timeout/retry/service-discovery logic can cause one B failure to bring down many otherwise healthy applications.
+    Poor timeout/retry/service-discovery logic can cause one B failure to bring down many otherwise healthy applications. XD1 local-preferred/remote-fallback routing can prevent this, but only when B2 is safe to use and App A implements bounded timeout, safe retry and connection refresh.
 
-11. **Cross-site routing asymmetry/capacity.**  
+11. **Split-site front-end/backend recovery.**  
+    X2B can preserve a healthy Site 1 application after Site 1 LTM/WAF loss, but it couples Site 2 ingress to Site 1 backend and the inter-site network. This should be treated as a degraded contingency state, not a preferred steady state.
+
+12. **Cross-site routing asymmetry/capacity.**  
     X2 adds resilience only if stateful firewalls, NAT, routes, capacity and return paths are deliberately engineered.
 
-12. **Cross-tenant shared infrastructure.**  
+13. **Cross-tenant shared infrastructure.**  
     Shared GTM/LTM/WAF/reserve components can expand one failure from one application suite to several tenants.
 
 # 15. Architecture conclusion
@@ -311,5 +340,7 @@ No WAF topology alone creates end-to-end resilience.
 - **W3** improves asset efficiency and dual-WAF recoverability, but reserve capacity/policy isolation becomes an enterprise shared-risk problem.
 - **W4** provides layered local and site resilience, especially if the spare is hot, but has the highest operational/configuration complexity and cannot promise transparent connection preservation through every tier.
 - **W5** provides the cleanest fault-domain separation: handle member failures locally, keep normal dataplane traffic local, and use GTM for site-level failure. It costs more capacity but is easier to reason about and test.
+
+Cross-site routing is most valuable when it prevents a healthy application from moving merely because its local WAF/LTM path failed, or prevents a healthy App A from moving because App B1 failed. X2A is preferable to X2B when the local LTM survives because it avoids DNS convergence and keeps the client ingress stable. X2B is a useful second-tier contingency when application DR is slower than front-end failover, but it should remain a temporary degraded state.
 
 For business-critical systems, **application compliance is part of the architecture acceptance criteria**. A topology should not receive a "high resilience" rating unless the application type meets the retry/state/reconnect requirements needed to exploit the infrastructure recovery path.
