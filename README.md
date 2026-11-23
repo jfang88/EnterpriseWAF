@@ -18,6 +18,10 @@ For the executive decision and final recommendation, start with:
 
 - [Executive architecture and 99.95% recommendation](./enterprise-scenarios/executive_recommendation.md)
 
+For the authoritative shorthand and the end-to-end topology, use:
+
+- [Canonical architecture shorthand and end-to-end topology](./enterprise-scenarios/architecture_shorthand_topology_reference.md)
+
 Then use:
 
 - [Deployment options, resilience and four-tenant cost summary](./enterprise-scenarios/deployment_options_resilience_summary.md) for the detailed option comparison
@@ -50,6 +54,9 @@ The analysis is deliberately separated into **stable inputs**, **changeable inpu
               |
               +--> end_to_end_service_impact_analysis.md
               +--> common_failure_matrix.md (technical appendix)
+
+Canonical terminology/topology reference:
+`architecture_shorthand_topology_reference.md`
 
 Supporting derived study:
 `cross_site_routing_and_dependency_recovery.md`
@@ -90,6 +97,14 @@ Primary decision summary:
 - [Executive architecture and 99.95% recommendation](./enterprise-scenarios/executive_recommendation.md)
 
 This states the preferred four-tenant architecture, the highest-isolation alternative, the 99.95% availability potential of each option, and the change/recovery conditions required before the target can be claimed.
+
+### Canonical shorthand and topology
+
+Single terminology/topology source of truth:
+
+- [Canonical architecture shorthand and end-to-end topology](./enterprise-scenarios/architecture_shorthand_topology_reference.md)
+
+Use this for W1-W4, S1-S3/D1, X1/X2/XD1 and T1-T9 definitions and for the reference path containing external/internal DNS, external/internal users, LTM/WAF/CFW/ELB and App A/B/C dependencies.
 
 ### Architecture option summary
 
@@ -135,8 +150,9 @@ Before modifying the analysis:
 
 1. If the **real enterprise environment changed**, update [enterprise_scenario_invariants.md](./enterprise-scenarios/enterprise_scenario_invariants.md).
 2. If a **topology, F5, routing, health, capacity or maintenance assumption changed**, update [analysis_variables_and_f5_assumptions.md](./enterprise-scenarios/analysis_variables_and_f5_assumptions.md).
-3. If neither changed, do not change the baseline just to reach a different conclusion.
-4. Regenerate/review the derived analyses using [enterprise_scenario_analysis_prompt.md](./enterprise-scenarios/enterprise_scenario_analysis_prompt.md).
+3. If shorthand or the canonical path changes, update [architecture_shorthand_topology_reference.md](./enterprise-scenarios/architecture_shorthand_topology_reference.md) first.
+4. If neither changed, do not change the baseline just to reach a different conclusion.
+5. Regenerate/review the derived analyses using [enterprise_scenario_analysis_prompt.md](./enterprise-scenarios/enterprise_scenario_analysis_prompt.md).
 
 ## LTM/WAF node-count appendix
 
@@ -146,18 +162,20 @@ For the difference between 2- and 3-device DSC groups versus true active WAF poo
 
 The baseline remains **two LTMs per site**.
 
-## WAF topology shorthand
+## WAF and sharing shorthand
 
-| ID | WAF topology |
+| ID | Meaning |
 |---|---|
-| **W1** | LTM-fronted scalable independent WAF pool, normally 2..N WAFs per site |
-| **W2** | WAF HA cluster, with or without an ingress LTM |
-| **W3** | Tenant-preferred WAFs plus shared enterprise reserve WAFs |
+| **W1** | LTM-fronted scalable independent active WAF pool, normally 2..N WAFs per site |
+| **W2** | WAF HA/DSC cluster, with or without an ingress LTM |
+| **W3** | Tenant-preferred active WAFs plus shared enterprise reserve WAFs |
 | **W4** | Asymmetric: Site 1 WAF HA cluster + extra active/spare WAF; Site 2 WAF HA cluster only |
 | **S1** | Tenant-specific LTM HA pairs feeding a shared independent active WAF pool |
 | **S2** | Shared LTM HA pair feeding a shared independent active WAF pool |
 
 **W1-W4 describe WAF topology patterns. S1/S2 describe tenancy/sharing patterns.** They are compared together in the executive summary because the final architecture decision needs both dimensions.
+
+Use [the canonical reference](./enterprise-scenarios/architecture_shorthand_topology_reference.md) for the full W/S/X/T definitions. Do not reuse `W1/W2/W3` as WAF-node names or `S1/S2` as generic site labels in current documents.
 
 Site-level GTM recovery is common to all topologies and is **not** a separate WAF topology.
 
@@ -167,13 +185,13 @@ The files under [`enterprise-scenarios/`](./enterprise-scenarios/README.md) are 
 
 Current specialist guidance retained at the repository root:
 
-- [WebSocket resilience and cloud patterns](./waf_websocket_resilience_cloud_patterns.md) — application-level reconnect, replay, idempotency, draining, reconnect storms and SSE guidance. Current W1-W4 topology/timing files take precedence.
+- [WebSocket resilience and cloud patterns](./waf_websocket_resilience_cloud_patterns.md) — application-level reconnect, replay, idempotency, draining, reconnect storms and SSE guidance. Current W/S/X/T definitions in the canonical reference take precedence.
 
 Older architecture/failure-analysis versions have been moved to:
 
 - [`archive/`](./archive/README.md)
 
-The archive contains the superseded Design A/Design B architecture paper, V4/V3 failure matrices and the Round 2 working-history file. Do not use archived topology or timing tables as the current baseline.
+The archive contains the superseded Design A/Design B architecture paper, V4/V3 failure matrices and the Round 2 working-history file. Historical W/S labels inside archive diagrams may be node/site identifiers and are not current shorthand.
 
 ## Branch strategy
 
@@ -195,4 +213,5 @@ Use these as the primary entry points:
 
 - [Repository README](./README.md)
 - [Enterprise scenario analysis index](./enterprise-scenarios/README.md)
+- [Canonical architecture shorthand and end-to-end topology](./enterprise-scenarios/architecture_shorthand_topology_reference.md)
 - [End-to-end service impact and recoverability analysis](./enterprise-scenarios/end_to_end_service_impact_analysis.md) — **primary resilience/recovery document**
