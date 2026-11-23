@@ -130,7 +130,7 @@ Limitation:
 - during maintenance of one LTM, the tenant LTM service is effectively single-device;
 - complete loss of the LTM pair removes access to both preferred and reserve WAFs behind it.
 
-### W3-L3 — three-device tenant LTM Sync-Failover group
+### Optional W3-L3 comparison — three-device tenant LTM Sync-Failover group
 
 F5 DSC supports up to **eight devices** in a Sync-Failover device group.
 
@@ -191,7 +191,7 @@ Independent LTMs can make sense when they intentionally serve **different tenant
 
 ### W3 recommendation
 
-Use **W3-L2** as the simple default.
+Use **W3-L2 (two LTMs per site)** as the enterprise baseline/default. W3-L3 is only an optional comparison and should not be assumed in failure or capacity calculations unless explicitly selected.
 
 Consider **W3-L3** when:
 
@@ -201,6 +201,8 @@ Consider **W3-L3** when:
 - operational teams can manage/test the additional DSC complexity.
 
 Do not add a third LTM solely to make a two-device HA pair "more clustered." Its strongest business case is **maintenance + second-failure tolerance** and multi-traffic-group utilisation.
+
+For the detailed distinction between DSC clustering and true load-balanced WAF pools, see [appendix_ltm_waf_2_vs_3_nodes.md](./appendix_ltm_waf_2_vs_3_nodes.md).
 
 Shared reserve WAF risks remain:
 
