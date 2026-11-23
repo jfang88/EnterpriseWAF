@@ -77,7 +77,8 @@ The enterprise topology is assumed to contain:
 - either:
   - **Design A:** a WAF active/standby cluster owning the site external VIP, without a separate ingress LTM, or
   - **Design B:** an ingress LTM HA pair owning the site external VIP and balancing independent active WAFs;
-- an on-premises application ELB internal VIP behind the WAF, operating as L3/L4 forwarder/TCP passthrough or L7 terminating proxy;
+- for private-cloud applications, a **platform/cloud firewall (CFW)** between the WAF/LTM tier and the application ELB/service endpoint;
+- an application ELB internal VIP behind the CFW for private-cloud applications (or directly behind the WAF/LTM for on-premises patterns without CFW), operating as L3/L4 forwarder/TCP passthrough or L7 terminating proxy;
 - DCS (Huawei VMware) VM applications, and/or HCS (Huawei private cloud) VM applications or Kubernetes ingress/Services/Pods;
 - applications using a mixture of HTTPS and secure WebSockets.
 
@@ -90,7 +91,7 @@ External client -> client DNS/firewall/proxy -> four private circuits/VPN (as ro
 A: external VIP on WAF active/standby cluster -> platform/cloud firewall (CFW) -> application ELB internal VIP
 B: external VIP on LTM HA -> independent WAF pool -> platform/cloud firewall (CFW) -> application ELB internal VIP
 
-ELB -> DCS VMware VM pool OR HCS VM pool OR HCS Kubernetes ingress -> Pods
+CFW -> ELB -> DCS VMware VM pool OR HCS VM pool OR HCS Kubernetes ingress -> Pods
 ~~~
 
 See the [full logical flow and two-design comparison](./archive/waf_architecture_options_cross_site_resilience.md#24-explicit-end-to-end-topology-and-ownership). The other site's GTM and VIP provide an alternate only when the client can reach that site and its application/data services are ready.
@@ -366,23 +367,23 @@ Set explicit targets for **detect → DNS/routing convergence → reconnect → 
 
 ## Application state placement and recovery contract
 
-A WAF HA pair can protect the **WAF service VIP** and, for a supported and tested mirroring event, may preserve some connections through one WAF member failure. It cannot preserve a socket through an application ELB failure, Pod or VM termination, client/firewall path loss or a full site failure. The selected backend owns a live TCP/WebSocket endpoint. After that endpoint disappears, the application must accept a new connection on another healthy instance and reconstruct the logical session.
+A WAF HA pair can protect the **WAF service VIP** and, for a supported and tested mirroring event, may preserve some connections through one WAF member failure. It cannot preserve a socket through a **CFW failure**, application ELB failure, Pod or VM termination, client/firewall path loss or a full site failure. The selected backend owns a live TCP/WebSocket endpoint. After that endpoint disappears, the application must accept a new connection on another healthy instance and reconstruct the logical session.
 
 | State | Normal owner and durability | Required recovery behavior |
 |---|---|---|
-| TCP/WebSocket transport, TLS, firewall/NAT/LTM/WAF/ELB connection tables | Ephemeral state on the selected path; optional device-specific mirroring has a narrow failure scope | Assume the old socket is lost after a stateful hop or backend fails. A new connection selects a healthy path. Do not use a live socket as the only record of a business action. |
+| TCP/WebSocket transport, TLS, edge-firewall/NAT/LTM/WAF/**CFW**/ELB connection tables | Ephemeral state on the selected path; optional device-specific mirroring has a narrow failure scope | Assume the old socket is lost after a stateful hop or backend fails. A new connection selects a healthy path. Do not use a live socket as the only record of a business action. |
 | Authentication and authorization | Available identity service or portable, verifiable token; revocation/expiry policy shared with the DR site | Reauthenticate or renew on every new connection and reauthorize each subscription/command. Reconnect must work on another Pod/VM and at the ready DR site. |
 | Logical user/session and workflow state | Shared or replicated session store and authoritative database, not only app-process or WAF memory | Rebuild by stable session/user identifier. Define expiry, write consistency and the data recovery point for the passive site. |
 | Desired subscriptions and per-connection routing | Client retains desired topics (or a recoverable subscription store); a broker/connection registry may hold transient delivery mappings | Client resubscribes after authentication. Server rejects unauthorized topics. A new backend builds fresh connection mappings and resumes from the agreed cursor. |
 | Server-to-client events and cursor | Durable event log or authoritative snapshot per stream/partition; client stores last **safely processed** cursor | Replay within documented retention; deduplicate and detect gaps. If cursor expired or cross-site log lags, return an explicit gap response and fetch/reconcile a snapshot. |
 | Client commands and business outcome | Authoritative transaction store plus durable operation-ID/idempotency record, ideally committed atomically with the business effect | A lost acknowledgement is ambiguous. Query by operation ID; retry with the same ID within its defined scope/window and return the recorded outcome. Never blindly submit a second order/payment. |
 
-The state services themselves need HA, capacity and cross-site consistency appropriate to each application's RTO/RPO. A shared cache is not automatically durable; specify persistence, replication and recovery after loss of that cache. A passive site's WAF and ELB being healthy is insufficient if its identity, event log or authoritative data is not ready. Avoid dual writers or split-brain during promotion and failback.
+The state services themselves need HA, capacity and cross-site consistency appropriate to each application's RTO/RPO. A shared cache is not automatically durable; specify persistence, replication and recovery after loss of that cache. A passive site's WAF, CFW and ELB being healthy is insufficient if its identity, event log or authoritative data is not ready. Avoid dual writers or split-brain during promotion and failback.
 
 ### Application-team implementation sequence
 
 1. **Before failure:** Identify every WebSocket stream and command, its ordering scope, replay retention, maximum tolerable gap and authoritative lookup. Persist the cursor only after the consumer has safely applied the event. Keep an operation ID through client retries. Store recoverable session/workflow data outside a single Pod or VM.
-2. **Detect:** Handle close/error, browser resume and network changes. Use heartbeat or an application message deadline for silent blackholes. Set activity/heartbeat periods against the shortest intended idle timeout across client proxy, firewall, LTM, WAF, ELB and ingress; do not assume protocol Ping/Pong is accessible from browser JavaScript.
+2. **Detect:** Handle close/error, browser resume and network changes. Use heartbeat or an application message deadline for silent blackholes. Set activity/heartbeat periods against the shortest intended idle timeout across client proxy, edge firewall, LTM, WAF, CFW, ELB and ingress; do not assume protocol Ping/Pong is accessible from browser JavaScript.
 3. **Reconnect:** Use one bounded reconnect loop per logical session with exponential backoff and jitter. Re-resolve the service when possible, reconnect only to a ready endpoint, refresh credentials and cap concurrent handshakes. Avoid retry storms and unbounded in-memory queues.
 4. **Restore:** Authenticate, restore the logical session, reauthorize and recreate subscriptions, then request replay from the last safely processed cursor. If replay is unavailable, fetch an authoritative snapshot and reconcile before showing the view as current.
 5. **Reconcile writes:** For commands whose acknowledgement was lost, query authoritative outcome by operation ID. Retry only according to the operation's idempotency contract, with the same key. A new socket or a successful subscription does not settle a pending business transaction.
@@ -842,6 +843,9 @@ This concise table applies to both topologies. For node-versus-entire-pair failu
 | LTM active member fails | Some flows may reset | Depends on LTM mirroring/configuration | HA LTM plus client reconnect |
 | One physical circuit fails | Routing may converge | Existing flow may survive or may break depending on path/state | Diverse circuits; verify with live-socket testing |
 | All ingress circuits to active site fail | New requests fail until alternate path/site selected | Active-site sockets fail | GTM/site failover plus reconnect |
+| One CFW HA member fails | In-flight requests may fail or continue depending on state/NAT synchronization | Sockets through lost state may reset or stall | CFW HA/state/routing convergence; reconnect fallback; measure product-specific timing |
+| Whole CFW context/service fails while ELB/app remains healthy | New requests through that site fail | Existing sockets through CFW fail or blackhole | Through-path health must withdraw the site/path; use alternate CFW/site; reconnect/re-resolve |
+| CFW is false-green (WAF healthy, CFW/app path broken) | Requests continue to be sent to a broken site/path | Sockets fail/retry against broken path | Application readiness must include WAF -> CFW -> ELB/app path; otherwise recovery can be unbounded |
 | Platform ELB member/process fails | In-flight request may fail | Sockets on failed path may fail | ELB HA plus reconnect |
 | Kubernetes ingress instance fails | Some connections affected | Connections through failed ingress may fail | Multiple ingress replicas plus reconnect |
 | Pod becomes unready | New traffic avoids Pod | Existing socket behavior depends on ingress/controller | Readiness plus drain |
@@ -868,6 +872,8 @@ This concise table applies to both topologies. For node-versus-entire-pair failu
 ~~~text
 Client -> site firewall HA -> external VIP on WAF active <====> WAF standby
                                               |
+                                     platform/cloud CFW
+                                              |
                                      application ELB internal VIP
                                               |
                                      DCS/HCS VM or HCS Kubernetes
@@ -893,11 +899,11 @@ Connection mirroring is optional and conditional on the supported F5 version, pr
 
 ~~~text
                                     +--> WAF-1 --+
-Client -> site firewall -> LTM HA --+            +--> ELB internal VIP --> DCS/HCS app
+Client -> site firewall -> LTM HA --+            +--> platform/cloud CFW --> ELB internal VIP --> DCS/HCS app
                                     +--> WAF-2 --+
 ~~~
 
-The LTM HA pair owns the external VIP. Its pool monitors must withdraw a broken WAF or WAF-to-ELB path. Loss of the complete LTM pair removes ingress even when both WAFs are healthy; loss of the complete WAF pool makes the application unavailable unless a separately approved remote WAF path exists.
+The LTM HA pair owns the external VIP. Its pool/through-path monitoring must withdraw a broken WAF or a broken **WAF -> CFW -> ELB/application** path. Loss of the complete LTM pair removes ingress even when both WAFs are healthy; loss of the complete WAF pool makes the application unavailable unless a separately approved remote WAF path exists.
 
 ### Advantages
 
@@ -1000,7 +1006,7 @@ Health monitoring should test meaningful application readiness where possible, n
 
 ## INF-004 - Planned draining
 
-Operational procedures shall remove a WAF/ELB/ingress/backend from new-connection selection before planned shutdown.
+Operational procedures shall remove or route around a WAF/**CFW**/ELB/ingress/backend before planned shutdown, using the layer-specific drain/HA mechanism.
 
 ## INF-005 - Timeout register
 
@@ -1040,6 +1046,24 @@ Capture:
 - WAF-node connection counts;
 - message replay/duplicate counts where applicable.
 
+## INF-009A - Platform/cloud firewall (CFW)
+
+For private-cloud applications, document the CFW as a separate stateful failure domain between WAF/LTM and ELB.
+
+Validate:
+
+- CFW HA/member failover;
+- policy and route convergence;
+- NAT/SNAT ownership and state;
+- TCP/WebSocket idle/session limits;
+- whether state is synchronized across CFW peers;
+- behavior on complete CFW context/service loss;
+- health visibility from the external and internal application paths;
+- cross-site reachability to the alternate CFW/ELB;
+- whether the health model can distinguish "WAF healthy" from "application unreachable through CFW."
+
+The preferred service-health signal should traverse or otherwise prove the **WAF -> CFW -> ELB -> application readiness** path. A front-end-only health check can create a false-green site and materially extend recovery.
+
 ## INF-009 - Application ELB mode and backend failure domains
 
 Document whether the on-premises ELB forwards at L3/L4 with a selected TCP flow or terminates at L7 and creates a new HTTP/TLS/backend connection. Pure L3 IP routing alone is not application load balancing. Validate TLS/mTLS termination and re-encryption, original-client trust, NAT and return symmetry, health, WebSocket upgrade, idle/maximum connection age and draining. DCS VMware VMs, HCS VMs and HCS Kubernetes ingress/Services/Pods must be monitored and failed independently; losing an ELB, ingress, VM or Pod can still destroy an established socket. See the [mode-specific failure rows](./archive/waf_architecture_options_cross_site_resilience.md#16a3-ingress-waf-and-application-elb).
@@ -1063,27 +1087,29 @@ Minimum tests:
 9. fail active LTM;
 10. disconnect each of the four circuits individually;
 11. test relevant correlated two-circuit failures;
-12. fail one platform/cloud firewall (CFW) member/path and then the full CFW service/context;
-13. fail platform ELB component/path;
-14. restart an ingress-controller instance;
-14. gracefully terminate a Pod;
-15. abruptly kill a Pod;
-16. fail a Kubernetes node;
-17. perform a rolling Kubernetes deployment;
-18. terminate a VM application process;
-19. fail the backend VM load balancer;
-20. isolate the active site;
-21. verify GTM directs a new connection to the passive site;
-22. restore the active site without unnecessarily moving existing Site-B sessions back;
-23. verify heartbeat/dead-path detection;
-24. verify reconnect backoff/jitter;
-25. simulate a large reconnect surge;
-26. verify authentication under reconnect load;
-27. verify subscription restoration;
-28. verify message replay/duplicate handling where required;
-29. drop the server's acknowledgement after committing a client command, then retry with the same idempotency key;
-30. reconnect with a cursor older than replay retention and verify snapshot reconciliation;
-31. repeat relevant tests with identity, session and event services failed or degraded at the passive site.
+12. fail one platform/cloud firewall (CFW) member/path and measure HA/state/NAT convergence;
+13. fail the full CFW service/context while ELB/application remain healthy and verify through-path health withdraws the bad site/path;
+14. create a CFW false-green condition (front-end healthy but CFW -> ELB/app unreachable) and verify application-readiness monitoring detects it;
+15. fail platform ELB component/path;
+16. restart an ingress-controller instance;
+17. gracefully terminate a Pod;
+18. abruptly kill a Pod;
+19. fail a Kubernetes node;
+20. perform a rolling Kubernetes deployment;
+21. terminate a VM application process;
+22. fail the backend VM load balancer;
+23. isolate the active site;
+24. verify GTM directs a new connection to the passive site;
+25. restore the active site without unnecessarily moving existing Site-B sessions back;
+26. verify heartbeat/dead-path detection;
+27. verify reconnect backoff/jitter;
+28. simulate a large reconnect surge;
+29. verify authentication under reconnect load;
+30. verify subscription restoration;
+31. verify message replay/duplicate handling where required;
+32. drop the server's acknowledgement after committing a client command, then retry with the same idempotency key;
+33. reconnect with a cursor older than replay retention and verify snapshot reconciliation;
+34. repeat relevant tests with identity, session and event services failed or degraded at the passive site.
 
 Capture separately:
 
@@ -1276,12 +1302,12 @@ Example flow: client has safely processed event 92833 → firewall state is lost
 
 ## A.3 Reliability and security requirements
 
-- **HTTP intermediaries:** Test the WAF, client proxy, firewall, LTM, ELB and ingress for streaming support, response buffering/compression, request/response timeouts, idle timeouts and maximum stream duration. Keepalives (SSE comments are valid) should occur sooner than the shortest applicable idle timeout; heartbeat monitoring also detects silent stalls. Inspect the authentication request and apply appropriate WAF controls, but validate the actual product's treatment of a long-lived response; HTTP framing alone does not guarantee deep inspection of every event.
+- **HTTP intermediaries:** Test the WAF, client proxy, edge firewall, LTM, **CFW**, ELB and ingress for streaming support, response buffering/compression, request/response timeouts, idle timeouts and maximum stream duration. Keepalives (SSE comments are valid) should occur sooner than the shortest applicable idle timeout; heartbeat monitoring also detects silent stalls. Inspect the authentication request and apply appropriate WAF controls, but validate the actual product's treatment of a long-lived response; HTTP framing alone does not guarantee deep inspection of every event.
 - **Authentication:** Authorize both the event stream and every write API. Native `EventSource` does not provide a general custom-request-header interface; for browser use, same-origin cookies or an approved credential flow are common, with CSRF protections for cookie-authenticated writes. Short-lived tokens, renewal and reauthorization after reconnect need an explicit design; do not put reusable bearer secrets in event-stream URLs.
 - **Replay:** Use stable event IDs/cursors, a durable event store shared or replicated according to the site-failover recovery objective, bounded retention, access-controlled replay and snapshot fallback. Check cursor scope per tenant/user and avoid disclosing another subscriber's events. Define ordering per stream or partition, duplicate handling, and what happens during a replication lag or partition.
 - **Writes and acknowledgements:** Commands remain normal HTTPS operations. If a connection fails after commit but before the response arrives, retry with the same operation key and return/reconcile the committed result. SSE updates do not replace write acknowledgement.
 - **Capacity:** Size open SSE connections, file descriptors, memory and egress, plus reconnections per second. Test connection limits (especially browser HTTP/1.1 per-origin limits), HTTP/2 behavior where used, slow consumers, proxy buffers and the passive site's event/identity capacity.
-- **Operational acceptance:** Inject browser sleep/network switch, firewall failover, silent path loss, WAF/ELB/ingress failure, Pod/VM restart and full site failover. Measure time to live updates, missed/duplicate events, stale-cursor recovery and load under mass reconnect.
+- **Operational acceptance:** Inject browser sleep/network switch, edge-firewall failover, silent path loss, WAF/**CFW**/ELB/ingress failure, Pod/VM restart and full site failover. Measure time to live updates, missed/duplicate events, stale-cursor recovery and load under mass reconnect.
 
 For the enterprise workflow examples in scope—approvals, job progress, notifications and dashboard updates—pilot HTTPS APIs plus SSE first where updates are predominantly server → browser. Decide per application based on actual bidirectional requirements and a tested end-to-end streaming path.
 
