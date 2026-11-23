@@ -55,7 +55,10 @@ Use these explicit planning calculations where applicable:
 |---|---|
 | BIG-IP HA peer/member takeover | **~3s+** peer-loss detection plus traffic-group/network convergence and T6 for affected flows |
 | LTM withdraws one failed pool/WAF member | **up to ~16s + T6** with common 5s/16s monitor defaults; no DNS term if VIP is unchanged |
-| X2A remote WAF behind surviving local LTM | **~16s-class + T6**, assuming remote member already healthy/policy-ready; no DNS term |
+| One CFW HA member fails | **Product-specific / measured**; target seconds-scale local HA + T6 if connection state is lost; no DNS term if path/VIP remains stable |
+| Whole CFW context fails and through-path health withdraws the site | **~46s + T6** illustrative fast-health case or **up to ~150s + T6** direct-GTM-default case; add T5 if alternate app not ready |
+| CFW false-green (front-end healthy, app unreachable through CFW) | **Potentially unbounded** until through-path readiness or operator detects the failure |
+| X2A remote WAF behind surviving local LTM | **~16s-class + T6**, assuming remote member already healthy/policy-ready **and the target-site CFW/ELB/app path is healthy**; no DNS term |
 | GTM site move using fast LTM-health-informed state | illustrative **~16s health + up to 30s residual TTL = ~46s + T6**, plus unmeasured iQuery/propagation |
 | GTM site move using default direct GTM monitor | **up to ~120s health + up to 30s residual TTL = ~150s + T6** |
 | Manual passive-site startup | **T5 + ~46–150s + T6** depending health model; T5 may dominate |
@@ -202,14 +205,16 @@ For approved non-web traffic:
 ```text
 Client/system
  -> firewall
- -> LTM/ELB/service VIP
+ -> LTM/service VIP
+ -> CFW where private-cloud hosted
+ -> ELB/service endpoint
  -> application
 ```
 
 Consequences:
 
 - WAF node/tier failure may have **no direct effect**.
-- LTM, firewall, DNS, route, ELB and backend failures still matter.
+- LTM, edge firewall, CFW, DNS, route, ELB and backend failures still matter.
 - Recovery behavior depends on the protocol/client.
 - Long-lived TCP/SFTP/middleware connections may benefit from LTM connection mirroring where supported, but client retry/reconnect should still be implemented.
 - Do not use a WAF outage as a reason to declare a non-web application down when its approved path bypasses WAF.
@@ -232,7 +237,7 @@ Infrastructure resilience cannot compensate for missing application recovery beh
 
 If "stateless" applications store critical session/workflow state only in process memory:
 
-- WAF/ELB/backend failover can log users out or lose workflows;
+- WAF/CFW/ELB/backend-path failover can log users out or lose workflows when session/state is not portable;
 - the effective service RTO becomes session/application recovery rather than F5 failover time;
 - topology ratings should be downgraded from highly recoverable to stateful behavior.
 
