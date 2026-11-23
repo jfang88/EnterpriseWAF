@@ -40,6 +40,7 @@ Change this file when testing a different topology, health-check strategy, capac
 
 Regenerate/update:
 
+- **Executive recommendation:** [executive_recommendation.md](./executive_recommendation.md)
 - **Architecture summary:** [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md)
 - **Lens 1 — primary end-to-end service impact/recovery:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)
 - **Lens 1 technical appendix:** [common_failure_matrix.md](./common_failure_matrix.md)
@@ -441,6 +442,22 @@ If these are absent, explicitly mark the application **not end-to-end resilient*
 ---
 
 # Required output structure
+
+## Executive recommendation output
+
+Regenerate [executive_recommendation.md](./executive_recommendation.md) with:
+
+1. a ranked final recommendation rather than only neutral comparison;
+2. the preferred four-tenant cost/resilience option;
+3. the preferred highest-isolation option;
+4. a 99.95% architectural-potential rating for each major option;
+5. common/credible failure and maintenance events that should remain R0/R1;
+6. failures where R2 cross-site component/dependency recovery materially improves the outcome;
+7. options not recommended as the default and why;
+8. required change controls and application compliance;
+9. explicit decision/acceptance gates before claiming the 99.95 target.
+
+Do not claim that any topology **meets** 99.95 until fault-injection and maintenance testing provide measured end-to-end evidence. Use terms such as **high potential**, **credible**, or **conditional** until proven.
 
 ## Architecture summary
 

@@ -14,9 +14,13 @@ For the document map and reading order, see:
 
 - [Enterprise scenario analysis index](./enterprise-scenarios/README.md)
 
-For the quickest architecture comparison, start with:
+For the executive decision and final recommendation, start with:
 
-- [Deployment options, resilience and four-tenant cost summary](./enterprise-scenarios/deployment_options_resilience_summary.md)
+- [Executive architecture and 99.95% recommendation](./enterprise-scenarios/executive_recommendation.md)
+
+Then use:
+
+- [Deployment options, resilience and four-tenant cost summary](./enterprise-scenarios/deployment_options_resilience_summary.md) for the detailed option comparison
 
 ## Current analysis structure
 
@@ -79,9 +83,17 @@ Supported application types include:
 
 ## Analysis lenses
 
+### Executive recommendation
+
+Primary decision summary:
+
+- [Executive architecture and 99.95% recommendation](./enterprise-scenarios/executive_recommendation.md)
+
+This states the preferred four-tenant architecture, the highest-isolation alternative, the 99.95% availability potential of each option, and the change/recovery conditions required before the target can be claimed.
+
 ### Architecture option summary
 
-Primary comparison:
+Detailed comparison:
 
 - [Deployment options, resilience and four-tenant cost summary](./enterprise-scenarios/deployment_options_resilience_summary.md)
 

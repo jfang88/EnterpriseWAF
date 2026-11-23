@@ -770,6 +770,28 @@ For business-critical tenants, reduced device count is only a benefit when the o
 
 See [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md) for the four-tenant device-count model.
 
+# 13B. Executive 99.95 verdict
+
+This is an **architectural-potential** assessment. It is not a measured SLA.
+
+| Option | 99.95 maintainability potential | Reason |
+|---|---|---|
+| **Dedicated W1 with 3+ independent WAFs** | **Very strong** | one WAF can be drained while two remain; best canary/rolling flexibility and tenant isolation |
+| **Tenant LTM + shared active WAF pool sized for aggregate N-2** | **Very strong if controls mature** | excellent rolling capacity, but shared policy/configuration must not create a four-tenant common-mode outage |
+| **W3 preferred + shared reserve** | **Strong** | reserve can preserve redundancy during maintenance; depends on reserve admission, policy readiness and non-contention |
+| **W2b two-node WAF HA cluster** | **Strong but less margin** | coordinated rolling change is practical, but one WAF maintenance event leaves only one local WAF owner |
+| **W4a** | **Strong but asymmetric** | Site 1 has strong change headroom; Site 2 falls back to W2-like pair behavior |
+| **Shared LTM + shared active WAF pool** | **Conditional** | WAF pool may be resilient, but shared LTM/change domain can affect all tenants |
+| **Shared LTM + shared two-node WAF cluster** | **Lowest confidence for critical service** | both ingress and WAF tiers have large shared common-mode blast radius |
+
+To protect the 99.95 budget, routine maintenance should normally contribute **seconds or zero outage**, not planned multi-minute outages.
+
+The decision criterion is:
+
+> Can one component be removed for change while the service still tolerates one additional credible failure without forcing broad site recovery?
+
+See [executive_recommendation.md](./executive_recommendation.md) for the final ranked architecture recommendation.
+
 # 14. Critical maintainability failure points
 
 ## 14.1 Automatic config sync as a common-mode outage mechanism
