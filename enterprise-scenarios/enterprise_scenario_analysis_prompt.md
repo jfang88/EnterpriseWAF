@@ -26,7 +26,7 @@ Read:
 
 This contains:
 
-- W1-W5 candidate WAF topologies;
+- W1-W4 candidate WAF topologies, each normally replicated across both sites;
 - local-only versus controlled cross-site routing;
 - GTM health-check models;
 - GTM response/preference models;
@@ -61,13 +61,16 @@ Analyse all selected WAF topology options:
 - W1 — LTM-fronted scalable independent WAF pool;
 - W2 — WAF HA cluster, with and without ingress LTM where relevant;
 - W3 — tenant-preferred WAFs plus shared reserve WAFs;
-- W4 — local WAF cluster + local spare + second-site WAF cluster;
-- W5 — per-site scalable WAF pools + GTM site recovery.
+- W4 — WAF HA cluster plus local spare, normally replicated in both sites.
+
+W1-W4 are per-site topology patterns. The same logical F5 GTM/LTM/WAF arrangement is assumed in both sites unless a scenario explicitly models asymmetry. GTM site recovery is part of each topology and is not a separate WAF option.
 
 Also distinguish:
 
 - X1 — local-only dataplane routing;
-- X2 — controlled cross-site contingency where technically applicable.
+- X2A/X2B — controlled cross-site WAF/front-end contingency where technically applicable;
+- X2C — conventional site/application failover;
+- XD1 — App A -> App B remote-dependency fallback.
 
 
 ## Mandatory cross-site recovery study
@@ -254,7 +257,7 @@ For each scenario identify:
 - detection signal;
 - recovery mechanism;
 - timing driver;
-- W1-W5 outcome;
+- W1-W4 outcome;
 - external-user impact;
 - internal-user impact;
 - application-type impact;
