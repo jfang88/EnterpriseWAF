@@ -43,6 +43,16 @@ There are two enterprise sites:
 
 The two sites are separate infrastructure and routing failure domains.
 
+For a given tenant, assume the **same logical F5 delivery topology exists in both sites** unless a scenario explicitly says otherwise. In other words:
+
+- BIG-IP DNS / GTM capability is available in both sites;
+- BIG-IP LTM is deployed with the same logical role in both sites;
+- the selected WAF topology for that tenant is replicated in both sites;
+- edge-firewall/VIP concepts are equivalent in both sites;
+- application-side infrastructure may still differ in active/passive readiness, capacity, IP addressing or startup state.
+
+A topology label such as W1, W2, W3 or W4 therefore describes the **per-site WAF design pattern**, normally present in both Site 1 and Site 2. Site-level recovery is part of every topology and is not a separate WAF topology.
+
 Most applications are active/passive. Some passive-site applications may require manual startup.
 
 Some applications may be active/active.
