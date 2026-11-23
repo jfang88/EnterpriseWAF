@@ -46,6 +46,9 @@ These are modelling categories, not guaranteed SLAs.
 | **T4 — DNS/site convergence** | health detection + GTM decision + residual DNS TTL/cache + client re-resolution/retry + alternate-site readiness. F5 GTM A-record pool TTL default is 30s; direct GTM monitor defaults can be 30s/120s |
 | **T5 — warm/cold/manual** | operator/startup/configuration dependent; may be minutes or longer |
 | **T6 — application recovery** | application-specific retry/reconnect/session/state/replay behavior; can dominate RTO even after infrastructure is healthy |
+| **T7 — failback** | controlled restoration to preferred device/site; auto-failback delay is configurable and commonly modelled around 60s when enabled |
+| **T8 — DNS/cache/connection behavior** | behavior modifier rather than a fixed duration: cached DNS, existing TCP/WebSocket and application connection pools recover differently |
+| **T9 — CFW recovery** | platform/cloud firewall HA/context recovery; product/configuration specific and must be measured; full-context failure may force T4/T5/T6 |
 
 ## 2.1 Validated numeric planning windows
 

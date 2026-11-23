@@ -21,6 +21,35 @@ The central conclusion is:
 
 A single WAF or backend failure should remain a **local member failure**. It should not automatically become a DNS/site/application failover.
 
+## 1.1 Timing reference — T1 to T9
+
+The detailed timing definitions live in [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md#5-f5-monitoring-and-recovery-time-assumptions). The table below is the quick reference used throughout this summary.
+
+| ID | Meaning | Planning value / interpretation | When to add it |
+|---|---|---|---|
+| **T1** | BIG-IP HA peer/device failover | approximately **3+ seconds peer-loss detection**, plus traffic-group/network convergence | LTM/WAF/GTM HA peer or traffic-group ownership change |
+| **T2** | LTM pool-member / WAF-member health detection | commonly **up to ~16s** with 5s interval / 16s timeout defaults | failed independent WAF, backend or service member behind a stable LTM VIP |
+| **T3** | Direct BIG-IP DNS/GTM health monitor | common HTTP/HTTPS/TCP defaults around **30s interval / 120s timeout** | GTM directly decides an endpoint/site is unavailable |
+| **T4** | DNS/site failover convergence | health decision + GTM answer change + residual DNS TTL/cache + retry/re-resolution; GTM A-record pool TTL default is **30s** | whenever recovery changes the returned site/VIP |
+| **T5** | Warm/cold/manual recovery | **minutes or longer; no fixed product value** | operator action, passive-site startup, routing repair, config/policy rollback |
+| **T6** | Application recovery | **application-specific** | retry, reconnect, re-auth, session/state restore, resubscribe, replay/reconciliation |
+| **T7** | Failback | controlled restoration; F5 auto-failback delay is configurable and commonly modelled around **60s when enabled** | return to preferred device/site after recovery |
+| **T8** | DNS cache vs existing-connection behavior | **behavior modifier, not a duration** | distinguishes new DNS lookup, cached old IP, existing TCP/WebSocket, and app connection-pool caching |
+| **T9** | Platform/cloud firewall (CFW) recovery | **product/config specific; measure** | CFW HA member failure, full CFW-context failure or CFW false-green |
+
+### How to read combined timings
+
+Examples:
+
+- **~16s + T6** = LTM detects/withdraws the failed member, then the application/client still has to recover.
+- **T4 + T6** = site/VIP changes through DNS/GTM, then the application/client reconnects/restores state.
+- **T5 + T4 + T6** = manual/passive-site preparation first, then DNS/site convergence, then application recovery.
+- **~46s + T6** = illustrative fast-health site move: ~16s local health + up to 30s residual DNS TTL, plus application recovery.
+- **up to ~150s + T6** = default-style direct GTM health timeout (~120s) + up to 30s residual DNS TTL, plus application recovery.
+- **T9 + T6** = CFW HA/recovery timing plus any socket/session/application recovery.
+
+These are **engineering planning values, not SLAs**. Measure the end-to-end time from fault injection to the first successful business transaction for each actor/application type.
+
 # 2. Common stack
 
 For a private-cloud web application, analyse failures from top to bottom:
