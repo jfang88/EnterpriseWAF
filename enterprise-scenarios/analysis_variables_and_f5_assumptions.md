@@ -8,7 +8,29 @@ This file contains architecture choices and tunable assumptions. Change this fil
 
 # 1. Candidate WAF topologies
 
+## Common two-site rule
+
+W1-W4 are **per-site WAF topology patterns**. Unless explicitly stated otherwise, the same logical topology is present in both Site 1 and Site 2, with similar GTM/LTM roles per site.
+
+For example, W1 means:
+
+```text
+                    BIG-IP DNS / GTM
+                   /                 \
+               Site 1               Site 2
+                 |                    |
+            LTM HA pair          LTM HA pair
+                 |                    |
+            WAF pool 2..N        WAF pool 2..N
+                 |                    |
+             local apps           local/DR apps
+```
+
+Site-level GTM recovery is therefore part of W1 itself. It is not a separate WAF topology.
+
 ## W1 — LTM-fronted scalable independent WAF pool
+
+Per site:
 
 ```text
 Firewall VIP
@@ -22,15 +44,21 @@ W1  W2  W3 ... Wn
 application
 ```
 
-- Starts with two WAFs and can scale to three or more.
+- Starts with two WAFs per site and can scale to three or more.
 - WAFs are independent active pool members.
 - LTM removes failed members using health monitors.
 - Capacity must be sized for N-1 and, where required, N-2.
 - Policy/configuration consistency across all WAF nodes is critical.
+- Site 2 normally has the same logical LTM/WAF-pool design.
+- If the local WAF service cannot recover, GTM can select the alternate site's firewall/LTM/WAF path when that application/site is ready.
 
 ## W2 — WAF HA cluster, with or without LTM in front
 
+The selected W2 variant is normally repeated in both sites.
+
 ### W2a — no ingress LTM
+
+Per site:
 
 ```text
 Firewall VIP
@@ -41,6 +69,8 @@ application
 ```
 
 ### W2b — LTM in front
+
+Per site:
 
 ```text
 Firewall VIP
@@ -55,8 +85,11 @@ application
 - WAF pair is a clustered HA service/failure domain.
 - Connection/persistence mirroring can improve continuity for supported traffic.
 - Horizontal scale and third-node continuity need special care; F5 documents explicit ASM/AWAF mirroring limits.
+- The alternate site provides the same logical W2 service for site-level recovery.
 
 ## W3 — tenant-preferred WAFs plus shared enterprise reserve
+
+Per site, each tenant has its preferred WAF capacity behind its tenant LTM. One or more shared reserve WAFs may be available to multiple tenant pools.
 
 ```text
 Tenant LTM pair
@@ -74,41 +107,38 @@ R-WAF1     R-WAF2
 - Preferred tenant WAFs handle normal traffic.
 - Shared reserve WAFs can join a tenant pool when preferred WAF capacity is lost.
 - Shared reserve introduces cross-tenant capacity, policy-isolation and operational dependencies.
+- The same logical preferred-plus-reserve model may exist in Site 2.
+- Site-level GTM recovery remains available in addition to reserve-WAF recovery.
 
-## W4 — local WAF cluster + local spare + second-site cluster
+## W4 — WAF HA cluster plus local spare
 
-```text
-Site 1                           Site 2
-LTM pair                         LTM pair
-  |                                |
-  +-- WAF cluster (2)              +-- WAF cluster (2)
-  |
-  +-- local spare WAF
-```
-
-- Local cluster handles normal traffic.
-- Third local WAF provides hot/warm/cold contingency.
-- Site 2 cluster provides site-level recovery.
-- Recovery time depends heavily on whether the spare is preconfigured/hot.
-
-## W5 — per-site scalable WAF pools + GTM site recovery
+Per site:
 
 ```text
-                 BIG-IP DNS/GTM
-                /              \
-             Site 1           Site 2
-               |                |
-           LTM HA pair      LTM HA pair
-               |                |
-          WAF pool 2..N    WAF pool 2..N
-               |                |
-          local apps        local/DR apps
+Firewall VIP
+    |
+LTM HA pair
+    |
+    +-- WAF HA cluster (2)
+    |
+    +-- local spare WAF
 ```
 
-- Member failures recover locally.
-- Individual WAFs are not normally borrowed across sites.
-- Site-level recovery uses GTM/DNS.
-- Requires enough capacity in the alternate site.
+Normally the same logical pattern exists in Site 1 and Site 2:
+
+```text
+Site 1                         Site 2
+LTM HA pair                    LTM HA pair
+  |                              |
+  +-- WAF cluster (2)            +-- WAF cluster (2)
+  +-- local spare                +-- local spare
+```
+
+- The WAF cluster handles normal traffic.
+- The additional local WAF provides hot/warm/cold contingency.
+- Recovery time depends heavily on whether the spare is already configured, monitored and able to receive traffic.
+- If only one site has the extra spare, treat that as an **asymmetric capacity variant of W4**, not a different topology.
+- GTM/site recovery remains available after local cluster/spare recovery is exhausted.
 
 # 2. Cross-site dataplane variables
 
@@ -374,7 +404,7 @@ Therefore:
 
 - W2 can improve continuity for a two-device HA event;
 - W4's third/spare WAF does **not** mean an existing connection can transparently survive every transition;
-- W1/W3/W5 should assume connections on a failed independent WAF must reconnect;
+- W1/W3 should assume connections on a failed independent WAF must reconnect;
 - application reconnect/state-recovery logic remains mandatory for socket/WebSocket designs.
 
 # 7. F5 WAF policy/configuration consistency
