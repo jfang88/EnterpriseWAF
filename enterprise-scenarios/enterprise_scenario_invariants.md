@@ -110,7 +110,9 @@ Internal user/system
   -> internal enterprise DNS
   -> delegation / conditional forward for selected internal service name
   -> BIG-IP DNS / GTM
-  -> internal LTM / ELB / service VIP
+  -> internal LTM / service VIP
+  -> platform/cloud firewall (CFW) where the target is private-cloud hosted
+  -> ELB/service endpoint
   -> application
 ```
 
@@ -296,7 +298,7 @@ Characteristics:
 - HTTP/HTTPS request-response traffic;
 - next request can normally use any healthy backend instance;
 - required state is absent or external/shared;
-- retry through a new WAF/LTM/ELB member is usually acceptable.
+- retry through a new WAF/LTM/CFW/ELB/backend path is usually acceptable where the failed layer has a healthy alternate.
 
 A system is not truly stateless if important login/cart/workflow state exists only in one local process.
 
@@ -329,7 +331,7 @@ Examples include:
 - proprietary L4 services;
 - internal system-to-system protocols.
 
-These may use firewall, LTM, ELB or direct service routing without traversing WAF.
+These may use edge firewall, LTM, CFW, ELB or direct service routing without traversing WAF, depending on hosting pattern.
 
 ## 11. F5 technology assumption
 
