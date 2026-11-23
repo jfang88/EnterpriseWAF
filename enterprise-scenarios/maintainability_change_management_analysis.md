@@ -620,7 +620,7 @@ rather than leaving HA peers inconsistent.
 | LTM firmware | Rolling HA pair | Rolling HA pair where W2b | Rolling HA pair | Rolling HA pair in W4a; N/A at WAF tier for W4b |
 | LTM config | Staged/synced HA change | Same | Same | Same |
 | GTM firmware/config | Stagger device/site | Same | Same | Same |
-| App change | drain backend/app pool; canary/blue-green behind LTM/ELB | same | same | same |
+| App change | drain backend/app pool; canary/blue-green behind CFW/ELB/application path | same | same | same |
 | Emergency rollback | high if known-good WAF remains | high if prior image/config and peer healthy | high if reserve remains known-good | high in Site 1 if extra node is known-good |
 
 ---
