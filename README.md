@@ -58,6 +58,8 @@ The current baseline assumes:
 - W4 is deliberately asymmetric: Site 1 has a WAF HA cluster plus an extra active/spare WAF, while Site 2 has only the WAF HA cluster;
 - external users access services through private leased-line paths and edge firewalls;
 - externally reachable application VIPs live on the firewall tier;
+- external and internal DNS namespaces are separate;
+- internal users/applications use internal enterprise DNS, with selected internal service names optionally delegated/forwarded to GTM;
 - internal users may bypass the WAF and use internal service/ELB paths;
 - applications may run on-premises, on VMs, Kubernetes or PaaS;
 - Application A -> Application B -> Application C and shared-dependency chains are treated as first-class resilience scenarios.
