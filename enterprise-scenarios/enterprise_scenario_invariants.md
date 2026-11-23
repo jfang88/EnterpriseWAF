@@ -38,7 +38,9 @@ For this analysis:
 - external partner/customer users primarily reach services over private leased-line / VPN style connectivity;
 - the existing GTM/LTM tenant boundaries remain part of the current baseline;
 - consolidation of GTM/LTM is **not** assumed by this WAF study and requires participation from the owning teams;
-- internal users and application-to-application dependencies remain in scope because they can experience different failure modes and may bypass the extranet WAF path.
+- internal users and application-to-application dependencies remain in scope because they can experience different failure modes and may bypass the extranet WAF path;
+- the **enterprise internal network, internal users/desktops and internal enterprise DNS are outside the private-cloud boundary**;
+- a distinct **internal firewall** separates the enterprise internal network from the private-cloud CFW; the internal firewall and CFW are separate failure and maintenance domains.
 
 The wider enterprise may contain other Internet or internal hosting environments, but they are not the primary topology being decided in this document set.
 
@@ -125,6 +127,7 @@ Internal user/system
   -> delegation / conditional forward for selected internal service name
   -> BIG-IP DNS / GTM
   -> internal LTM / service VIP
+  -> internal firewall
   -> platform/cloud firewall (CFW) where the target is private-cloud hosted
   -> ELB/service endpoint
   -> application
@@ -182,6 +185,7 @@ Internal user
   -> internal enterprise DNS
   -> [optional delegation/conditional forward to GTM for selected internal endpoint]
   -> internal LTM/service VIP
+  -> internal firewall
   -> platform/cloud firewall (CFW) where the application is private-cloud hosted
   -> ELB/service endpoint
   -> application
@@ -194,6 +198,7 @@ App A
   -> internal enterprise DNS
   -> [optional GTM lookup for B internal service]
   -> B service VIP / endpoint
+  -> internal firewall where the call crosses from the enterprise internal network into the private cloud
   -> platform/cloud firewall (CFW) where B is private-cloud hosted
   -> B ELB/service endpoint
   -> App B
@@ -394,7 +399,8 @@ Use these objectives for all options:
 13. Prefer dependency-local recovery (for example B1 -> B2) over moving healthy dependent applications (A/C/D) when the dependency and state model safely allow it.
 14. Treat external namespace and internal namespace as separate control-plane dependencies; failure of one must not automatically be reported as failure of the other.
 15. For App A/B/C dependencies, include internal DNS/GTM resolution behavior in the recovery path where the application resolves dependency endpoints dynamically.
-16. Treat the platform/cloud firewall (CFW) in front of private-cloud ELB/service endpoints as a separate failure and maintenance domain from the ELB/application itself.
+16. Treat the **internal firewall** between the enterprise internal network and private cloud as a separate failure and maintenance domain.
+17. Treat the platform/cloud firewall (CFW) in front of private-cloud ELB/service endpoints as a separate failure and maintenance domain from both the internal firewall and the ELB/application itself.
 
 
 ## 14. Maintainability and availability analysis objectives
