@@ -22,6 +22,19 @@ The central conclusion is:
 
 A single WAF or backend failure should remain a **local member failure**. It should not automatically become a DNS/site/application failover.
 
+## Scope boundary for this decision
+
+The current decision set is the **four existing Extranet tenant stacks**.
+
+Keep the following assumptions fixed for this comparison:
+
+- each of the four tenants keeps its current LTM/GTM failure domain;
+- the current decision is whether WAF runtime capacity can be shared more efficiently while retaining application-specific WAF policy isolation;
+- **S2 shared-LTM consolidation is a future option only**, not the current recommendation;
+- wider Internet/Intranet consolidation is outside the current scope unless separately commissioned.
+
+This prevents a WAF-pooling study from silently turning into a broader network consolidation programme.
+
 ## 1.1 Topology shorthand — read this before the comparison
 
 The canonical definitions are maintained in [architecture_shorthand_topology_reference.md](./architecture_shorthand_topology_reference.md).
@@ -33,7 +46,7 @@ The canonical definitions are maintained in [architecture_shorthand_topology_ref
 | **W3** | Tenant LTM pair -> tenant-preferred active WAFs + **shared reserve WAF capacity** |
 | **W4** | Asymmetric: Site 1 WAF HA cluster + extra WAF; Site 2 WAF HA cluster only |
 | **S1** | **Tenant-specific LTM pairs -> shared independent active WAF pool** |
-| **S2** | **Shared LTM pair -> shared independent active WAF pool** |
+| **S2** | **Shared LTM pair -> shared independent active WAF pool**; future consolidation option, not current Extranet recommendation |
 | **X2A** | Surviving local LTM uses remote WAF and routes back through the healthy local CFW/ELB/application path |
 | **X2B** | Remote front end routes back to the healthy primary-site CFW/ELB/application path |
 | **X2C** | Full application/site failover |
@@ -44,8 +57,6 @@ The important distinction is:
 - **W1/S1/S2 active WAF pool:** multiple healthy independent WAFs can process the same service concurrently.
 - **W2/W4 WAF HA cluster:** one device owns a traffic group; another device is the HA failover target.
 - **W3:** combines tenant-preferred active WAFs with shared reserve capacity.
-
-Detailed diagrams are in section 3 below, [executive_recommendation.md](./executive_recommendation.md), and the canonical reference.
 
 ## 1.2 Timing reference — T1 to T9
 
@@ -64,8 +75,6 @@ The detailed timing definitions live in [analysis_variables_and_f5_assumptions.m
 | **T9** | Platform/cloud firewall (CFW) recovery | **product/config specific; measure** | CFW HA member failure, full CFW-context failure or CFW false-green |
 
 ### How to read combined timings
-
-Examples:
 
 - **~16s + T6** = LTM detects/withdraws the failed member, then the application/client still has to recover.
 - **T3 + T4 + T6** = direct GTM health detection, then DNS/site-selection convergence, then application/client recovery.
@@ -88,9 +97,7 @@ In summary:
 | **Best isolation / highest-confidence maintainability** | dedicated W1 with 2 LTMs + 3 independent WAFs per tenant/site | strongest local maintenance and N-2-style headroom with smallest cross-tenant blast radius |
 | **Good but more complex** | W3 preferred WAFs + shared reserve | strong recovery if reserve is guaranteed, but shared reserve governance is complex |
 | **Simple but less maintenance margin** | W2b two-node WAF HA cluster | good first-failure HA/mirroring; pair boundary leaves less redundancy during maintenance |
-| **Not preferred as critical-service default** | shared LTM + shared WAF service | lowest device count but largest common-mode/cross-tenant blast radius |
-
-The 99.95% target is most credible when normal changes are effectively no-outage, common failures stay R0/R1, and whole-tier/dependency failures can use R2 recovery rather than forcing a site move.
+| **Not preferred as critical-service default** | S2 shared LTM + shared WAF service | lowest device count but largest common-mode/cross-tenant blast radius and outside the current four-tenant Extranet decision scope |
 
 # 2. Common stack
 
@@ -122,8 +129,6 @@ Internal user / App A
   -> App B / App C
 ~~~
 
-Non-web applications may bypass WAF but still depend on DNS, LTM, CFW, ELB, backend and application recovery.
-
 # 3. WAF topology options
 
 ## W1 — independent active WAF pool behind LTM
@@ -143,13 +148,9 @@ WAF-1 WAF-2 WAF-3 ... WAF-n
 ~~~
 
 - WAFs are independent active pool members.
-- LTM distributes new traffic across healthy WAFs.
 - Two WAFs give **N-1**, but not local N-2.
 - Three or more WAFs can tolerate two WAF failures only when remaining capacity is explicitly sized for N-2.
 - Existing long-lived connections through a failed WAF normally reconnect.
-
-**Strength:** horizontal scale, clear failure domains, rolling maintenance.  
-**Weakness:** no transparent socket preservation across an independent WAF failure.
 
 ## W2 — WAF HA/DSC cluster
 
@@ -169,11 +170,7 @@ active/standby for a traffic group
 - One protected traffic group has one active WAF owner.
 - A pair tolerates one WAF member failure.
 - Loss of both cluster members removes the local WAF service.
-- Supported connection mirroring can improve the first failover for some long-lived connections.
-- Adding a third DSC device adds another failover target, but does not turn one traffic group into a three-way active pool; WAF connection mirroring is still limited in multi-device sequential failover.
-
-**Strength:** simple HA, best first-pair-failure connection continuity where mirroring is supported.  
-**Weakness:** pair/cluster is a hard local boundary and does not horizontally share one traffic group.
+- Supported connection mirroring can improve first-failure continuity for some long-lived connections.
 
 ## W3 — tenant-preferred WAFs plus shared reserve
 
@@ -191,14 +188,6 @@ shared reserve WAF capacity
 
 Baseline remains **two LTMs per tenant per site**.
 
-- Normal traffic uses tenant-preferred active WAFs.
-- Shared reserve is activated when tenant-preferred capacity is lost or maintained.
-- Can survive loss of both preferred WAFs if reserve capacity is available, policy-ready and routable.
-- Reserve exhaustion or a bad shared policy can affect multiple tenants.
-
-**Strength:** good maintenance/N-2-style recovery without buying a dedicated third WAF for every tenant.  
-**Weakness:** shared reserve becomes a cross-tenant capacity and governance dependency.
-
 ## W4 — Site 1 cluster + extra WAF; Site 2 cluster only
 
 ~~~text
@@ -214,13 +203,6 @@ extra independent WAF             |
  ELB/app                        ELB/app
 ~~~
 
-- Site 1 can survive broader WAF failure than a simple two-node cluster.
-- Site 2 has less local WAF headroom.
-- Whole-site DR must prove the Site 2 WAF cluster can carry required production load.
-
-**Strength:** strong primary-site local WAF resilience.  
-**Weakness:** asymmetric recovery/maintenance capacity.
-
 # 4. One-node, two-node and cluster/tier failure comparison
 
 Ratings assume correct health monitoring and adequate surviving capacity.
@@ -235,8 +217,6 @@ Ratings assume correct health monitoring and adequate surviving capacity.
 | **1 CFW member fails** | Should remain local through CFW HA | Same | Same | Same | Same |
 | **Whole CFW service/context fails** | WAF recovery alone cannot help | Same | Same | Same | Same |
 | **Whole site fails** | Site 2 required | Site 2 required | Site 2 required | Site 2 required | Site 2 required; lower WAF headroom than Site 1 |
-
-A topology only truly survives two WAF failures when **capacity after those two failures is sufficient**.
 
 # 5. Cross-site versus no-cross-site capability
 
@@ -255,8 +235,8 @@ Cross-site capability should reduce **failure-domain escalation**. It should not
 
 - local BIG-IP HA peer: **~3s+ + connection recovery**;
 - local LTM WAF-member withdrawal: **up to ~16s + T6** with common monitor defaults;
-- X2A remote WAF with same client VIP: **~16s-class + T6**, if remote WAF and local CFW/app path are ready;
-- GTM/site move using fast local health: illustrative **~46s + T6** including up to 30s residual DNS TTL;
+- X2A remote WAF with same client VIP: **~16s-class + T6** if remote WAF and local CFW/app path are ready;
+- GTM/site move using fast local health: illustrative **~46s + T6**;
 - GTM/site move with default-style direct GTM monitoring: **up to ~150s + T6**;
 - manual passive-site startup: **T5 + T4 + T6**, with T5 potentially dominant;
 - CFW false-green or application false-green: potentially **unbounded** until correct readiness detects it.
@@ -269,12 +249,6 @@ Cross-site capability should reduce **failure-domain escalation**. It should not
 | **AT2 — Stateful web** | May lose session/transaction affinity | Session may need reconstruction or re-login | State/data must exist at alternate path/site | portable/replicated state and transaction reconciliation |
 | **AT3 — WebSocket / long-lived** | Socket on failed path normally breaks unless supported mirroring preserves it | reconnect + re-auth + resubscribe | re-resolve + reconnect + replay/snapshot | reconnect/backoff, durable cursor/state, replay, idempotency |
 | **AT4 — Non-web / L4** | Protocol-specific connection loss | reconnect/retry; WAF may be irrelevant | protocol/DNS/service failover | documented protocol retry, re-resolution, transaction replay |
-
-A W2 cluster can look better than W1 for the **first WAF failure** of a WebSocket because mirroring may preserve supported connections.
-
-For stateless HTTP, W1 may be operationally simpler: a failed WAF is withdrawn and the next request uses another active WAF.
-
-For stateful and WebSocket applications, the application design can dominate the RTO after any WAF/LTM/CFW/backend/site event.
 
 # 7. Failure scenarios up and down the stack
 
@@ -328,9 +302,6 @@ If every tenant gets a third dedicated WAF:
 16 LTM + 24 WAF = 40 device-units
 ~~~
 
-**Benefit:** strongest tenant isolation and predictable capacity.  
-**Cost:** capacity/spares are stranded inside each tenant when unused.
-
 ## 8.3 W3 hybrid: dedicated preferred capacity + shared reserve
 
 With two preferred WAFs per tenant/site and **R** shared reserve WAFs per site:
@@ -346,8 +317,6 @@ For **R=2 shared reserve WAFs/site**:
 ~~~text
 16 LTM + 20 WAF = 36 device-units
 ~~~
-
-This is more devices than the simple 32-unit two-WAF dedicated baseline, but fewer than the 40 units required to give every tenant a dedicated third WAF.
 
 The benefit is **shared spare capacity**, not the absolute minimum device count.
 
@@ -368,8 +337,6 @@ Across two sites:
 16 LTM + 2P WAF
 ~~~
 
-where **P = WAFs per shared site pool**.
-
 Illustrative **P=4**:
 
 ~~~text
@@ -378,24 +345,21 @@ Illustrative **P=4**:
 
 If the four-WAF pool is sized so two surviving WAFs can carry required aggregate load, it can tolerate two WAF-node failures without losing the WAF service.
 
-**Benefits:** lower WAF count, shared aggregate spare capacity, horizontal scale.  
-**Risks:** cross-tenant WAF blast radius, noisy-neighbour capacity, shared policy/configuration risk.
+### S2 — shared LTM pair + shared WAF pool (**future option only**)
 
-### S2 — shared LTM pair + shared WAF pool
-
-Across two sites:
+Illustrative across two sites:
 
 ~~~text
 4 LTM + 2P WAF
 ~~~
 
-Illustrative **P=4**:
+With **P=4**:
 
 ~~~text
 4 LTM + 8 WAF = 12 device-units
 ~~~
 
-This has a much larger shared failure/change domain because both ingress LTM and WAF capacity are shared.
+This has a much larger shared failure/change domain because both ingress LTM and WAF capacity are shared. It is outside the current four-tenant Extranet decision boundary.
 
 ## 8.5 Shared WAF HA cluster
 
@@ -411,50 +375,35 @@ With four tenant LTM pairs feeding the shared WAF cluster:
 16 LTM + 4 WAF = 20 device-units
 ~~~
 
-This is device-efficient, but the cluster is a common multi-tenant failure domain and only tolerates one WAF member failure before the shared WAF service is lost.
-
 ## 8.6 Four-tenant comparison
 
 | Tenancy / topology pattern | LTM units | WAF units | Total | 1 WAF failure | 2 WAF failures | Tenant isolation | Cross-tenant blast radius |
 |---|---:|---:|---:|---|---|---|---|
 | **4x dedicated W1, 2 WAF/tenant/site** | 16 | 16 | **32** | Yes | No local WAF service for affected tenant | **High** | Low |
 | **4x dedicated W1, 3 WAF/tenant/site** | 16 | 24 | **40** | Yes | Yes if N-2 capacity | **High** | Low |
-| **4x dedicated W2a HA cluster, no ingress LTM** | 0 | 16 | **16** | Yes | Cluster lost for affected tenant | **High** | Low; WAF owns/receives ingress directly |
+| **4x dedicated W2a HA cluster, no ingress LTM** | 0 | 16 | **16** | Yes | Cluster lost for affected tenant | **High** | Low |
 | **4x dedicated W2b HA cluster + LTM** | 16 | 16 | **32** | Yes | Cluster lost for affected tenant | **High** | Low |
 | **4x dedicated W4a asymmetric** | 16 | 20 | **36** | Yes | Site 1 can use extra WAF after cluster loss; Site 2 cannot | **High** | Low |
 | **W3: 2 preferred/tenant + 2 shared reserve/site** | 16 | 20 | **36** | Yes | Usually yes for one tenant if reserve free | Medium-High | Medium |
 | **S1 tenant LTMs + shared active pool, P=4/site** | 16 | 8 | **24** | Yes | Yes if 2 remaining WAFs sized for aggregate load | LTM high / WAF shared | **High at WAF tier** |
-| **S2 shared LTM + shared active pool, P=4/site** | 4 | 8 | **12** | Yes | Yes if capacity | Low | **Very high** |
-| **Shared LTM + shared 2-node WAF HA cluster** | 4 | 4 | **8** | Yes | No; whole shared WAF service lost | Low | **Very high** |
+| **S2 shared LTM + shared active pool, P=4/site — future only** | 4 | 8 | **12** | Yes | Yes if capacity | Low | **Very high** |
+| **Shared LTM + shared 2-node WAF HA cluster — future only** | 4 | 4 | **8** | Yes | No; whole shared WAF service lost | Low | **Very high** |
 
 These totals are planning examples, not purchase quotes or recommendations by themselves.
 
-### W2/W4 dedicated count notes
-
-- **W2a** has no ingress LTM at the WAF tier, so the F5 LTM count is zero in this narrow LTM/WAF device model. Edge firewall/VIP and other infrastructure still exist.
-- **W2b** adds the normal two-LTM-per-site-per-tenant baseline.
-- **W4a** uses 3 WAFs in Site 1 and 2 WAFs in Site 2 per tenant: 5 WAFs x 4 tenants = 20 WAF units across the two sites, plus 16 LTM units = 36.
-- **W4b** removes the ingress LTM at the WAF tier and would therefore be 20 WAF units in this narrow device model, but requires an explicit non-LTM steering mechanism to the Site 1 extra WAF.
-
 # 9. Resilience versus cost interpretation
-
-## Lowest device count
-
-A shared LTM + shared WAF HA cluster has the fewest devices, but concentrates tenant ingress, WAF policy, capacity, maintenance and bad-change risk into the fewest shared components.
-
-Low device count is **not** the same as low availability risk.
 
 ## Best tenant isolation
 
 Dedicated LTM/WAF per tenant provides the smallest cross-tenant blast radius and easiest capacity attribution, at the cost of duplicated standby/spare capacity.
 
-## Best active-capacity efficiency
+## Best active-capacity efficiency within the current scope
 
-A **shared independent active WAF pool** can give better aggregate capacity efficiency than a shared HA cluster because all pool members can process traffic.
+A **shared independent active WAF pool** behind the existing tenant-specific LTM pairs can provide strong aggregate capacity efficiency without changing the LTM/GTM ownership boundary.
 
-For four tenants, S1 is an important candidate:
+For four tenants, S1 is the primary sharing candidate:
 
-> retain tenant-specific LTM pairs and routing boundaries, but share a sufficiently large active WAF pool.
+> retain tenant-specific LTM pairs and routing boundaries, but share a sufficiently large active WAF pool with application-specific policy isolation.
 
 ## Best shared-spare model
 
@@ -505,42 +454,52 @@ XD1 local-preferred/remote-fallback dependency routing keeps A/C/D local when re
 
 # 11. Recommended comparison set
 
-For four tenants, compare at least:
+For the current four-tenant Extranet decision, compare at least:
 
-1. **Fully dedicated:** 2 LTMs/tenant/site + 2 or 3 independent WAFs/tenant/site.
-2. **Tenant LTM + shared active WAF pool:** retains tenant ingress boundary while sharing horizontally useful WAF capacity.
-3. **W3 dedicated preferred + shared reserve:** dedicated normal-state capacity plus shared failure/maintenance reserve.
-4. **Shared LTM + shared WAF service:** lowest device count, largest common-mode failure domain.
+1. **Fully dedicated:** existing tenant-specific 2-LTM pairs + 2 or 3 independent WAFs/tenant/site.
+2. **S1 tenant LTM + shared active WAF pool:** retains the existing tenant LTM/GTM boundary while sharing horizontally useful WAF capacity.
+3. **W3 dedicated preferred + shared reserve:** dedicated normal-state WAF capacity plus shared failure/maintenance reserve.
+4. **W2 clustered WAF:** useful where first-failure connection mirroring is more important than horizontal WAF scaling.
 
-W2 clustered WAF can be substituted in dedicated or shared models where first-failure connection mirroring is more important than horizontal WAF scaling.
+Treat **S2 shared-LTM consolidation** as a separate future architecture programme, not part of this decision.
 
 # 12. Architecture recommendation
 
-For business-critical four-tenant environments, avoid choosing solely on appliance count.
+For the current four-tenant Extranet estate:
 
-Use this decision order:
+1. retain the tenant LTM/GTM failure domains;
+2. define the maximum acceptable **cross-tenant WAF blast radius**;
+3. define whether the shared pool must survive N-1 or N-2;
+4. prove application-specific WAF policy isolation, canary and rollback;
+5. decide whether healthy local applications may use **remote WAF/dependency capacity**;
+6. validate AT1/AT2/AT3/AT4 recovery requirements;
+7. size Site 2 for the **largest credible simultaneous failover**;
+8. only then optimize WAF device count.
 
-1. define maximum acceptable **cross-tenant blast radius**;
-2. define whether each tenant needs local **N-1 or N-2 WAF capacity**;
-3. decide whether a healthy local application may use **remote WAF/dependency capacity**;
-4. validate stateless/stateful/WebSocket/non-web recovery requirements;
-5. size Site 2 for the **largest credible simultaneous failover**, especially for shared WAF/LTM capacity;
-6. only then optimize device count.
-
-The most balanced shared option to evaluate is often:
+The most balanced shared option to evaluate is:
 
 ~~~text
-tenant-specific LTM HA pair
+existing tenant-specific LTM HA pair
         |
 shared independent active WAF pool
         |
-tenant-specific / isolated CFW + ELB/app paths
+application-specific WAF policy
+        |
+tenant/application CFW + ELB/app paths
 ~~~
-
-because it preserves tenant ingress boundaries while sharing horizontally useful WAF capacity.
 
 The dedicated W1 model remains the clearest choice when tenant isolation and predictable blast radius are more important than appliance efficiency.
 
 W3 remains attractive when the enterprise specifically wants **dedicated normal-state WAFs plus shared failure/maintenance reserve**.
 
-Any shared topology should be downgraded if a single policy/configuration push, shared CFW, shared LTM, or reserve-capacity exhaustion can take multiple tenants down simultaneously.
+## 12.1 Longer-term target-state option — separate decision
+
+If a later programme explicitly considers LTM/GTM consolidation, compare security-zone/cloud-level stacks separately.
+
+A future option may share runtime by functional/security zone while retaining distinct tenant/policy boundaries, for example:
+
+- Extranet/user-facing application delivery;
+- Internet breakout/proxy/outbound services;
+- other regulatory or criticality domains where required.
+
+Do not treat that as the current four-tenant WAF-pooling recommendation.
