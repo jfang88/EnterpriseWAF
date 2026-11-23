@@ -94,6 +94,10 @@ External and internal DNS namespaces are separate control-plane dependencies. Th
 
 # 4. LTM failures
 
+For W3, distinguish **W3-L2** (two-device tenant LTM pair) from **W3-L3** (three-device Sync-Failover group). W3-L3 mainly improves maintenance and second-failure headroom; one traffic group/VIP is still active on one device at a time.
+
+
+
 | ID | Failure | Recovery path | Indicative timing | W1 | W2 | W3 | W4 |
 |---|---|---|---|---|---|---|---|
 | F08 | One LTM node in HA pair fails | BIG-IP DSC traffic group fails to peer; use redundant HA communication | T1; validate actual ARP/MAC/network convergence | **High resilience**; WAF pool unchanged | W2a N/A; W2b cluster remains behind surviving LTM | **High**; preferred/reserve pools unchanged | **High** |
@@ -366,8 +370,8 @@ Across all options, the most important residual risks are:
 3. **Manual passive-site application startup.**  
    This can dominate RTO and makes fast F5 failover irrelevant at site level.
 
-4. **LTM-pair total loss.**  
-   In any topology that depends on one tenant LTM pair, complete LTM loss removes access to every downstream WAF option behind it.
+4. **Tenant LTM service loss.**  
+   In W3-L2, loss of both tenant LTMs removes access to preferred and reserve WAFs. W3-L3 raises the local failure threshold and improves maintenance headroom, but a common-mode config/routing failure can still remove the whole tenant LTM service.
 
 5. **Common-mode WAF policy/configuration error.**  
    More WAF nodes do not help if the same bad policy is pushed everywhere.
