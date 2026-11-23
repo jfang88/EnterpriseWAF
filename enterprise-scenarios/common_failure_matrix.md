@@ -113,12 +113,25 @@ External and internal DNS namespaces are separate control-plane dependencies. Th
 | F15 | WAF CPU/throughput exhaustion | LTM sends to remaining/added members; reserve or site capacity may absorb load | T2 if monitor detects; scale/ops dependent | **Best horizontal scale** | Cluster capacity may be fixed; scaling less flexible | Good if reserve capacity available | Site 1 extra WAF gives bounded extra capacity; Site 2 does not have the same headroom |
 | F16 | Shared reserve WAFs exhausted by another tenant | No reserve available; tenant falls back to preferred survivors/site recovery | capacity event; T4/T5 if site move | N/A | N/A | **Critical W3 shared-capacity risk** | N/A unless spare shared |
 
-# 6. Backend/application-platform failures
+# 6. Platform firewall, backend and application-platform failures
+
+For private-cloud applications, model this path explicitly:
+
+```text
+WAF/LTM
+  -> platform/cloud firewall (CFW)
+  -> application ELB/service
+  -> VM / Kubernetes / PaaS workload
+```
+
+CFW and ELB are separate failure domains. A healthy WAF and healthy ELB do not make the application reachable when the CFW path, NAT/session state or policy is unavailable.
 
 | ID | Failure | Recovery path | Timing | W1 | W2 | W3 | W4 |
 |---|---|---|---|---|---|---|---|
 | F17 | One application VM/pod/member fails | ELB/application LB selects another member; WAF topology should not change | backend monitor timeout + T6 | No topology change | No topology change | No topology change | No topology change |
-| F18 | Local application ELB/cloud-edge path fails | WAF may see backend unavailable; GTM/app routing must select alternate ready service | backend detection + T4/T6 | Site/app failover unless alternate backend path exists | Same | Same | Same |
+| F18 | One CFW member/node fails but CFW HA remains healthy | CFW peer/state/routing takeover; retain same ELB/app path | **CFW-product-specific; measure HA/route convergence + T6** | No WAF topology change if CFW HA succeeds | Same | Same | Same |
+| F18A | Entire local CFW context/service/path fails while ELB/app remain healthy | Restore CFW, use approved alternate CFW/cross-site path, or fail application/site | CFW detection/recovery; otherwise T4/T5/T6 | Healthy app can become unreachable despite healthy WAF/LTM | Same | Same | Same |
+| F18B | Local application ELB/service fails behind healthy CFW | Select redundant ELB/service or alternate ready site | backend detection + T4/T6 | Site/app failover unless alternate backend path exists | Same | Same | Same |
 | F19 | Application is network-up but business-not-ready | Requires app-level readiness monitor; IP/port monitoring creates false green | potentially unbounded if only L4 monitor | All options equally vulnerable | Same | Same | Same |
 | F20 | Shared session/state store fails | Application-level recovery, alternate state store/site; WAF/LTM failover alone does not help | T6; data-platform RTO | Infrastructure may stay green while app fails | Same | Same | Same |
 | F21 | App B local service fails while App A remains healthy | A should use healthy B2/service VIP if supported; otherwise A may fail/cascade | dependency monitor + T6; X2 if remote B used | WAF topology irrelevant to east-west dependency unless path uses it | Same | Same | Same |
@@ -380,7 +393,10 @@ Across all options, the most important residual risks are:
 12. **Cross-site routing asymmetry/capacity.**  
     X2 adds resilience only if stateful firewalls, NAT, routes, capacity and return paths are deliberately engineered.
 
-13. **Cross-tenant shared infrastructure.**  
+13. **Platform/cloud firewall (CFW) blast radius.**  
+    A shared or tenant-wide CFW failure can make multiple otherwise-healthy ELBs/applications unreachable and can trigger several GTM/application failovers at once. CFW HA, NAT/state, routing and policy health must therefore be tested independently.
+
+14. **Cross-tenant shared infrastructure.**  
     Shared GTM/LTM/WAF/reserve components can expand one failure from one application suite to several tenants.
 
 # 15. Architecture conclusion
