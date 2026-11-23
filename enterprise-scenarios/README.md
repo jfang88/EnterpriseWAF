@@ -4,9 +4,10 @@ This folder contains the current authoritative EnterpriseWAF scenario-analysis s
 
 If you only want the current conclusions, start with:
 
-1. [Common failure matrix](./common_failure_matrix.md)
+1. **[End-to-end service impact and recoverability](./end_to_end_service_impact_analysis.md)** — primary failure/recovery story
 2. [Maintainability / change-management analysis](./maintainability_change_management_analysis.md)
 3. [Cross-site routing and dependency recovery](./cross_site_routing_and_dependency_recovery.md)
+4. [Common technical failure matrix](./common_failure_matrix.md) — component-level supporting detail
 
 ## Document map
 
@@ -14,7 +15,8 @@ If you only want the current conclusions, start with:
 |---|---|---|---|
 | [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md) | **Invariant input** | Stable enterprise context, application types, sites, tenant model, design objectives and 99.95 maintainability objective | Rare |
 | [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md) | **Variable input** | W1–W4 topologies, GTM health models, cross-site patterns, F5 timing assumptions, maintenance/change strategies | As designs change |
-| [common_failure_matrix.md](./common_failure_matrix.md) | **Derived output — Lens 1** | Failure scenarios, recovery paths, F5 timing drivers, critical failure points and resilience comparison | Regenerate when inputs change |
+| [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md) | **Primary derived output — Lens 1** | External/internal user impact, App A/B/C dependency impact, outage timing, recoverability and cross-site/local-only result | Regenerate when inputs change |
+| [common_failure_matrix.md](./common_failure_matrix.md) | **Technical appendix — Lens 1** | Component-level failure scenarios, F5 recovery paths/timing drivers and topology details supporting the service-impact analysis | Regenerate when inputs change |
 | [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md) | **Derived output — Lens 2** | Monitoring, firmware, WAF/LTM/GTM changes, blue-green/canary, draining, rollback and 99.95 maintainability assessment | Regenerate when inputs change |
 | [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md) | **Derived supporting study** | Cross-site WAF/LTM route-back and App A -> App B dependency recovery | Update when cross-site model changes |
 | [enterprise_scenario_analysis_prompt.md](./enterprise_scenario_analysis_prompt.md) | **Regeneration/orchestration prompt** | Instructions for consistently rebuilding both analysis lenses from the invariant + variable inputs | Update when analysis scope changes |
@@ -65,7 +67,7 @@ The baseline currently models:
 - private leased-line external-user ingress;
 - internal users potentially bypassing WAF;
 - on-prem, VM, Kubernetes and PaaS application hosting;
-- App A -> App B dependencies.
+- App A -> App B -> App C and shared-dependency chains.
 
 ## Application types
 
@@ -137,16 +139,18 @@ When re-running the work:
 1. Read [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md).
 2. Read [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md).
 3. Use [enterprise_scenario_analysis_prompt.md](./enterprise_scenario_analysis_prompt.md).
-4. Regenerate/review [common_failure_matrix.md](./common_failure_matrix.md).
-5. Regenerate/review [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md).
-6. Update [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md) if cross-site assumptions changed.
-7. Keep `round-2-analysis.md` as history rather than promoting new assumptions from it implicitly.
+4. Regenerate/review [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md).
+5. Regenerate/review [common_failure_matrix.md](./common_failure_matrix.md) as the technical supporting matrix.
+6. Regenerate/review [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md).
+7. Update [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md) if cross-site assumptions changed.
+8. Keep `round-2-analysis.md` as history rather than promoting new assumptions from it implicitly.
 
 ## Output locations
 
 For quick access:
 
-- **Failure/resilience result:** [common_failure_matrix.md](./common_failure_matrix.md)
+- **Primary failure/resilience result:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)
+- **Technical failure matrix:** [common_failure_matrix.md](./common_failure_matrix.md)
 - **Maintainability result:** [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md)
 - **Cross-site result:** [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md)
 - **Baseline:** [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)
