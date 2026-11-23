@@ -61,31 +61,43 @@ The two sites are separate infrastructure and routing failure domains.
 
 ---
 
-## 2.2 Tenant ingress
+## 2.2 Hosting-environment ingress
 
-For each tenant, **per site**:
+In this document, a **tenant means an internal hosting environment for a suite of enterprise systems/applications**. It does **not** mean an external customer or user organisation.
 
-- there are **4 incoming leased lines / routes**;
-- those leased lines terminate into the enterprise ingress environment;
-- there are **2 HA firewall pairs per tenant per site**;
-- the 4 lines/routes are distributed across the two HA firewall pairs;
-- primary and secondary routes/firewalls should be treated as separate ingress paths where the physical/provider design supports this.
+A hosting environment may contain multiple systems such as Application A, Application B and other related services. Those systems may share parts of the ingress, LTM, WAF, application-delivery and private-cloud infrastructure, so failures of shared components must be analysed for their multi-application blast radius.
 
-This same pattern is replicated in the other site.
+For each hosting environment, **per site**:
+
+- there are **4 incoming private leased lines / routes** used primarily by external users to reach applications in that hosting environment;
+- the leased lines terminate into the enterprise ingress environment;
+- there are **2 HA firewall pairs per hosting environment per site**;
+- the 4 lines/routes are distributed across the two HA firewall pairs and associated primary/secondary routing paths;
+- the external customer/user population is deliberately distributed across the four leased-line paths so that loss of a single line or route should affect only the users assigned/routed through that path, rather than the full external population;
+- the exact percentage of users affected by a line failure depends on the real population/routing allocation and must be measured rather than assumed to be exactly 25%;
+- primary and secondary routes/firewalls should be treated as separate ingress paths only where the physical carrier, termination, route and firewall design provides genuine independence.
+
+This same ingress pattern is replicated in the other site.
 
 Conceptually:
 
 ```text
-Tenant / external network
-
-Line 1 ----+
-Line 2 ----+--> Firewall HA Pair A ----+
-                                          |
-Line 3 ----+                              +--> Firewall-owned application VIP
-Line 4 ----+--> Firewall HA Pair B ----+
+External customer/user population
+        |
+        +---- user population / route group 1 ---- Line 1 ----+
+        +---- user population / route group 2 ---- Line 2 ----+--> Firewall HA Pair A
+        |                                                       |
+        +---- user population / route group 3 ---- Line 3 ----+--> Firewall HA Pair B
+        +---- user population / route group 4 ---- Line 4 ----+
+                                                                |
+                                                     Firewall-owned application VIP(s)
+                                                                |
+                                                    suite of hosted applications
 ```
 
-Do not assume the four lines are truly independent unless route, provider, termination and firewall failure domains are confirmed.
+The four leased lines are therefore **access failure domains for subsets of external users**, while the hosting environment is the shared platform containing multiple applications.
+
+Do not assume the four lines are truly independent unless carrier, physical route, termination, routing and firewall failure domains are confirmed. Also do not assume that losing one line affects only one application: the affected external-user subset may lose access to multiple applications hosted in the same environment.
 
 ---
 
@@ -133,10 +145,10 @@ These GTM/DNS services may all be authoritative for the relevant application zon
 
 GTM should return a healthy, client-reachable application VIP.
 
-## 3.1 DNS option D1 - external client / tenant DNS queries GTM directly
+## 3.1 DNS option D1 - external client / customer DNS queries GTM directly
 
 ```text
-External client / tenant resolver
+External client / customer resolver
           |
           | DNS query
           v
@@ -146,12 +158,12 @@ Enterprise GTM/DNS
 Healthy Site 1 or Site 2 firewall VIP
 ```
 
-## 3.2 DNS option D2 - corporate / tenant DNS queries enterprise GTM
+## 3.2 DNS option D2 - corporate / customer DNS queries enterprise GTM
 
 ```text
 External client
       |
-Tenant / corporate recursive DNS
+Customer / corporate recursive DNS
       |
 delegation or conditional forwarding
       |
@@ -190,6 +202,8 @@ AND application ready
 Analyse at least these actors separately.
 
 ## A1 - External user
+
+External users belong to customer/user populations that are distributed across the four leased-line access paths. A failure may therefore affect only one subset of external users while the application itself remains healthy and reachable by other external populations and by internal users.
 
 Typical path:
 
@@ -470,8 +484,8 @@ Loss of the cross-site network should remove contingency capacity but should not
 
 ## Decision D - DNS access model
 
-- **D1:** tenant/client resolver queries GTM directly.
-- **D2:** tenant/corporate DNS forwards/delegates to enterprise GTM.
+- **D1:** customer/client resolver queries GTM directly.
+- **D2:** customer/corporate DNS forwards/delegates to enterprise GTM.
 
 This decision is orthogonal to the WAF/cross-site model.
 
@@ -554,12 +568,21 @@ Apply the same failures to every selected architecture option.
 ## F2 - leased-line / route failures
 
 - one leased line fails;
+- one customer/user population assigned to that line loses access while other leased-line populations continue;
 - two leased lines sharing a route/provider fail;
 - one primary route fails;
 - route to one firewall pair fails;
+- a shared carrier/physical path defeats the assumed independence of multiple logical leased lines;
 - all ingress connectivity to one site fails.
 
-Include percentage of tenant users affected where applicable.
+For each failure, identify:
+- which external-user population(s) are affected;
+- which applications in the hosting environment those users can no longer reach;
+- whether unaffected external populations can still use the same applications;
+- whether internal users remain unaffected;
+- whether traffic can use another leased line automatically or requires customer/network reconfiguration.
+
+Quantify the percentage of the external customer/user population affected from the actual routing/population distribution rather than assuming an equal 25% split.
 
 ## F3 - firewall failures
 
@@ -697,6 +720,8 @@ For every scenario, produce a table with:
 ---
 
 # 13. Cascading-failure test
+
+Shared ingress components can also create population-level rather than application-level outages. A leased-line failure should first be analysed as **loss of reachability for a subset of external users**, not as an application failure. If the same hosting environment carries multiple applications, that same user subset may lose access to several applications at once even though all applications remain healthy.
 
 For every application dependency scenario, explicitly ask:
 
@@ -895,6 +920,6 @@ Run at least:
 9. Site 1 is lost entirely;
 10. passive Site 2 application is not yet started;
 11. internal user can reach B internally while external WAF path is unavailable;
-12. GTM returns a healthy VIP that one tenant cannot route to.
+12. GTM returns a healthy VIP that one customer/leased-line population cannot route to.
 
 The analysis should show exactly where X2 prevents a small failure from turning into application or site failover, and where X2 introduces additional routing, capacity or operational risk.
