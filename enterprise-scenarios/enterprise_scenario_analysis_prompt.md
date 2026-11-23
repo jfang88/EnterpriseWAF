@@ -66,13 +66,14 @@ Use the invariant and variable files above.
 
 Maintain [high_level_architecture.md](./high_level_architecture.md) as the canonical entity/relationship view.
 
-It must show an explicit **architecture ownership boundary** separating GTM/LTM/network owner decisions, EnterpriseWAF decisions, and platform/application decisions.
+It must show explicit **security and ownership boundaries**: the enterprise internal network is outside the private cloud; a distinct internal firewall separates it from the private-cloud CFW; and GTM/LTM/network, EnterpriseWAF, and platform/application ownership must remain distinguishable.
 
 It must show:
 
 - external human/API consumers;
 - external/customer DNS and enterprise GTM;
-- internal users/systems and internal enterprise DNS;
+- internal users/systems and internal enterprise DNS **outside the private-cloud boundary**;
+- the distinct **internal firewall** separating the enterprise internal network from the private-cloud CFW;
 - external/private-network ingress paths;
 - edge firewall/VIP;
 - LTM;
@@ -261,7 +262,7 @@ Analyse:
 - external systems/API clients using the external namespace;
 - internal users using **internal enterprise DNS**, with selected internal service names optionally delegated/forwarded to GTM;
 - internal applications resolving App B/App C/internal service endpoints through internal DNS and, where configured, GTM;
-- internal users that may bypass WAF and connect through internal LTM/service VIP -> CFW -> ELB/service endpoints for private-cloud applications;
+- internal users that may bypass WAF and connect through internal LTM/service VIP -> **internal firewall -> private-cloud CFW** -> ELB/service endpoints for private-cloud applications;
 - Application A -> Application B -> Application C and shared-dependency chains;
 - non-web services that bypass WAF.
 

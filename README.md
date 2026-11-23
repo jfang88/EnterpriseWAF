@@ -28,6 +28,16 @@ Then use:
 
 - [Deployment options, resilience and four-tenant cost summary](./enterprise-scenarios/deployment_options_resilience_summary.md) for the detailed option comparison
 
+## Management artifacts
+
+The current management presentation is version-controlled under [management-artifacts/](./management-artifacts/):
+
+- [PowerPoint management summary](./management-artifacts/EnterpriseWAF_Management_Summary.pptx)
+- [PDF management summary](./management-artifacts/EnterpriseWAF_Management_Summary.pdf)
+- [End-to-end topology diagram](./management-artifacts/diagrams/EnterpriseWAF_End_to_End_Topology.svg)
+
+Use these stable filenames from `main`; Git history provides versioning. Older `_v2/_v3/_v4/_v5` files and Base64 fragments on working branches are non-authoritative.
+
 ## Current analysis structure
 
 The analysis is deliberately separated into **stable inputs**, **changeable inputs**, and **derived outputs** so that new design options can be evaluated without constantly shifting the baseline.
@@ -76,6 +86,8 @@ The current baseline assumes:
 - external and internal DNS namespaces are separate;
 - internal users/applications use internal enterprise DNS, with selected internal service names optionally delegated/forwarded to GTM;
 - internal users may bypass the WAF and use internal service paths;
+- internal users/desktops, internal DNS and internal LTM/service VIPs are outside the private-cloud boundary;
+- a distinct **internal firewall** separates the enterprise internal network from the private-cloud CFW;
 - private-cloud application paths include a distinct platform/cloud firewall (CFW) immediately in front of the ELB/service tier;
 - applications may run on-premises, on VMs, Kubernetes or PaaS;
 - Application A -> Application B -> Application C and shared-dependency chains are treated as first-class resilience scenarios.

@@ -130,6 +130,7 @@ Internal user / App A
   -> internal enterprise DNS
   -> optional internal GTM
   -> internal service/LTM VIP
+  -> internal firewall
   -> CFW where private-cloud hosted
   -> ELB/service
   -> App B / App C
@@ -291,6 +292,7 @@ For stateful and WebSocket applications, the application design can dominate the
 |---|---|---|---|---|---|
 | **External DNS/GTM** | new resolution affected | usually unaffected if internal namespace independent | redundant DNS/GTM | alternate authoritative path | external-only outage if namespaces separated |
 | **Internal DNS/GTM** | external may remain healthy | internal users/apps can fail | redundant internal DNS/GTM | remote internal endpoint if designed | many apps can fail dependencies together |
+| **Internal firewall** | external/extranet path may remain healthy | internal users can lose private-cloud reachability | firewall HA / alternate internal path | alternate site only if internal routing is designed | internal-only outage can be mistaken for app failure |
 | **Leased line/VPN** | subset of external population affected | usually no impact | alternate circuit/routing | alternate site only if required | user-population blast radius |
 | **Edge firewall member** | transient/no impact if HA succeeds | depends on path | firewall HA | alternate ingress/site | NAT/state loss can reset connections |
 | **Whole edge firewall pair/path** | external ingress unavailable | internal may remain healthy | alternate local edge path | GTM/site | external outage while app stays healthy |

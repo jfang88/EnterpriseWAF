@@ -97,6 +97,8 @@ External and internal DNS namespaces are separate control-plane dependencies. Th
 | F05 | One leased line fails | Only user population routed through that line loses reachability unless customer/network reroutes | carrier/routing convergence; not a WAF recovery | App remains healthy for other users | Same | Same | Same |
 | F06 | One edge-firewall member fails | Firewall HA pair takes over VIP/state according to firewall design | firewall HA timing, outside F5 WAF/LTM timing | Downstream F5 stack unchanged | Same | Same | Same |
 | F07 | Entire edge-firewall pair/path fails | Remaining leased-line/firewall path or alternate site must be reachable; GTM cannot solve missing network reachability by itself | routing/firewall convergence or T4 if site selection changes | Potential partial/full external outage | Same | Same | Same |
+| F07A | One internal-firewall member fails but internal-firewall HA remains healthy | Internal firewall peer/state/routing takeover; keep same internal service path | firewall-product-specific; measure + T6 | External path normally unaffected; internal flows may reset | Same | Same | Same |
+| F07B | Entire internal-firewall service/path fails | Restore internal firewall or use an approved alternate internal/site path; do not confuse with CFW failure | firewall/routing recovery; T4/T5/T6 only if endpoint/site changes | Internal users may lose private-cloud reachability while external path stays healthy | Same | Same | Same |
 
 # 4. LTM failures
 
