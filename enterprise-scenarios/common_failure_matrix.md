@@ -47,7 +47,18 @@ These are modelling categories, not guaranteed SLAs.
 | **T5 — warm/cold/manual** | operator/startup/configuration dependent; may be minutes or longer |
 | **T6 — application recovery** | application-specific retry/reconnect/session/state/replay behavior; can dominate RTO even after infrastructure is healthy |
 
-# 3. Control-plane and ingress failures
+# 3. Control-plane, namespace and ingress failures
+
+External and internal DNS namespaces are separate control-plane dependencies. The same failure can have very different user/application outcomes depending on which namespace is affected.
+
+| ID | Failure | Detection / recovery path | Indicative timing | W1 | W2 | W3 | W4 |
+|---|---|---|---|---|---|---|---|
+| F00A | External namespace/GTM resolution fails | Remaining external DNS/GTM path must answer; cached/existing sessions may continue | T3/T4 + cache | No direct WAF-topology difference | Same | Same | Same |
+| F00B | Internal enterprise DNS fails | Restore internal resolver service; GTM may be healthy but unreachable via failed resolver path | resolver recovery + T6 | No direct WAF-topology difference | Same | Same | Same |
+| F00C | Internal DNS delegation/conditional forward to GTM fails | Restore forwarding/delegation; directly resolved internal names may remain healthy | DNS recovery + T6 | No direct WAF-topology difference | Same | Same | Same |
+| F00D | Internal GTM returns unreachable/wrong-site endpoint | Correct health/reachability selection; clients/apps must re-resolve/reconnect | T3/T4/T6 | No direct WAF-topology difference | Same | Same | Same |
+
+
 
 | ID | Failure | Detection / recovery path | Indicative timing | W1 | W2 | W3 | W4 |
 |---|---|---|---|---|---|---|---|
