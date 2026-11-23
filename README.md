@@ -149,29 +149,22 @@ The archive contains the superseded Design A/Design B architecture paper, V4/V3 
 
 ## Branch strategy
 
-The repository currently has only two branches:
+`main` is the **single authoritative branch** for the EnterpriseWAF documentation.
 
-- `main`
-- `analysis/enterprise-scenarios-round-2`
+For future changes:
 
-That is enough.
+1. create one short-lived working branch for a coherent change;
+2. review it in a pull request;
+3. merge it back to `main`;
+4. retire the working branch after merge;
+5. avoid long-lived branches for individual analysis lenses or Markdown files.
 
-Recommended operating model:
+## Current status
 
-1. keep `main` as the single authoritative branch;
-2. use at most **one active analysis/change branch** for a coherent review;
-3. do not create a new branch for each analysis lens or MD file;
-4. merge the current PR when the authoritative set is accepted;
-5. delete the analysis branch after merge;
-6. make future coherent updates in a new short-lived branch/PR only when needed.
+The consolidated enterprise scenario analysis is now published on `main`.
 
-The current complexity is mainly document history/duplication, not branch count.
+Use these as the primary entry points:
 
-## Current development status
-
-The current scenario-analysis rework is being developed on:
-
-- branch: `analysis/enterprise-scenarios-round-2`
-- draft PR: [Round 2: enterprise WAF scenario and failure analysis](https://github.com/jfang88/EnterpriseWAF/pull/1)
-
-Once merged, the relative links in this README will continue to point to the authoritative files on the default branch.
+- [Repository README](./README.md)
+- [Enterprise scenario analysis index](./enterprise-scenarios/README.md)
+- [End-to-end service impact and recoverability analysis](./enterprise-scenarios/end_to_end_service_impact_analysis.md) — **primary resilience/recovery document**
