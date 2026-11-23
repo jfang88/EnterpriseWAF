@@ -4,15 +4,17 @@ This folder contains the current authoritative EnterpriseWAF scenario-analysis s
 
 If you only want the current conclusions, start with:
 
-1. **[End-to-end service impact and recoverability](./end_to_end_service_impact_analysis.md)** — primary failure/recovery story
-2. [Maintainability / change-management analysis](./maintainability_change_management_analysis.md)
-3. [Cross-site routing and dependency recovery](./cross_site_routing_and_dependency_recovery.md)
-4. [Common technical failure matrix](./common_failure_matrix.md) — component-level supporting detail
+1. **[Deployment options, resilience and four-tenant cost summary](./deployment_options_resilience_summary.md)** — fastest architecture/topology comparison
+2. **[End-to-end service impact and recoverability](./end_to_end_service_impact_analysis.md)** — primary user/service failure story
+3. [Maintainability / change-management analysis](./maintainability_change_management_analysis.md)
+4. [Cross-site routing and dependency recovery](./cross_site_routing_and_dependency_recovery.md)
+5. [Common technical failure matrix](./common_failure_matrix.md) — component-level supporting detail
 
 ## Document map
 
 | File | Type | Purpose | Change frequency |
 |---|---|---|---|
+| [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md) | **Primary architecture summary** | W1-W4, dedicated/shared four-tenant cost, N-1/N-2/tier failure tolerance, cross-site comparison and application-type resilience | Regenerate when topology/capacity/tenancy assumptions change |
 | [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md) | **Invariant input** | Stable enterprise context, application types, sites, tenant model, design objectives and 99.95 maintainability objective | Rare |
 | [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md) | **Variable input** | W1–W4 topologies, GTM health models, cross-site patterns, F5 timing assumptions, maintenance/change strategies | As designs change |
 | [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md) | **Primary derived output — Lens 1** | External/internal user impact, App A/B/C dependency impact, outage timing, recoverability and cross-site/local-only result | Regenerate when inputs change |
@@ -154,6 +156,7 @@ When re-running the work:
 
 For quick access:
 
+- **Architecture/topology summary:** [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md)
 - **Primary failure/resilience result:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)
   - **Timing summary:** see sections 4.2–4.4 for validated LTM/GTM/DNS recovery windows, CFW recovery effects, and cache/connection behavior
 - **Technical failure matrix:** [common_failure_matrix.md](./common_failure_matrix.md)
