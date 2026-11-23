@@ -20,6 +20,7 @@ If you only want the current conclusions, start with:
 | [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md) | **Derived output — Lens 2** | Monitoring, firmware, WAF/LTM/GTM changes, blue-green/canary, draining, rollback and 99.95 maintainability assessment | Regenerate when inputs change |
 | [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md) | **Derived supporting study** | Cross-site WAF/LTM route-back and App A -> App B dependency recovery | Update when cross-site model changes |
 | [enterprise_scenario_analysis_prompt.md](./enterprise_scenario_analysis_prompt.md) | **Regeneration/orchestration prompt** | Instructions for consistently rebuilding both analysis lenses from the invariant + variable inputs | Update when analysis scope changes |
+| [appendix_ltm_waf_2_vs_3_nodes.md](./appendix_ltm_waf_2_vs_3_nodes.md) | **Supporting appendix** | Explains 2 vs 3 LTM/WAF nodes, DSC active/standby vs active-active traffic groups, and independent load-balanced WAF pools | Update when node-count/HA design changes |
 
 ## The key rule
 
@@ -67,6 +68,7 @@ The baseline currently models:
 - separate external and internal DNS namespaces;
 - internal users/applications using internal enterprise DNS, with selected internal service names optionally delegated/forwarded to GTM;
 - internal users potentially bypassing WAF;
+- a distinct platform/cloud firewall (CFW) layer in front of private-cloud ELB/service endpoints;
 - on-prem, VM, Kubernetes and PaaS application hosting;
 - App A -> App B -> App C and shared-dependency chains.
 
@@ -116,7 +118,9 @@ With or without ingress LTM:
 
 ### W3 — tenant WAFs + shared reserve
 
-    Tenant LTM
+The **baseline is two LTMs per site** in a 2-device Sync-Failover pair (**W3-L2**). A 3-device Sync-Failover group (**W3-L3**) is an optional comparison only when additional maintenance/second-failure headroom is being evaluated.
+
+    Tenant LTM DSC service
         |
     preferred WAFs
         |
@@ -151,12 +155,14 @@ When re-running the work:
 For quick access:
 
 - **Primary failure/resilience result:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)
+  - **Timing summary:** see sections 4.2–4.4 for validated LTM/GTM/DNS recovery windows, CFW recovery effects, and cache/connection behavior
 - **Technical failure matrix:** [common_failure_matrix.md](./common_failure_matrix.md)
 - **Maintainability result:** [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md)
 - **Cross-site result:** [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md)
 - **Baseline:** [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)
 - **Changeable assumptions:** [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)
 - **Regeneration prompt:** [enterprise_scenario_analysis_prompt.md](./enterprise_scenario_analysis_prompt.md)
+- **2 vs 3 LTM/WAF appendix:** [appendix_ltm_waf_2_vs_3_nodes.md](./appendix_ltm_waf_2_vs_3_nodes.md)
 
 ## Archive and specialist references
 

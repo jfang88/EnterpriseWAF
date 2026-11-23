@@ -43,9 +43,34 @@ These are modelling categories, not guaranteed SLAs.
 | **T1 — HA peer failover** | roughly 3+ seconds peer-loss detection under common/default-style BIG-IP HA behavior, plus traffic-group/network convergence; validate in production design |
 | **T2 — local pool-member health** | often up to the configured LTM monitor timeout; many monitor types default around 5s interval / 16s timeout |
 | **T3 — direct GTM monitor** | BIG-IP DNS direct HTTP/HTTPS/TCP monitoring commonly defaults around 30s interval / 120s timeout unless tuned |
-| **T4 — DNS/site convergence** | health detection + GTM decision + TTL/cache + client re-resolution/retry + alternate-site readiness |
+| **T4 — DNS/site convergence** | health detection + GTM decision + residual DNS TTL/cache + client re-resolution/retry + alternate-site readiness. F5 GTM A-record pool TTL default is 30s; direct GTM monitor defaults can be 30s/120s |
 | **T5 — warm/cold/manual** | operator/startup/configuration dependent; may be minutes or longer |
 | **T6 — application recovery** | application-specific retry/reconnect/session/state/replay behavior; can dominate RTO even after infrastructure is healthy |
+
+## 2.1 Validated numeric planning windows
+
+Use these explicit planning calculations where applicable:
+
+| Recovery pattern | Planning timing |
+|---|---|
+| BIG-IP HA peer/member takeover | **~3s+** peer-loss detection plus traffic-group/network convergence and T6 for affected flows |
+| LTM withdraws one failed pool/WAF member | **up to ~16s + T6** with common 5s/16s monitor defaults; no DNS term if VIP is unchanged |
+| One CFW HA member fails | **Product-specific / measured**; target seconds-scale local HA + T6 if connection state is lost; no DNS term if path/VIP remains stable |
+| Whole CFW context fails and through-path health withdraws the site | **~46s + T6** illustrative fast-health case or **up to ~150s + T6** direct-GTM-default case; add T5 if alternate app not ready |
+| CFW false-green (front-end healthy, app unreachable through CFW) | **Potentially unbounded** until through-path readiness or operator detects the failure |
+| X2A remote WAF behind surviving local LTM | **~16s-class + T6**, assuming remote member already healthy/policy-ready **and the target-site CFW/ELB/app path is healthy**; no DNS term |
+| GTM site move using fast LTM-health-informed state | illustrative **~16s health + up to 30s residual TTL = ~46s + T6**, plus unmeasured iQuery/propagation |
+| GTM site move using default direct GTM monitor | **up to ~120s health + up to 30s residual TTL = ~150s + T6** |
+| Manual passive-site startup | **T5 + ~46–150s + T6** depending health model; T5 may dominate |
+| App B local-preferred -> B2 through stable LTM service VIP | **~16s-class + App A retry T6** |
+| App B1 -> B2 through DNS/GTM | **~46–150s + T6**, plus application-specific DNS/connection-pool caching |
+
+Important:
+
+- a 30s DNS TTL does not migrate an existing TCP/WebSocket connection;
+- clients with cached old answers can continue to select the failed VIP until the remaining TTL expires;
+- applications can retain addresses/connections beyond authoritative TTL;
+- after LTM marks a member down, new traffic uses healthy members, but established connections on the failed member can still reset/hang until client/application recovery.
 
 # 3. Control-plane, namespace and ingress failures
 
@@ -72,6 +97,10 @@ External and internal DNS namespaces are separate control-plane dependencies. Th
 
 # 4. LTM failures
 
+For W3, distinguish **W3-L2** (two-device tenant LTM pair) from **W3-L3** (three-device Sync-Failover group). W3-L3 mainly improves maintenance and second-failure headroom; one traffic group/VIP is still active on one device at a time.
+
+
+
 | ID | Failure | Recovery path | Indicative timing | W1 | W2 | W3 | W4 |
 |---|---|---|---|---|---|---|---|
 | F08 | One LTM node in HA pair fails | BIG-IP DSC traffic group fails to peer; use redundant HA communication | T1; validate actual ARP/MAC/network convergence | **High resilience**; WAF pool unchanged | W2a N/A; W2b cluster remains behind surviving LTM | **High**; preferred/reserve pools unchanged | **High** |
@@ -91,12 +120,25 @@ External and internal DNS namespaces are separate control-plane dependencies. Th
 | F15 | WAF CPU/throughput exhaustion | LTM sends to remaining/added members; reserve or site capacity may absorb load | T2 if monitor detects; scale/ops dependent | **Best horizontal scale** | Cluster capacity may be fixed; scaling less flexible | Good if reserve capacity available | Site 1 extra WAF gives bounded extra capacity; Site 2 does not have the same headroom |
 | F16 | Shared reserve WAFs exhausted by another tenant | No reserve available; tenant falls back to preferred survivors/site recovery | capacity event; T4/T5 if site move | N/A | N/A | **Critical W3 shared-capacity risk** | N/A unless spare shared |
 
-# 6. Backend/application-platform failures
+# 6. Platform firewall, backend and application-platform failures
+
+For private-cloud applications, model this path explicitly:
+
+```text
+WAF/LTM
+  -> platform/cloud firewall (CFW)
+  -> application ELB/service
+  -> VM / Kubernetes / PaaS workload
+```
+
+CFW and ELB are separate failure domains. A healthy WAF and healthy ELB do not make the application reachable when the CFW path, NAT/session state or policy is unavailable.
 
 | ID | Failure | Recovery path | Timing | W1 | W2 | W3 | W4 |
 |---|---|---|---|---|---|---|---|
 | F17 | One application VM/pod/member fails | ELB/application LB selects another member; WAF topology should not change | backend monitor timeout + T6 | No topology change | No topology change | No topology change | No topology change |
-| F18 | Local application ELB/cloud-edge path fails | WAF may see backend unavailable; GTM/app routing must select alternate ready service | backend detection + T4/T6 | Site/app failover unless alternate backend path exists | Same | Same | Same |
+| F18 | One CFW member/node fails but CFW HA remains healthy | CFW peer/state/routing takeover; retain same ELB/app path | **CFW-product-specific; measure HA/route convergence + T6** | No WAF topology change if CFW HA succeeds | Same | Same | Same |
+| F18A | Entire local CFW context/service/path fails while ELB/app remain healthy | Restore CFW, use approved alternate CFW/cross-site path, or fail application/site | CFW detection/recovery; otherwise T4/T5/T6 | Healthy app can become unreachable despite healthy WAF/LTM | Same | Same | Same |
+| F18B | Local application ELB/service fails behind healthy CFW | Select redundant ELB/service or alternate ready site | backend detection + T4/T6 | Site/app failover unless alternate backend path exists | Same | Same | Same |
 | F19 | Application is network-up but business-not-ready | Requires app-level readiness monitor; IP/port monitoring creates false green | potentially unbounded if only L4 monitor | All options equally vulnerable | Same | Same | Same |
 | F20 | Shared session/state store fails | Application-level recovery, alternate state store/site; WAF/LTM failover alone does not help | T6; data-platform RTO | Infrastructure may stay green while app fails | Same | Same | Same |
 | F21 | App B local service fails while App A remains healthy | A should use healthy B2/service VIP if supported; otherwise A may fail/cascade | dependency monitor + T6; X2 if remote B used | WAF topology irrelevant to east-west dependency unless path uses it | Same | Same | Same |
@@ -163,14 +205,16 @@ For approved non-web traffic:
 ```text
 Client/system
  -> firewall
- -> LTM/ELB/service VIP
+ -> LTM/service VIP
+ -> CFW where private-cloud hosted
+ -> ELB/service endpoint
  -> application
 ```
 
 Consequences:
 
 - WAF node/tier failure may have **no direct effect**.
-- LTM, firewall, DNS, route, ELB and backend failures still matter.
+- LTM, edge firewall, CFW, DNS, route, ELB and backend failures still matter.
 - Recovery behavior depends on the protocol/client.
 - Long-lived TCP/SFTP/middleware connections may benefit from LTM connection mirroring where supported, but client retry/reconnect should still be implemented.
 - Do not use a WAF outage as a reason to declare a non-web application down when its approved path bypasses WAF.
@@ -193,7 +237,7 @@ Infrastructure resilience cannot compensate for missing application recovery beh
 
 If "stateless" applications store critical session/workflow state only in process memory:
 
-- WAF/ELB/backend failover can log users out or lose workflows;
+- WAF/CFW/ELB/backend-path failover can log users out or lose workflows when session/state is not portable;
 - the effective service RTO becomes session/application recovery rather than F5 failover time;
 - topology ratings should be downgraded from highly recoverable to stateful behavior.
 
@@ -331,8 +375,8 @@ Across all options, the most important residual risks are:
 3. **Manual passive-site application startup.**  
    This can dominate RTO and makes fast F5 failover irrelevant at site level.
 
-4. **LTM-pair total loss.**  
-   In any topology that depends on one tenant LTM pair, complete LTM loss removes access to every downstream WAF option behind it.
+4. **Tenant LTM service loss.**  
+   In W3-L2, loss of both tenant LTMs removes access to preferred and reserve WAFs. W3-L3 raises the local failure threshold and improves maintenance headroom, but a common-mode config/routing failure can still remove the whole tenant LTM service.
 
 5. **Common-mode WAF policy/configuration error.**  
    More WAF nodes do not help if the same bad policy is pushed everywhere.
@@ -358,7 +402,10 @@ Across all options, the most important residual risks are:
 12. **Cross-site routing asymmetry/capacity.**  
     X2 adds resilience only if stateful firewalls, NAT, routes, capacity and return paths are deliberately engineered.
 
-13. **Cross-tenant shared infrastructure.**  
+13. **Platform/cloud firewall (CFW) blast radius.**  
+    A shared or tenant-wide CFW failure can make multiple otherwise-healthy ELBs/applications unreachable and can trigger several GTM/application failovers at once. CFW HA, NAT/state, routing and policy health must therefore be tested independently.
+
+14. **Cross-tenant shared infrastructure.**  
     Shared GTM/LTM/WAF/reserve components can expand one failure from one application suite to several tenants.
 
 # 15. Architecture conclusion

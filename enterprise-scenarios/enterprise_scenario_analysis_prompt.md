@@ -118,6 +118,23 @@ For every change scenario identify:
 
 Do not deliberately create configuration drift between HA peers merely to simulate blue-green when the product expects synchronized HA configuration. Prefer a separate pool member, virtual/pool, policy staging, reserve WAF, extra WAF, application version, or site as the canary/blue-green boundary.
 
+### No-cross-site cascading-failure requirement
+
+For every scenario where cross-site capability improves recovery, also show the **no-cross-site** outcome.
+
+Explicitly trace whether the absence of cross-site routing causes:
+
+- WAF failure -> whole application/site failover;
+- front-end failure -> healthy application move;
+- B1 dependency failure -> A/C/D readiness failure;
+- multiple application GTM withdrawals;
+- Site 2 capacity surge;
+- reconnect/login storm;
+- dependency/database/identity overload;
+- manual DR.
+
+Quantify the change in recovery class/timing where possible (for example ~16s-class local recovery versus ~46–150s+ site recovery).
+
 ## Mandatory cross-site recovery study
 
 Also read and regenerate/update when relevant:
@@ -164,6 +181,18 @@ Classify recoverability where useful:
 - **R4** — manual recovery;
 - **R5** — not recoverable with current design.
 
+## Default LTM count
+
+The enterprise baseline is **two LTMs per site** in an HA/Sync-Failover pair wherever an ingress/tenant LTM tier is used.
+
+A three-device LTM DSC group is an optional comparison only. Do not silently promote it into W1-W4 baseline calculations.
+
+When node-count discussion is needed, use [appendix_ltm_waf_2_vs_3_nodes.md](./appendix_ltm_waf_2_vs_3_nodes.md) and distinguish:
+
+- DSC failover groups, where one traffic group/VIP has one active owner;
+- multiple traffic groups active on different DSC devices;
+- independent WAF pool members behind an LTM, where all healthy WAF members can process the same service concurrently.
+
 ## Mandatory actor/path dimensions
 
 Analyse:
@@ -172,11 +201,35 @@ Analyse:
 - external systems/API clients using the external namespace;
 - internal users using **internal enterprise DNS**, with selected internal service names optionally delegated/forwarded to GTM;
 - internal applications resolving App B/App C/internal service endpoints through internal DNS and, where configured, GTM;
-- internal users that may bypass WAF and connect directly to internal LTM/ELB/service endpoints;
+- internal users that may bypass WAF and connect through internal LTM/service VIP -> CFW -> ELB/service endpoints for private-cloud applications;
 - Application A -> Application B -> Application C and shared-dependency chains;
 - non-web services that bypass WAF.
 
 Treat **external namespace resolution** and **internal namespace resolution** as separate failure domains. Do not assume a DNS/GTM failure affects both unless the architecture actually shares that failure domain.
+
+## Mandatory platform-firewall layer
+
+For private-cloud hosted applications, model the inline path as:
+
+```text
+WAF/LTM
+  -> platform/cloud firewall (CFW)
+  -> application ELB/service
+  -> VM / Kubernetes / PaaS workload
+```
+
+Treat CFW and ELB as separate health, routing, NAT/state, change and failure domains.
+
+For CFW failures state:
+
+- whether external and internal flows share the same CFW;
+- CFW HA/member behavior;
+- full CFW context/service failure impact;
+- whether a healthy ELB/app becomes unreachable;
+- whether multiple applications behind the same CFW fail together;
+- whether cross-site routing can reach the alternate CFW/ELB;
+- whether GTM/app health correctly detects the failure;
+- whether CFW failure triggers unnecessary multi-application/site failover.
 
 ## Mandatory application types
 
@@ -206,16 +259,17 @@ Cover at least:
 11. entire local WAF service;
 12. common-mode WAF policy/configuration error;
 13. shared reserve exhaustion;
-14. cloud firewall / ELB;
-15. VM/Kubernetes member/cluster;
-16. application readiness;
-17. session/state store;
-18. App A -> App B -> App C dependency;
-19. cross-site route;
-20. asymmetric cross-site path;
-21. entire site;
-22. passive site not ready;
-23. long-lived connection recovery.
+14. platform/cloud firewall (CFW) member/HA service and full CFW context;
+15. application ELB/service tier;
+16. VM/Kubernetes member/cluster;
+17. application readiness;
+18. session/state store;
+19. App A -> App B -> App C dependency;
+20. cross-site route;
+21. asymmetric cross-site path;
+22. entire site;
+23. passive site not ready;
+24. long-lived connection recovery.
 
 ## GTM analysis
 
@@ -237,7 +291,48 @@ For active/active/locality designs, analyse Topology load balancing only when LD
 
 Never assume the site containing the GTM that answered the query is automatically the preferred application site.
 
+## CFW timing/recovery requirement
+
+For private-cloud paths, explicitly analyse:
+
+- one CFW HA member failure with the same local service path retained;
+- complete local CFW context/service failure;
+- CFW false-green where WAF/front-end is healthy but CFW -> ELB/application is unreachable.
+
+Do not assign an invented numeric CFW HA default. Record CFW HA timing as **measured/TBD** until the firewall product/configuration is known.
+
+However, show the service-level consequence:
+
+- successful CFW HA should remain local with **no DNS TTL**;
+- whole CFW failure that triggers site recovery uses the existing GTM/DNS recovery timing (~46–150s + T6 depending health model);
+- false-green CFW can be unbounded until through-path readiness detects it.
+
 ## F5 timing rules
+
+### Numeric recovery timing requirement
+
+The primary output must contain an explicit timing table with numeric planning windows where defaults support them.
+
+At minimum show:
+
+- BIG-IP HA peer: ~3s+ detection plus convergence;
+- LTM member/WAF member: up to ~16s with common 5s/16s defaults;
+- GTM DNS A-record pool TTL: 30s default;
+- direct GTM monitor: 30s interval / 120s timeout for common HTTP/HTTPS/TCP-style monitors;
+- illustrative fast site move: ~16s local health + up to 30s residual TTL = ~46s + T6, plus measured iQuery/propagation;
+- default-direct-monitor site move: up to ~120s + up to 30s TTL = ~150s + T6;
+- manual DR: T5 + DNS/site timing + T6.
+
+Explicitly distinguish:
+
+- new uncached clients;
+- clients with cached old DNS answers;
+- already-established TCP/TLS/WebSocket connections;
+- applications with their own DNS/connection-pool cache.
+
+Do not state that DNS TTL moves an existing connection.
+
+Do not state that LTM member failover is interruption-free for a connection already anchored to the failed member.
 
 Do not invent a single vendor failover number.
 

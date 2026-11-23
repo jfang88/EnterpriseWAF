@@ -319,6 +319,33 @@ The maintenance window itself may not produce service downtime, but it creates a
 
 ## W3 — tenant WAFs + shared reserve
 
+### W3 LTM service: 2-device versus 3-device DSC
+
+A two-device tenant LTM pair is easier to operate, but taking one device out for firmware/change leaves no local LTM redundancy.
+
+A three-device Sync-Failover group can improve maintainability:
+
+- take one LTM out of service;
+- retain two local LTMs;
+- validate/upgrade the first device;
+- return it;
+- proceed to the next device.
+
+This is valuable for a 99.95% objective because planned maintenance no longer consumes the entire local LTM redundancy budget.
+
+With multiple traffic groups, active ownership can also be spread across the three devices and F5 load-aware/ordered failover can choose a next-active device.
+
+Trade-offs:
+
+- more DSC/failover-order testing;
+- larger synchronized configuration blast radius;
+- more capacity planning;
+- not equivalent to three independent active copies of the same VIP.
+
+**Maintainability conclusion:** W3-L3 is attractive when the business wants to remain locally redundant during LTM maintenance. W3-L2 remains simpler where alternate-site recovery is acceptable during the maintenance risk window.
+
+
+
 ### Recommended pattern
 
 Use shared reserve as controlled maintenance capacity:
@@ -456,6 +483,38 @@ For HA peers, do **not** deliberately leave active and standby on materially dif
 
 ---
 
+# 8A. Platform/cloud firewall (CFW) maintenance
+
+For private-cloud applications, the CFW is an inline stateful tier immediately before the ELB/service endpoint.
+
+Maintenance/change analysis must therefore include:
+
+- CFW HA/member upgrades;
+- policy/rule changes;
+- NAT/SNAT ownership;
+- session/state synchronization where supported;
+- route changes;
+- drain/connection-aging behavior;
+- certificate/TLS inspection changes where applicable;
+- validation from both external and internal paths;
+- application dependency flows through the CFW;
+- full CFW context/service rollback.
+
+A CFW maintenance event can have a larger application blast radius than an ELB member change because several ELBs/applications may share the same CFW context.
+
+Preferred sequence:
+
+1. confirm CFW peer/context health;
+2. verify surviving CFW capacity;
+3. drain or move state where supported;
+4. change one member/context unit at a time;
+5. validate NAT, routing and representative application transactions;
+6. validate App A -> B/C internal flows;
+7. observe before changing the peer;
+8. retain the alternate site as a rollback/fallback domain.
+
+Do not combine high-risk CFW policy/NAT changes with WAF, LTM and application releases in the same wave unless required.
+
 # 8. GTM / BIG-IP DNS maintenance
 
 GTM is control-plane infrastructure, so maintenance must preserve DNS resolution even when one GTM/device/site is unavailable.
@@ -561,7 +620,7 @@ rather than leaving HA peers inconsistent.
 | LTM firmware | Rolling HA pair | Rolling HA pair where W2b | Rolling HA pair | Rolling HA pair in W4a; N/A at WAF tier for W4b |
 | LTM config | Staged/synced HA change | Same | Same | Same |
 | GTM firmware/config | Stagger device/site | Same | Same | Same |
-| App change | drain backend/app pool; canary/blue-green behind LTM/ELB | same | same | same |
+| App change | drain backend/app pool; canary/blue-green behind CFW/ELB/application path | same | same | same |
 | Emergency rollback | high if known-good WAF remains | high if prior image/config and peer healthy | high if reserve remains known-good | high in Site 1 if extra node is known-good |
 
 ---
