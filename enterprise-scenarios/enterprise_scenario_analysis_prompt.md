@@ -168,11 +168,15 @@ Classify recoverability where useful:
 
 Analyse:
 
-- external users over private leased-line paths;
-- external systems/API clients;
-- internal users that may bypass WAF and connect directly to ELB/service endpoints;
+- external users over private leased-line paths using the **external namespace**;
+- external systems/API clients using the external namespace;
+- internal users using **internal enterprise DNS**, with selected internal service names optionally delegated/forwarded to GTM;
+- internal applications resolving App B/App C/internal service endpoints through internal DNS and, where configured, GTM;
+- internal users that may bypass WAF and connect directly to internal LTM/ELB/service endpoints;
 - Application A -> Application B -> Application C and shared-dependency chains;
 - non-web services that bypass WAF.
+
+Treat **external namespace resolution** and **internal namespace resolution** as separate failure domains. Do not assume a DNS/GTM failure affects both unless the architecture actually shares that failure domain.
 
 ## Mandatory application types
 
@@ -189,31 +193,38 @@ Do not call infrastructure failover successful until the application-specific re
 
 Cover at least:
 
-1. DNS/GTM node and service;
-2. GTM health-check false-positive/false-negative;
-3. leased-line access;
-4. edge firewall member and full pair;
-5. LTM member and full HA pair;
-6. one WAF member;
-7. multiple WAF members;
-8. entire local WAF service;
-9. common-mode WAF policy/configuration error;
-10. shared reserve exhaustion;
-11. cloud firewall / ELB;
-12. VM/Kubernetes member/cluster;
-13. application readiness;
-14. session/state store;
-15. App A -> App B dependency;
-16. cross-site route;
-17. asymmetric cross-site path;
-18. entire site;
-19. passive site not ready;
-20. long-lived connection recovery.
+1. external DNS/GTM namespace resolution;
+2. internal enterprise DNS resolution;
+3. internal DNS delegation/conditional forwarding to GTM;
+4. internal GTM/service-name resolution;
+5. GTM health-check false-positive/false-negative;
+6. leased-line access;
+7. edge firewall member and full pair;
+8. LTM member and full HA pair;
+9. one WAF member;
+10. multiple WAF members;
+11. entire local WAF service;
+12. common-mode WAF policy/configuration error;
+13. shared reserve exhaustion;
+14. cloud firewall / ELB;
+15. VM/Kubernetes member/cluster;
+16. application readiness;
+17. session/state store;
+18. App A -> App B -> App C dependency;
+19. cross-site route;
+20. asymmetric cross-site path;
+21. entire site;
+22. passive site not ready;
+23. long-lived connection recovery.
 
 ## GTM analysis
 
 Compare at minimum:
 
+- external namespace GTM resolution;
+- internal namespace resolution through internal enterprise DNS;
+- selected internal-name delegation/conditional forwarding to GTM;
+- internal service-name GTM health/selection;
 - IP/port-only GTM health;
 - full application-readiness health;
 - F5 DNS/LTM integration using BIG-IP monitor/iQuery;
