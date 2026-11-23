@@ -118,6 +118,23 @@ For every change scenario identify:
 
 Do not deliberately create configuration drift between HA peers merely to simulate blue-green when the product expects synchronized HA configuration. Prefer a separate pool member, virtual/pool, policy staging, reserve WAF, extra WAF, application version, or site as the canary/blue-green boundary.
 
+### No-cross-site cascading-failure requirement
+
+For every scenario where cross-site capability improves recovery, also show the **no-cross-site** outcome.
+
+Explicitly trace whether the absence of cross-site routing causes:
+
+- WAF failure -> whole application/site failover;
+- front-end failure -> healthy application move;
+- B1 dependency failure -> A/C/D readiness failure;
+- multiple application GTM withdrawals;
+- Site 2 capacity surge;
+- reconnect/login storm;
+- dependency/database/identity overload;
+- manual DR.
+
+Quantify the change in recovery class/timing where possible (for example ~16s-class local recovery versus ~46–150s+ site recovery).
+
 ## Mandatory cross-site recovery study
 
 Also read and regenerate/update when relevant:
@@ -238,6 +255,31 @@ For active/active/locality designs, analyse Topology load balancing only when LD
 Never assume the site containing the GTM that answered the query is automatically the preferred application site.
 
 ## F5 timing rules
+
+### Numeric recovery timing requirement
+
+The primary output must contain an explicit timing table with numeric planning windows where defaults support them.
+
+At minimum show:
+
+- BIG-IP HA peer: ~3s+ detection plus convergence;
+- LTM member/WAF member: up to ~16s with common 5s/16s defaults;
+- GTM DNS A-record pool TTL: 30s default;
+- direct GTM monitor: 30s interval / 120s timeout for common HTTP/HTTPS/TCP-style monitors;
+- illustrative fast site move: ~16s local health + up to 30s residual TTL = ~46s + T6, plus measured iQuery/propagation;
+- default-direct-monitor site move: up to ~120s + up to 30s TTL = ~150s + T6;
+- manual DR: T5 + DNS/site timing + T6.
+
+Explicitly distinguish:
+
+- new uncached clients;
+- clients with cached old DNS answers;
+- already-established TCP/TLS/WebSocket connections;
+- applications with their own DNS/connection-pool cache.
+
+Do not state that DNS TTL moves an existing connection.
+
+Do not state that LTM member failover is interruption-free for a connection already anchored to the failed member.
 
 Do not invent a single vendor failover number.
 
