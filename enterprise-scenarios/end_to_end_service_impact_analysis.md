@@ -136,6 +136,45 @@ These are not guaranteed SLAs.
 
 For each service, measured RTO should eventually replace modelled timing.
 
+## 4.1 Recovery-time decomposition
+
+The earlier architecture analysis used a useful decomposition that remains valid and is now retained here:
+
+```text
+T_service_recovery
+  = T_detect
+  + T_path
+  + T_DNS       (only where DNS/site selection changes)
+  + T_retry
+  + T_auth
+  + T_restore
+  + T_ready     (only where alternate app/data must become ready)
+```
+
+Where:
+
+- **T_detect** — infrastructure/application/heartbeat detects the fault;
+- **T_path** — HA, pool withdrawal, routing or traffic steering converges;
+- **T_DNS** — authoritative DNS decision, resolver/client cache and re-resolution;
+- **T_retry** — HTTP/API retry or socket reconnect/backoff;
+- **T_auth** — re-authentication or session restoration;
+- **T_restore** — workflow/subscription/message replay/snapshot/business reconciliation;
+- **T_ready** — passive application, dependency, state or data becomes safe to serve.
+
+Only add terms that are actually sequential. If steps overlap, measure the real end-to-end recovery rather than double-counting.
+
+Measure p50/p95/p99 separately for:
+
+- external human-user populations;
+- external API/system clients;
+- internal users/systems;
+- App A -> B -> C dependency transactions;
+- stateless HTTP;
+- stateful sessions;
+- WebSocket/long-lived traffic.
+
+The acceptance measure is the first successful **business transaction**, not the time an F5 component reports green.
+
 ---
 
 # 5. Primary end-to-end failure matrix
@@ -529,6 +568,105 @@ Not:
 > time for the WAF/LTM/GTM to report green.
 
 ---
+
+## 11.1 Earlier user-impact threshold
+
+The earlier architecture paper contained a possible business rule that service may remain open only while **less than 25% of users are affected**.
+
+That requirement is currently recorded as a **legacy candidate input**, not a confirmed invariant.
+
+If it still applies:
+
+- map the real external-user population to leased lines, firewall pairs and sites;
+- calculate actual blast radius per failure domain;
+- do not assume four circuits means four exactly equal 25% populations;
+- a strict `<25%` threshold means losing exactly 25% would not meet the requirement;
+- test the rule against external DNS, access circuits, firewall pairs and site reachability.
+
+## 11.2 Validation and failure-injection catalogue
+
+The earlier main architecture/WebSocket analyses contained a strong failure-injection test set. Keep these tests as acceptance evidence for the current W1-W4 model.
+
+### Client and DNS
+
+1. client sleep/reboot/network handoff;
+2. external resolver failure and external GTM/DNS failure;
+3. internal enterprise DNS failure;
+4. internal DNS -> GTM delegation/forwarding failure;
+5. stale/incorrect internal or external DNS answer;
+6. application DNS cache that does not promptly re-resolve.
+
+### Network and firewall
+
+7. each leased-line/circuit failure individually;
+8. correlated circuit/carrier failure;
+9. one edge-firewall member failure;
+10. full firewall-pair failure;
+11. NAT/asymmetric-return-path fault;
+12. inter-site route loss while local service is healthy;
+13. inter-site route loss while remote WAF or remote dependency is in use.
+
+### LTM/WAF
+
+14. one LTM HA member failure and full LTM-pair failure;
+15. one independent WAF member failure;
+16. one WAF-cluster member failure;
+17. complete local WAF service failure;
+18. bad WAF policy/configuration common-mode failure;
+19. planned WAF/LTM drain and rolling maintenance;
+20. capacity test while one WAF is removed.
+
+### Application/platform
+
+21. ELB/LB member and complete service failure;
+22. VM/app-process failure;
+23. Kubernetes ingress, Pod, node and cluster failure;
+24. application listener healthy but business readiness failed;
+25. session/authentication/database/event-store failure;
+26. passive application not ready when site failover is requested.
+
+### Dependency and cross-site
+
+27. B1 fails while A1 remains healthy and no remote B is available;
+28. B1 fails and A1 uses B2 successfully;
+29. B1 fails when A/C/D all depend on B and retry simultaneously;
+30. B2 is reachable but its required C dependency is unavailable;
+31. remote WAF route-back and remote App B fallback under peak-like load.
+
+### Long-lived/application recovery
+
+32. WebSocket abrupt disconnect;
+33. graceful drain of long-lived connections;
+34. reconnect backoff/jitter and reconnect storm;
+35. re-authentication after reconnect;
+36. subscription restoration;
+37. lost acknowledgement after a committed write with idempotent retry;
+38. stale replay cursor and snapshot reconciliation;
+39. duplicate/lost message detection.
+
+### Whole-site and failback
+
+40. complete active-site isolation/loss;
+41. Site 2 ready and automatic recovery;
+42. Site 2 application stopped/manual startup;
+43. failback after service restoration without unnecessarily moving healthy existing sessions.
+
+For each test record:
+
+- fault-injection timestamp;
+- detection time;
+- traffic/path convergence;
+- first successful external-user transaction;
+- first successful external API transaction;
+- first successful internal-user transaction;
+- first successful App A -> B -> C transaction where relevant;
+- percentage of each user population affected;
+- session/login outcome;
+- WebSocket disconnect/reconnect/replay outcome;
+- manual actions;
+- capacity of surviving components/site;
+- p95/p99 service-recovery time;
+- whether a second fault could still be tolerated.
 
 # 12. Primary conclusions
 
