@@ -2,273 +2,316 @@
 
 **Status:** Target-state / to-be architecture guidance  
 **Current-state source:** [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)  
-**Purpose:** Separate future design improvements from the current-state baseline.
+**Current-state topology:** [high_level_architecture.md](./high_level_architecture.md)  
+**Purpose:** Keep proposed improvements separate from the current-state / invariant baseline.
 
-# 1. Executive recommendation
+# 1. Target decision
 
-The target health model should be **layered**, not concentrated in one device or one monitor.
+The target health model should be **layered**.
 
-The recommended operating model is:
+> **BIG-IP DNS/GTM should own the global endpoint/site decision, but it should not be the only place where health is detected and it does not need to originate every probe itself.**
 
-> **Local delivery tiers perform fast member-level recovery; BIG-IP DNS/GTM owns authoritative site/endpoint health for DNS steering using Layer-7 checks of the published external and internal VIPs; application teams own the readiness contract; independent synthetic monitoring verifies the real user outcome.**
+The preferred model is:
 
-For the current architecture, the most important future improvement is to make GTM health represent the **service path**, not simply a WAF/LTM port.
+1. **native HA** detects device/peer failure;
+2. **LTM / ELB / service-tier health** removes failed local members quickly;
+3. **GTM owns external and internal published-endpoint availability** used for DNS/site selection;
+4. the **probe origin is chosen so the check crosses the failure domain GTM is deciding about**;
+5. application teams own the Layer-7 readiness contract;
+6. independent external/internal synthetic monitoring measures the actual 99.95% service outcome.
 
-# 2. Recommended health-check placement
+This keeps the recovery domain proportional to the failure. One backend, WAF node or pool member should normally stay a local recovery event rather than trigger DNS/site failover.
 
-| Health layer | Best place | What it should check | What action it should drive |
+# 2. The important distinction: decision owner versus probe origin
+
+The best place for the **decision** and the best place for the **probe** are not always the same.
+
+| Decision | Decision owner | Preferred health source / probe origin | Reason |
 |---|---|---|---|
-| **H1 - device/HA liveness** | firewall/LTM/WAF/CFW native HA | peer/device/process/interface availability | local HA takeover only |
-| **H2 - local pool/member health** | LTM / ELB / service tier closest to members | HTTP/L7 or protocol-aware member readiness | remove one failed WAF/backend/member locally; **do not invoke DNS/site failover** |
-| **H3 - external published-service health** | **GTM/DNS prober** against the **external application VIP** | Layer-7 request through edge firewall -> LTM -> WAF -> CFW -> ELB -> application | external wide-IP/site selection |
-| **H4 - internal published-service health** | **GTM/DNS prober** or authoritative LTM/iQuery health against the **internal service VIP** | Layer-7 request through internal LTM -> internal firewall -> CFW -> ELB -> application | internal delegated-name/site selection |
-| **H5 - dependency/service health** | service VIP/LTM/service discovery; GTM only when GTM selects the dependency endpoint | App A/D -> B service -> critical downstream dependency readiness | B1 -> B2 or other dependency-local recovery |
-| **H6 - independent user-like synthetic** | monitoring platform outside the traffic-management stack | login/business transaction from representative external/internal viewpoints | SLO validation, alerting and incident confirmation; normally not the only steering signal |
+| one HA peer/device | native HA subsystem | peer/device health | fastest local takeover |
+| one WAF/backend/pool member | LTM / ELB / service tier | local protocol/L7 member monitor | remove only the failed member |
+| **external site/VIP selection** | **GTM/DNS** | L7 probe from an **external/extranet-representative vantage** where possible; otherwise a useful GTM prober/LTM+iQuery signal plus external synthetic confirmation | GTM controls the external DNS answer, but a probe originating inside the edge may not prove the full external path |
+| **internal delegated-name/site selection** | **GTM/DNS** | L7 probe from an **internal-network vantage before the internal firewall**, or authoritative internal LTM health exported through iQuery | proves the internal VIP path that internal DNS is delegating to GTM |
+| B1/B2 dependency selection | service VIP/LTM/service discovery; GTM only if GTM owns that endpoint selection | dependency-specific health | avoids broad application/site failover |
+| 99.95% SLO | monitoring/SRE platform | independent user-like synthetic | measures real service outcome rather than infrastructure state |
 
-The key principle is:
+## Target rule
 
-> **GTM decides which site/endpoint DNS should return; local LTM/ELB decides which member should serve inside that site.**
+> **GTM owns the answer; the probe should be sourced from a location that actually exercises the path represented by that answer.**
 
-Do not turn one failed backend, one WAF node, or one LTM pool member into a GTM/site failover when healthy local capacity remains.
+This is especially important because the GTM clusters are inside the edge-firewall boundary. A GTM-originated monitor can validate application reachability, but depending on routing/NAT it may not reproduce the same inbound path used by an external customer.
 
-# 3. Why GTM should own the site-level Layer-7 decision
+# 3. Recommended health layers
 
-BIG-IP DNS/GTM is the component that changes the DNS answer between Site 1 and Site 2. Therefore the health signal used for that decision should represent the endpoint GTM is advertising.
+| Health layer | Best place | What it proves | Action it should drive |
+|---|---|---|---|
+| **H1 - device / HA liveness** | firewall/LTM/WAF/CFW native HA | peer/process/interface availability | local HA takeover only |
+| **H2 - local member health** | LTM / ELB / closest service tier | member or WAF-node readiness | remove failed member locally |
+| **H3 - external published endpoint** | GTM-owned health using a representative external/extranet prober, direct GTM L7 monitor, and/or authoritative iQuery signal | external VIP path to application readiness | external wide-IP/site choice |
+| **H4 - internal published endpoint** | GTM-owned health using an internal-zone prober or authoritative internal LTM/iQuery signal | internal VIP -> internal firewall -> CFW -> ELB -> application | internal delegated-name/site choice |
+| **H5 - dependency/service health** | service VIP/LTM/service discovery | B1/B2 or other dependency readiness | dependency-local recovery |
+| **H6 - independent synthetic** | monitoring platform outside the traffic-management stack | real external/internal/API business transaction | SLO measurement, alerting, failover validation |
 
-For this environment, that means two distinct endpoint checks per protected service where both paths exist:
+GTM should therefore be the **authoritative site/endpoint steering layer**, but not the only health-check layer.
 
-1. **External VIP Layer-7 health** - proves the external/extranet path is usable.
-2. **Internal VIP Layer-7 health** - proves the internal path is usable for internal DNS/delegated names.
+# 4. Target external VIP health
 
-These checks must be separate because the paths have different failure domains:
+For every critical externally published application, GTM should have an authoritative Layer-7 view of each site's external endpoint.
+
+Target path to prove:
 
 ```text
-External:
-GTM prober
-  -> edge firewall / external VIP
+external/extranet health vantage
+  -> private leased line / VPN path where feasible
+  -> edge firewall / external application VIP
   -> tenant LTM
   -> WAF
   -> CFW
-  -> ELB
-  -> application readiness endpoint
-
-Internal:
-GTM prober or authoritative internal LTM health
-  -> internal service VIP
-  -> internal firewall
-  -> CFW
-  -> ELB
+  -> ELB/service
   -> application readiness endpoint
 ```
 
-A service may therefore be:
+## Preferred probe order
 
-- external-unhealthy but internal-healthy;
-- internal-unhealthy but external-healthy;
-- unhealthy on both paths.
+1. **Best representation:** a prober/synthetic vantage that actually traverses the external/extranet ingress path.
+2. **Useful infrastructure signal:** direct GTM HTTP/HTTPS monitor if routing makes its path representative enough.
+3. **Useful authoritative local signal:** LTM virtual-server/application health exported to GTM through iQuery.
+4. **Independent external synthetic:** always recommended for SLO evidence even when it is not the automatic steering signal.
 
-The DNS policy should not automatically collapse those distinct states into one generic "application down" result.
+A GTM located behind the edge firewall can legitimately perform application L7 monitoring, but that does not automatically prove customer leased-line reachability or the outside-to-inside firewall path. Document exactly what each probe crosses.
 
-# 4. Direct GTM L7 monitor versus LTM/iQuery
+# 5. Target internal VIP health
 
-Both patterns are useful; the target should use the one that represents the required path most accurately.
+Internal clients continue to use **internal enterprise DNS**. Only selected endpoint names/namespaces should be delegated or conditionally forwarded to GTM when site-aware endpoint selection is required.
 
-## 4.1 Direct GTM Layer-7 monitor
-
-Use when a GTM prober can legitimately reach the target VIP from a useful network perspective.
-
-Advantages:
-
-- GTM directly validates the endpoint it is advertising;
-- can test Host/SNI, URI, expected status/body and TLS behavior;
-- can distinguish external and internal VIPs.
-
-Caution:
-
-- a GTM located inside the edge boundary may not reproduce every customer-network failure;
-- firewall/NAT/routing must allow the monitor path;
-- the monitor should not depend on the inter-site path for healthy local service.
-
-## 4.2 LTM health exported to GTM through iQuery
-
-Use when the LTM is the better local observer of the service path, or when direct GTM probing cannot traverse the intended path safely.
-
-Target pattern:
+Target resolution path:
 
 ```text
-LTM performs L7 application/path health
-        |
-        v
-BIG-IP DNS/GTM consumes authoritative virtual-server health via iQuery
-        |
-        v
-GTM makes site/DNS decision
-```
-
-This can provide faster local detection than a slow direct GTM monitor while still letting GTM own the global DNS decision.
-
-## 4.3 Preferred target
-
-Use a **hybrid layered model**:
-
-- local LTM/ELB health for fast member withdrawal;
-- GTM endpoint health for site/DNS decisions;
-- iQuery where it provides an authoritative local service signal;
-- independent synthetic monitoring for user outcome.
-
-Do not make GTM the only health-check layer.
-
-# 5. GTM synchronization group and prober strategy
-
-The two site GTM clusters should be treated as one synchronized global-DNS control plane while retaining independent site failure domains.
-
-The target design should explicitly document:
-
-- which GTM devices/probers check Site 1 external VIPs;
-- which check Site 2 external VIPs;
-- which check internal VIPs;
-- whether probing responsibility is shared across the synchronization group;
-- whether probers are selected from inside, outside or either data centre;
-- how many successful probes are required before a service is considered available;
-- what happens if the inter-site link is unavailable but the local application remains healthy.
-
-### Recommended rule
-
-Use **more than one independent health perspective** for critical site-level decisions where routing permits, but configure availability requirements so that:
-
-> **loss of the inter-site path alone does not mark a healthy local service unavailable.**
-
-A practical target is:
-
-- local authoritative health is required;
-- remote/cross-site observation provides corroboration and faster global visibility where available;
-- no single remote probe is allowed to make healthy local service dependent on cross-site reachability.
-
-The actual F5 `All`, `At Least` or `Require` availability setting should be selected after testing the desired failure semantics.
-
-# 6. Application-team health-check contract
-
-Layer-7 health checks are only useful when the application team defines what "ready" means.
-
-Each protected service should publish a health-check contract containing:
-
-| Field | Required decision |
-|---|---|
-| **Hostname / SNI** | exact host name GTM/LTM should send |
-| **URI** | stable readiness path, for example `/health/ready` |
-| **Method** | normally GET/HEAD unless the service requires otherwise |
-| **Expected status** | for example HTTP 200 |
-| **Expected body/content** | small stable response/string where content verification is useful |
-| **Authentication** | none, dedicated monitor credential, certificate or token as appropriate |
-| **Critical dependencies** | dependencies that must be available for the service to accept new traffic |
-| **Non-critical dependencies** | dependencies that should **not** make the whole service fail health |
-| **Timeout** | response time expected under normal and degraded conditions |
-| **Maintenance semantics** | how the app intentionally removes itself from service |
-| **Version/change owner** | app team owner who approves changes to the health contract |
-
-## Avoid two opposite errors
-
-### Too shallow - false green
-
-```text
-TCP 443 works
-  -> WAF/LTM green
-  -> CFW/ELB/app broken
-  -> users fail while GTM still advertises the site
-```
-
-### Too deep - false red / cascade
-
-If App A's health endpoint fails whenever a non-critical App B/C feature is unavailable, one shared dependency can cause GTM to withdraw A, C and D together and create an unnecessary site failover.
-
-The health contract must therefore represent the **minimum business capability required to accept new traffic**, not every downstream function.
-
-# 7. Health and action boundaries by failure type
-
-| Failure | Preferred detector | Preferred action |
-|---|---|---|
-| one backend/Pod/VM | ELB/LTM/service health | remove member locally |
-| one independent WAF node | LTM WAF-pool monitor | remove WAF locally |
-| one LTM peer | BIG-IP HA | local peer takeover |
-| one CFW member | CFW HA | local firewall takeover |
-| whole external VIP path unusable | GTM external L7 health | change external DNS/site answer |
-| whole internal VIP path unusable | GTM/internal authoritative L7 health | change internal delegated endpoint/site answer |
-| App B local instance fails | B service VIP/service-discovery health | B1 -> B2 dependency-local recovery where safe |
-| whole site lost | GTM + infrastructure/site health | full Site 2 recovery |
-
-This separation protects availability by keeping the recovery domain proportional to the failed component.
-
-# 8. Target convergence model
-
-For a DNS/site move, measure these separately:
-
-```text
-1. service/path failure occurs
-2. local health detector notices failure
-3. GTM receives/derives authoritative unhealthy state
-4. GTM synchronization/global state converges where required
-5. GTM returns alternate VIP/site
-6. residual DNS TTL/client cache expires or client re-resolves
-7. connection/session/application recovery completes (T6)
-```
-
-If GTM performs direct cross-site checks, step 3 may be faster and less dependent on synchronization delay.
-
-If GTM only has site-local health and the remote site learns the state indirectly, the synchronization/learning delay must be measured and included.
-
-Do **not** treat DNS TTL as the whole failover time.
-
-# 9. Internal DNS target model
-
-Internal clients continue to use internal enterprise DNS.
-
-For selected names/namespaces:
-
-```text
-Internal client
+internal client
   -> internal enterprise DNS
-  -> delegated/conditional-forwarded name
+  -> delegated / conditionally forwarded namespace
   -> enterprise edge GTM/DNS
   -> healthy internal service VIP
 ```
 
-The target is **not** to replace internal DNS with GTM.
+Target application path to prove:
 
-The target is to use GTM only where global/site-aware endpoint selection is required, while retaining enterprise internal DNS as the normal resolver/control boundary.
+```text
+internal-network health vantage
+  -> internal service/LTM VIP
+  -> internal firewall
+  -> private-cloud CFW
+  -> ELB/service
+  -> application readiness endpoint
+```
 
-Each delegated namespace must document:
+For internal VIP health, prefer:
 
-- authoritative owner;
-- TTL;
-- GTM wide-IP/pool;
-- internal VIPs returned;
-- Layer-7 health check for those VIPs;
-- client/application DNS caching behavior.
+- a GTM-designated prober that can reach the internal VIP from the correct internal-network side; or
+- an internal LTM Layer-7 monitor whose virtual-server/application state is exported to GTM via iQuery.
 
-# 10. Independent synthetic monitoring
+Do not require every internal name to use GTM. Use GTM only for names where global/site-aware selection provides value.
 
-GTM/LTM health is necessary but does not prove the full user experience from outside the F5 stack.
+# 6. Separate external and internal endpoint state
 
-Add independent synthetic tests for critical services from representative viewpoints:
+The same application can have different health on the two access paths.
 
-- external/private-network user perspective;
+Examples:
+
+- external unhealthy / internal healthy: edge firewall, leased-line, WAF or external VIP problem;
+- internal unhealthy / external healthy: internal LTM/VIP or internal-firewall problem;
+- both unhealthy: CFW, ELB, application or common dependency problem.
+
+Do not collapse these into one generic application state unless the business intentionally wants both namespaces withdrawn together.
+
+Where GTM serves both external and delegated internal namespaces, keep the **wide-IP/pool/monitor policy separate enough to represent the different endpoint paths**.
+
+# 7. Direct GTM monitor, iQuery, and prober pools
+
+F5 BIG-IP DNS supports direct health monitors and integration with BIG-IP LTM through iQuery. It also supports selecting probing systems/prober pools and availability requirements.
+
+The target should use these capabilities according to path fidelity rather than picking one mechanism globally.
+
+## 7.1 Direct GTM Layer-7 monitor
+
+Use when the selected GTM/prober can reach the target VIP through a path that usefully represents the endpoint being advertised.
+
+The monitor should verify more than TCP connect. For HTTP/HTTPS, use a stable send/receive contract so the monitor confirms expected application content/readiness.
+
+## 7.2 LTM/iQuery health
+
+Use when LTM is the better observer of the local application path or when direct GTM probing cannot safely/reliably traverse the desired path.
+
+```text
+LTM performs L7 service/path health
+        |
+        v
+BIG-IP DNS/GTM consumes virtual-server health via iQuery
+        |
+        v
+GTM makes external/internal site-selection decision
+```
+
+## 7.3 Prober pools / multiple perspectives
+
+For critical services, define explicitly:
+
+- which systems probe Site 1 external VIPs;
+- which systems probe Site 2 external VIPs;
+- which systems probe internal VIPs;
+- whether a local and a remote/corroborating perspective are used;
+- how many successful probes are required;
+- how inter-site network loss should affect the result.
+
+Use `All`, `At Least`, or `Require` semantics only after testing the failure behavior. **Do not create a design where loss of the inter-site link alone marks an otherwise healthy local site down.**
+
+# 8. Canonical target health diagram
+
+```mermaid
+flowchart LR
+
+  subgraph EXT[External / extranet monitoring perspective]
+    EP[External-side prober / synthetic]
+  end
+
+  subgraph INT[Enterprise internal network]
+    IP[Internal-side prober]
+    IDNS[Internal enterprise DNS]
+  end
+
+  subgraph S1[Site 1]
+    EFW1[2 x HA edge-firewall pairs / external VIP]
+    G1[GTM/DNS cluster]
+    L1[Tenant LTM]
+    W1[WAF]
+    IV1[Internal service VIP / LTM]
+    IF1[Internal firewall]
+    CFW1[CFW]
+    ELB1[ELB/service]
+    APP1[App readiness]
+
+    EFW1 --> L1 --> W1 --> CFW1 --> ELB1 --> APP1
+    IV1 --> IF1 --> CFW1
+  end
+
+  subgraph S2[Site 2]
+    EFW2[2 x HA edge-firewall pairs / external VIP]
+    G2[GTM/DNS cluster]
+    L2[Tenant LTM]
+    W2[WAF]
+    IV2[Internal service VIP / LTM]
+    IF2[Internal firewall]
+    CFW2[CFW]
+    ELB2[ELB/service]
+    APP2[App readiness]
+
+    EFW2 --> L2 --> W2 --> CFW2 --> ELB2 --> APP2
+    IV2 --> IF2 --> CFW2
+  end
+
+  G1 <-. GTM synchronization / global state .-> G2
+
+  EP -. H3 external L7 .-> EFW1
+  EP -. H3 external L7 .-> EFW2
+  IP -. H4 internal L7 .-> IV1
+  IP -. H4 internal L7 .-> IV2
+
+  L1 -. iQuery virtual-server health .-> G1
+  L2 -. iQuery virtual-server health .-> G2
+  IV1 -. iQuery / authoritative internal health .-> G1
+  IV2 -. iQuery / authoritative internal health .-> G2
+
+  IDNS -. delegated endpoint names .-> G1
+  IDNS -. delegated endpoint names .-> G2
+```
+
+The exact prober product/location is an implementation choice. The architectural requirement is that the selected signal proves the intended access path closely enough for the DNS decision it drives.
+
+# 9. Application-team Layer-7 health contract
+
+Layer-7 health only works when the application team defines what **ready to accept new traffic** means.
+
+Each protected endpoint should have a health contract covering:
+
+| Field | Required decision |
+|---|---|
+| hostname / SNI | exact host sent by the monitor |
+| URI | stable readiness endpoint, e.g. `/health/ready` |
+| method | normally GET/HEAD unless justified otherwise |
+| expected status | e.g. HTTP 200 |
+| expected content | small stable receive string where useful |
+| authentication | none, dedicated credential, certificate or token as appropriate |
+| critical dependencies | dependencies that must be available to accept traffic |
+| non-critical dependencies | dependencies that should not withdraw the whole service |
+| timeout | normal/degraded response boundary |
+| maintenance semantics | how the application intentionally leaves service |
+| owner | application team responsible for versioning the contract |
+
+## Avoid false green
+
+```text
+TCP 443 works
+  -> WAF/LTM looks healthy
+  -> CFW/ELB/application is broken
+  -> GTM still advertises the site
+```
+
+## Avoid false red and cascades
+
+Do not make App A globally unhealthy simply because an optional/non-critical App B/C feature is degraded. Otherwise one shared dependency can cause GTM to withdraw several healthy applications and create an avoidable site failover.
+
+# 10. Health action boundaries
+
+| Failure | Preferred detector | Preferred action |
+|---|---|---|
+| one backend/Pod/VM | ELB/LTM/service monitor | remove member locally |
+| one independent WAF node | LTM WAF-pool monitor | remove WAF locally |
+| one LTM peer | BIG-IP HA | local peer takeover |
+| one CFW member | CFW HA | local firewall takeover |
+| whole external endpoint path unusable | GTM external endpoint health | change external wide-IP/site answer |
+| whole internal endpoint path unusable | GTM internal endpoint health | change delegated internal endpoint/site answer |
+| App B local instance fails | B service VIP/service discovery | B1 -> B2 where safe |
+| whole site lost | GTM + site/application readiness | Site 2 recovery |
+
+# 11. GTM synchronization and convergence target
+
+Measure the site failover as separate stages:
+
+```text
+1. path/service fails
+2. local detector/prober sees failure
+3. GTM obtains authoritative unhealthy state
+4. GTM synchronization/global state converges where required
+5. alternate endpoint becomes eligible
+6. GTM returns the alternate answer
+7. residual DNS TTL/cache expires or client re-resolves
+8. application/session/socket recovery completes (T6)
+```
+
+If each site has direct/cross-site visibility of the relevant endpoint, step 3/4 may be faster and less dependent on indirect state learning.
+
+If GTM probes are site-local only, **measure and include the remote GTM state-learning/synchronization delay**. DNS TTL is not the whole failover time.
+
+# 12. Independent synthetics and the 99.95% SLO
+
+Add independent user-like tests from representative viewpoints:
+
+- external/private-network client perspective;
 - internal desktop/system perspective;
 - important API/system perspective.
 
-Use these for:
+Use them for:
 
 - 99.95% SLO measurement;
-- end-to-end latency/error monitoring;
-- detecting DNS, firewall, authentication or dependency problems missed by infrastructure monitors;
-- validating failover tests.
+- business transaction/error-rate validation;
+- confirming DNS/firewall/authentication issues that infrastructure monitors can miss;
+- validating failover and maintenance tests.
 
-Normally, independent synthetic monitoring should **confirm** business availability rather than being the sole automatic GTM failover trigger, unless its false-positive behavior and failover semantics are explicitly proven.
+Normally, independent synthetic monitoring should **confirm** availability rather than be the only automatic GTM steering input unless its false-positive and timing behavior have been explicitly proven.
 
-# 11. Dependency resilience improvement
+# 13. Dependency-local recovery
 
-For App A/D -> B -> C chains, implement dependency-local recovery before broad application/site failover where business semantics allow it.
-
-Target example:
+For App A/D -> B -> C chains, prefer dependency-local recovery before broad application/site failover where business semantics allow it.
 
 ```text
 App A / App D
@@ -281,29 +324,22 @@ preferred       fallback
     App C
 ```
 
-Requirements:
+Required controls include bounded timeouts, retry with backoff/jitter, circuit breaker/bulkhead, idempotency/reconciliation, compatible state/data, service identity, fallback capacity and pre-approved routing/firewall policy.
 
-- B2 capacity and data/state compatibility;
-- bounded connect/read timeouts;
-- retry with backoff/jitter;
-- circuit breaker/bulkhead;
-- idempotency/reconciliation;
-- authentication/service identity;
-- routing/firewall readiness;
-- no healthy-state dependency on the inter-site link.
+Healthy local applications must not depend on the inter-site link during normal operation.
 
-# 12. Cross-site application-delivery improvement
+# 14. Cross-site delivery improvements
 
-Evaluate these as contingency capabilities, not current-state assumptions:
+Evaluate as **target contingency capabilities**, not current-state assumptions:
 
 - **X2A** - surviving local LTM borrows a remote WAF and routes back to the healthy local application;
 - **X2B** - remote front end routes back to a healthy primary-site application;
 - **XD1** - App A/D stays local but uses remote App B;
 - **X2C** - conventional full site/application failover.
 
-Prefer the **smallest recovery domain** that restores the service safely.
+Prefer the smallest safe recovery domain.
 
-# 13. WAF topology and maintainability improvement
+# 15. WAF topology and maintainability
 
 Continue to evaluate:
 
@@ -312,90 +348,73 @@ Continue to evaluate:
 3. W3 where dedicated normal-state WAFs plus shared reserve are operationally preferred;
 4. W2 where simple HA and connection mirroring matter more than horizontal WAF scale.
 
-Whichever topology is selected must support:
+Whichever topology is selected must support rolling maintenance, staged/canary WAF policy deployment, application-level policy isolation, rollback, required N-1/N-2 capacity and one planned maintenance event plus one additional credible failure where the SLO requires it.
 
-- rolling maintenance;
-- canary/staged WAF policy deployment;
-- policy isolation by application;
-- rollback;
-- N-1 and required N-2 capacity;
-- one planned maintenance event plus one credible unplanned failure where the 99.95% target requires it.
-
-# 14. Implementation sequence
+# 16. Implementation sequence
 
 ## Phase 0 - inventory current state
 
-Confirm before changing behavior:
+Confirm:
 
-- current GTM monitor types and targets;
-- external VIP health configuration;
-- internal delegated namespaces and internal VIPs;
+- current GTM monitor types, targets and aliases;
+- current external and internal wide-IP/pool structure;
+- current delegated internal namespaces;
 - iQuery/LTM integration;
-- GTM prober selection and availability requirements;
-- cross-site probing;
+- GTM prober pools / probe sources / availability requirements;
+- cross-site probing behavior;
 - monitor intervals/timeouts;
-- existing app readiness endpoints;
-- current synthetic monitoring.
+- application readiness endpoints;
+- independent synthetic monitoring.
 
-## Phase 1 - define app health contracts
+## Phase 1 - define application health contracts
 
-Prioritize critical applications and shared dependencies.
+Prioritize critical externally/internal published endpoints and shared dependencies.
 
-## Phase 2 - implement Layer-7 endpoint health
+## Phase 2 - implement Layer-7 published-endpoint health
 
-Implement GTM-authoritative external/internal endpoint health using direct L7 monitors and/or LTM/iQuery as appropriate.
+Implement GTM-authoritative external and internal endpoint health using the best available representative probe source, direct L7 monitors and/or LTM+iQuery.
 
-## Phase 3 - add prober diversity and cross-site visibility
+## Phase 3 - improve prober diversity and global visibility
 
-Validate synchronization/probing behavior under:
+Test application failure, WAF failure, CFW failure, site failure and inter-site network partition.
 
-- application failure;
-- WAF failure;
-- CFW failure;
-- site failure;
-- inter-site network partition.
+## Phase 4 - dependency-local recovery
 
-## Phase 4 - implement dependency-local recovery
+Pilot B1 -> B2 where state/data/business semantics allow it.
 
-Pilot B1 -> B2 where semantics and data allow it.
+## Phase 5 - cross-site WAF/front-end contingency
 
-## Phase 5 - implement cross-site WAF/front-end contingency
+Pilot X2A/X2B only after routing, NAT/SNAT, stateful firewall, capacity and ownership are agreed.
 
-Pilot X2A/X2B only after routing, stateful firewall, NAT/SNAT, capacity and operational ownership are agreed.
+## Phase 6 - prove the 99.95% design
 
-## Phase 6 - measure 99.95% evidence
+Measure p50/p95/p99 fault-to-successful-business-transaction time for external, internal, stateful/WebSocket and dependency scenarios, including planned maintenance plus a second failure.
 
-Use fault injection and planned-maintenance tests to measure:
+# 17. Acceptance gates
 
-- p50/p95/p99 fault-to-successful-transaction time;
-- external and internal recovery separately;
-- WebSocket/stateful recovery;
-- GTM convergence;
-- dependency cascade behavior;
-- maintenance plus second-failure behavior.
+Before calling the target health architecture ready:
 
-# 15. Acceptance gates
+1. external and internal endpoint health are modelled separately where their paths differ;
+2. every GTM steering signal has a documented **probe origin and traversed path**;
+3. Layer-7 monitors prove application readiness rather than simple TCP reachability;
+4. application teams own the health contract;
+5. one failed member remains a local recovery event;
+6. GTM does not advertise a site whose required endpoint path is unusable;
+7. inter-site link failure alone does not withdraw a healthy local site;
+8. GTM/prober/synchronization convergence is measured;
+9. internal delegated-name behavior and external DNS behavior are tested separately;
+10. App A/B/C/D dependency cascades are tested;
+11. independent synthetic monitoring measures the user/business outcome;
+12. planned maintenance, rollback and failback are tested within the 99.95% objective.
 
-Before calling the target architecture ready:
+# 18. F5 implementation references
 
-1. external and internal VIP health checks are documented per application;
-2. the monitor proves the intended service path, not just TCP reachability;
-3. application teams own the readiness contract;
-4. one failed local member stays a local recovery event;
-5. GTM does not advertise a site whose required application path is unusable;
-6. inter-site link failure does not falsely withdraw healthy local service;
-7. GTM synchronization/prober convergence is measured;
-8. external and internal DNS failover behavior is tested separately;
-9. App A/B/C/D dependency cascades are tested;
-10. SLO synthetic monitoring measures the real user outcome;
-11. planned maintenance remains within the 99.95% budget;
-12. rollback and failback are tested.
+Relevant official F5 capabilities used by this target design include:
 
-# 16. F5 implementation references
+- BIG-IP DNS/LTM integration and iQuery;
+- BIG-IP DNS HTTP/HTTPS/TCP health monitors;
+- send/receive strings for content validation;
+- BIG-IP DNS prober pools / device-specific probing;
+- BIG-IP DNS availability requirements such as `All`, `At Least`, and `Require`.
 
-Official F5 documentation relevant to the target model:
-
-- BIG-IP DNS/LTM integration and iQuery: https://techdocs.f5.com/en-us/bigip-16-0-0/big-ip-dns-implementations/integrating-big-ip-dns-into-a-network-with-big-ip-ltm-systems.html
-- BIG-IP DNS synchronization groups and shared probing responsibility: https://techdocs.f5.com/en-us/bigip-17-5-0/big-ip-dns-implementations/adding-a-new-big-ip-dns-to-a-big-ip-dns-synchronization-group.html
-- BIG-IP DNS prober selection / availability requirements: https://techdocs.f5.com/en-us/bigip-17-5-0/big-ip-dns-implementations/integrating-big-ip-dns-into-a-network-with-big-ip-ltm-systems.html
-- BIG-IP LTM HTTP/HTTPS monitor concepts: https://techdocs.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/ltm-monitors-reference-12-0-0/2.html
+Validate exact configuration syntax and behavior against the deployed BIG-IP release before implementation.
