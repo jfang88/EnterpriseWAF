@@ -45,23 +45,23 @@
 <rect x="34" y="88" width="492" height="38" rx="12" fill="#dff5c1"/>
 <rect x="34" y="112" width="492" height="14" fill="#dff5c1"/>
 <line x1="34" y1="126" x2="526" y2="126" stroke="#5ca452" stroke-width="1.5"/>
-<text x="50" y="113" class="hd" font-size="15">W1 — Dedicated LTM + Active WAF Pool</text>
-<rect x="372" y="96" width="142" height="22" rx="6" fill="#073b64"/>
-<text x="443" y="111" text-anchor="middle" class="h" font-size="11">High-Isolation Option</text>
+<text x="50" y="113" class="hd" font-size="14">W1 — Dedicated Active WAFs (W1-3 / W1-2)</text>
+<rect x="388" y="96" width="126" height="22" rx="6" fill="#073b64"/>
+<text x="451" y="111" text-anchor="middle" class="h" font-size="10.5">≤ 25% Tenant Cap</text>
 
 <!-- W1 Mini Diagram -->
-<text x="280" y="146" text-anchor="middle" class="sub" font-size="11.5" font-weight="bold">Per Tenant / Per Site (independent active pool, load-balanced by LTM)</text>
+<text x="280" y="146" text-anchor="middle" class="sub" font-size="11.5" font-weight="bold">Per Tenant / Per Site: W1-3 (3 WAFs, N-2) vs. W1-2 sub-variant (2 WAFs)</text>
 <rect x="52" y="182" width="96" height="62" class="ltm"/>
 <text x="100" y="209" text-anchor="middle" class="t" font-size="12.5" font-weight="bold">Tenant LTM</text>
 <text x="100" y="227" text-anchor="middle" class="sub" font-size="11">2-node HA</text>
 
-<rect x="206" y="158" width="122" height="32" class="waf"/>
-<text x="267" y="179" text-anchor="middle" class="t" font-size="12" font-weight="bold">Active WAF 1</text>
-<rect x="206" y="198" width="122" height="32" class="waf"/>
-<text x="267" y="219" text-anchor="middle" class="t" font-size="12" font-weight="bold">Active WAF 2</text>
-<rect x="206" y="238" width="122" height="32" class="waf"/>
-<text x="267" y="259" text-anchor="middle" class="t" font-size="12" font-weight="bold">Active WAF 3</text>
-<text x="267" y="286" text-anchor="middle" class="sub" font-size="10.5">(2 or 3 independent WAFs; no DSC cluster)</text>
+<rect x="206" y="158" width="126" height="32" class="waf"/>
+<text x="269" y="179" text-anchor="middle" class="t" font-size="12" font-weight="bold">Active WAF 1</text>
+<rect x="206" y="198" width="126" height="32" class="waf"/>
+<text x="269" y="219" text-anchor="middle" class="t" font-size="12" font-weight="bold">Active WAF 2</text>
+<rect x="206" y="238" width="126" height="32" class="res"/>
+<text x="269" y="259" text-anchor="middle" class="t" font-size="11.5" font-weight="bold">WAF 3 (W1-3 only)</text>
+<text x="269" y="286" text-anchor="middle" class="sub" font-size="10">W1-2 drops WAF 3 → 50% tenant cap loss / 0 N-2</text>
 
 <rect x="394" y="182" width="114" height="62" class="cfw"/>
 <text x="451" y="209" text-anchor="middle" class="t" font-size="12" font-weight="bold">Private Cloud</text>
@@ -69,15 +69,15 @@
 
 <path d="M148 202 L203 174" class="fl"/>
 <path d="M148 213 H203" class="fl"/>
-<path d="M148 224 L203 254" class="fl"/>
-<path d="M328 174 L391 202" class="fl"/>
-<path d="M328 214 H391" class="fl"/>
-<path d="M328 254 L391 224" class="fl"/>
+<path d="M148 224 L203 254" class="flO"/>
+<path d="M332 174 L391 202" class="fl"/>
+<path d="M332 214 H391" class="fl"/>
+<path d="M332 254 L391 224" class="flO"/>
 
 <!-- W1 Bottom Summary -->
 <rect x="46" y="328" width="468" height="60" rx="8" fill="#f5f8fb" stroke="#d9e6ef"/>
-<text x="60" y="348" class="t" font-size="12" font-weight="bold">4 tenants / 2 sites: 16 LTM + 24 WAF = 40 (3/site) | 16 + 16 = 32 (2/site)</text>
-<text x="60" y="368" class="sub" font-size="11">Best dedicated N-2 maintenance headroom and lowest cross-tenant blast radius.</text>
+<text x="60" y="348" class="t" font-size="11.8" font-weight="bold">W1-3: 16 LTM + 24 WAF = 40  |  W1-2 sub-variant: 16 LTM + 16 WAF = 32</text>
+<text x="60" y="368" class="sub" font-size="10.8">W1-3 passes ≤25% cap + N-2; W1-2 needs X2A for 99.95% maintenance + 2nd fault.</text>
 
 <!-- CARD W2 -->
 <rect x="554" y="88" width="492" height="312" rx="14" fill="#ffffff" stroke="#073b64" stroke-width="1.8"/>
@@ -204,47 +204,54 @@
 <rect x="554" y="420" width="492" height="38" rx="12" fill="#dff5c1"/>
 <rect x="554" y="444" width="492" height="14" fill="#dff5c1"/>
 <line x1="554" y1="458" x2="1046" y2="458" stroke="#5ca452" stroke-width="1.5"/>
-<text x="570" y="445" class="hd" font-size="14.5">S1 — Tenant LTMs + Shared WAF Pool</text>
-<rect x="876" y="428" width="158" height="22" rx="6" fill="#0f8b8d"/>
-<text x="955" y="443" text-anchor="middle" class="h" font-size="11">Preferred 17.5.x Option</text>
+<text x="570" y="445" class="hd" font-size="14">S1 / S1+2 — Tenant LTMs + Shared WAFs</text>
+<rect x="862" y="428" width="172" height="22" rx="6" fill="#0f8b8d"/>
+<text x="948" y="443" text-anchor="middle" class="h" font-size="10.5">S1+2: Rolling/Outage/Canary</text>
 
 <!-- S1 Mini Diagram -->
-<text x="800" y="478" text-anchor="middle" class="sub" font-size="11.5" font-weight="bold">4 Separate Tenant LTM HA Pairs → 1 Shared Active WAF Pool (e.g. 4/site)</text>
-<rect x="568" y="492" width="98" height="30" class="ltm"/>
-<text x="617" y="512" text-anchor="middle" class="t" font-size="11" font-weight="bold">Tenant A LTM</text>
-<rect x="568" y="528" width="98" height="30" class="ltm"/>
-<text x="617" y="548" text-anchor="middle" class="t" font-size="11" font-weight="bold">Tenant B LTM</text>
-<rect x="568" y="564" width="98" height="30" class="ltm"/>
-<text x="617" y="584" text-anchor="middle" class="t" font-size="11" font-weight="bold">Tenant C LTM</text>
-<rect x="568" y="600" width="98" height="30" class="ltm"/>
-<text x="617" y="620" text-anchor="middle" class="t" font-size="11" font-weight="bold">Tenant D LTM</text>
+<text x="800" y="478" text-anchor="middle" class="sub" font-size="11.2" font-weight="bold">4 Tenant LTM HA Pairs → Shared Active Pool (S1: 4/site | S1+2: 4 + 2 = 6/site)</text>
+<rect x="566" y="492" width="96" height="30" class="ltm"/>
+<text x="614" y="512" text-anchor="middle" class="t" font-size="11" font-weight="bold">Tenant A LTM</text>
+<rect x="566" y="528" width="96" height="30" class="ltm"/>
+<text x="614" y="548" text-anchor="middle" class="t" font-size="11" font-weight="bold">Tenant B LTM</text>
+<rect x="566" y="564" width="96" height="30" class="ltm"/>
+<text x="614" y="584" text-anchor="middle" class="t" font-size="11" font-weight="bold">Tenant C LTM</text>
+<rect x="566" y="600" width="96" height="30" class="ltm"/>
+<text x="614" y="620" text-anchor="middle" class="t" font-size="11" font-weight="bold">Tenant D LTM</text>
 
-<rect x="722" y="490" width="144" height="144" rx="10" fill="#e6fbf8" stroke="#0f8b8d" stroke-width="1.8"/>
-<text x="794" y="509" text-anchor="middle" class="hd" font-size="11.5">Shared Active WAF Pool</text>
-<rect x="734" y="517" width="56" height="36" class="waf"/>
-<text x="762" y="540" text-anchor="middle" class="t" font-size="11" font-weight="bold">WAF 1</text>
-<rect x="798" y="517" width="56" height="36" class="waf"/>
-<text x="826" y="540" text-anchor="middle" class="t" font-size="11" font-weight="bold">WAF 2</text>
-<rect x="734" y="561" width="56" height="36" class="waf"/>
-<text x="762" y="584" text-anchor="middle" class="t" font-size="11" font-weight="bold">WAF 3</text>
-<rect x="798" y="561" width="56" height="36" class="waf"/>
-<text x="826" y="584" text-anchor="middle" class="t" font-size="11" font-weight="bold">WAF 4</text>
-<text x="794" y="618" text-anchor="middle" class="sub" font-size="10">Parent/Child + Route Domains</text>
+<rect x="702" y="490" width="184" height="144" rx="10" fill="#e6fbf8" stroke="#0f8b8d" stroke-width="1.8"/>
+<text x="794" y="508" text-anchor="middle" class="hd" font-size="11">Shared Active WAF Pool (S1+2)</text>
+<rect x="711" y="516" width="50" height="36" class="waf"/>
+<text x="736" y="539" text-anchor="middle" class="t" font-size="10.5" font-weight="bold">WAF 1</text>
+<rect x="767" y="516" width="50" height="36" class="waf"/>
+<text x="792" y="539" text-anchor="middle" class="t" font-size="10.5" font-weight="bold">WAF 2</text>
+<rect x="823" y="516" width="55" height="36" class="res"/>
+<text x="850" y="532" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">+WAF 5</text>
+<text x="850" y="546" text-anchor="middle" class="sub" font-size="8.5">Canary</text>
 
-<rect x="916" y="530" width="114" height="64" class="cfw"/>
-<text x="973" y="557" text-anchor="middle" class="t" font-size="12" font-weight="bold">Private Cloud</text>
-<text x="973" y="575" text-anchor="middle" class="sub" font-size="11">CFW → ELB</text>
+<rect x="711" y="560" width="50" height="36" class="waf"/>
+<text x="736" y="583" text-anchor="middle" class="t" font-size="10.5" font-weight="bold">WAF 3</text>
+<rect x="767" y="560" width="50" height="36" class="waf"/>
+<text x="792" y="583" text-anchor="middle" class="t" font-size="10.5" font-weight="bold">WAF 4</text>
+<rect x="823" y="560" width="55" height="36" class="res"/>
+<text x="850" y="576" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">+WAF 6</text>
+<text x="850" y="590" text-anchor="middle" class="sub" font-size="8.5">Roll/N-2</text>
+<text x="794" y="618" text-anchor="middle" class="sub" font-size="9.2">Parent/Child + 1-node canary ≤17%</text>
 
-<path d="M666 507 L719 532" class="fl"/>
-<path d="M666 543 L719 552" class="fl"/>
-<path d="M666 579 L719 572" class="fl"/>
-<path d="M666 615 L719 592" class="fl"/>
-<path d="M866 562 H913" class="fl"/>
+<rect x="922" y="530" width="110" height="64" class="cfw"/>
+<text x="977" y="557" text-anchor="middle" class="t" font-size="12" font-weight="bold">Private Cloud</text>
+<text x="977" y="575" text-anchor="middle" class="sub" font-size="11">CFW → ELB</text>
+
+<path d="M662 507 L699 532" class="fl"/>
+<path d="M662 543 L699 552" class="fl"/>
+<path d="M662 579 L699 572" class="fl"/>
+<path d="M662 615 L699 592" class="fl"/>
+<path d="M886 562 H919" class="fl"/>
 
 <!-- S1 Bottom Summary -->
 <rect x="566" y="660" width="468" height="60" rx="8" fill="#f5f8fb" stroke="#d9e6ef"/>
-<text x="580" y="680" class="t" font-size="12" font-weight="bold">4 tenants / 2 sites: 16 LTM + 8 WAF = 24 (retains tenant LTM HA)</text>
-<text x="580" y="700" class="sub" font-size="11">Best 17.5.x efficiency with N-2 WAF pool, but shared WAF tier is a multi-tenant risk.</text>
+<text x="580" y="680" class="t" font-size="11.8" font-weight="bold">S1+2: 16 LTM + 12 WAF = 28 (20 r2800s*)  |  S1 base: 16 + 8 = 24</text>
+<text x="580" y="700" class="sub" font-size="10.8">+2 absorbs rolling upgrades, SSD outage &amp; canary; needs strict policy gates for ≤25%.</text>
 
 <!-- CARD S2 -->
 <rect x="1074" y="420" width="492" height="312" rx="14" fill="#ffffff" stroke="#be3144" stroke-width="1.8"/>
@@ -288,31 +295,31 @@
 
 <!-- S2 Bottom Summary -->
 <rect x="1086" y="660" width="468" height="60" rx="8" fill="#fff7f7" stroke="#f1c0c7"/>
-<text x="1100" y="680" class="t" font-size="12" font-weight="bold">4 tenants / 2 sites: 4 LTM + 8 WAF = 12 (lowest count, highest risk)</text>
-<text x="1100" y="700" class="sub" font-size="11">Breaks tenant LTM isolation; one bad change can affect all 4 tenants at once.</text>
+<text x="1100" y="680" class="t" font-size="12" font-weight="bold">4 tenants / 2 sites: 4 LTM + 8 WAF = 12 (fails ≤25% impact cap)</text>
+<text x="1100" y="700" class="sub" font-size="11">Breaks tenant LTM isolation; one bad change affects 100% (all 4 tenants) at once.</text>
 
 <!-- ================= BOTTOM REBUILD BAND: CONFIRMED r2800 PIZZA-BOX STANDARD ================= -->
 <rect x="34" y="748" width="1532" height="100" rx="14" fill="#ebf8e9" stroke="#5ca452" stroke-width="2"/>
 <!-- Left visual of r2800 2-tenant pools (Pool 1: A+B across 3 r2800s; Pool 2: C+D across 3 r2800s) -->
 <rect x="50" y="762" width="124" height="72" rx="8" fill="#ffffff" stroke="#073b64" stroke-width="1.5"/>
-<text x="112" y="779" text-anchor="middle" class="hd" font-size="10.5">r2800 #1–3 (S1)</text>
+<text x="112" y="779" text-anchor="middle" class="hd" font-size="10.5">r2800 #1–3 (W1-3)</text>
 <rect x="58" y="786" width="108" height="20" rx="4" fill="#dcf5f8" stroke="#073b64"/><text x="112" y="800" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">Tenant A (4c/12G)</text>
 <rect x="58" y="810" width="108" height="20" rx="4" fill="#ccefed" stroke="#0f8b8d"/><text x="112" y="824" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">Tenant B (4c/12G)</text>
 
 <rect x="184" y="762" width="124" height="72" rx="8" fill="#ffffff" stroke="#073b64" stroke-width="1.5"/>
-<text x="246" y="779" text-anchor="middle" class="hd" font-size="10.5">r2800 #4–6 (S1)</text>
+<text x="246" y="779" text-anchor="middle" class="hd" font-size="10.5">r2800 #4–6 (W1-3)</text>
 <rect x="192" y="786" width="108" height="20" rx="4" fill="#ede8ff" stroke="#5c4cd2"/><text x="246" y="800" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">Tenant C (4c/12G)</text>
 <rect x="192" y="810" width="108" height="20" rx="4" fill="#fff7dc" stroke="#d17714"/><text x="246" y="824" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">Tenant D (4c/12G)</text>
 
 <rect x="328" y="762" width="150" height="72" rx="8" fill="#f5f8fb" stroke="#0f8b8d" stroke-width="1.5"/>
-<text x="403" y="779" text-anchor="middle" class="hd" font-size="10.5">OR S1 Full-Box r2800</text>
+<text x="403" y="779" text-anchor="middle" class="hd" font-size="10.5">OR S1+2 Full-Box r2800</text>
 <rect x="338" y="788" width="130" height="38" rx="5" fill="#ccefed" stroke="#0f8b8d"/>
 <text x="403" y="805" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">1 Shared WAF (8c/24G)</text>
-<text x="403" y="820" text-anchor="middle" class="sub" font-size="9">K+2 active boxes/site</text>
+<text x="403" y="820" text-anchor="middle" class="sub" font-size="9">4+2 = 6 boxes/site (20 tot*)</text>
 
 <!-- Right explanation of confirmed r2800 standard -->
 <text x="502" y="779" class="hd" font-size="14">Confirmed Target Hardware Standard: F5 rSeries r2800 Pizza Boxes ONLY (F5OS-A 1.8.0+ • No Blade Chassis)</text>
-<text x="502" y="802" class="t" font-size="12">• Max 2 F5OS tenants/r2800 (4 vCPU / 12 GB each) halves dedicated W1-3 WAF boxes (24 → 12) &amp; LTM boxes (16 → 8); OR S1 full-box gives 8 vCPU / 24 GB.</text>
+<text x="502" y="802" class="t" font-size="11.8">• Both W1-3 (2-tenant F5OS @ 4c/12G) AND S1+2 (full-box @ 8c/24G) land at 20 r2800s total (8 LTM @ 2/box + 12 WAF) — benchmark AWAF RAM in Phase 0.</text>
 <text x="502" y="823" class="sub" font-size="11.5">• Guardrails: single 480 GB SSD (no RAID-1 → remote HSL logs + K+2 spread + cloud-init rebuild) • no STP on r2800 (dual-homed LACP LAGs, K000152319).</text>
 
 <!-- Consistent Deck Footer -->
