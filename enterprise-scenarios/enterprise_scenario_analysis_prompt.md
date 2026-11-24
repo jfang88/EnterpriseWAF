@@ -2,629 +2,232 @@
 
 ## Purpose
 
-Use this prompt to regenerate or refresh the EnterpriseWAF failure analysis **without changing the stable enterprise baseline**.
+Regenerate EnterpriseWAF analysis without confusing **current state** with **future target state**.
 
-The analysis is deliberately split into three source layers.
+# 1. Source hierarchy
 
-### 1. Stable invariants
+## 1.1 Current state / stable facts
+
+Read first:
+
+- [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)
+- [high_level_architecture.md](./high_level_architecture.md)
+
+Treat these as the authoritative description of the environment **today**.
+
+Do not add a target feature to the current-state diagram unless it has been validated as deployed.
+
+## 1.2 Future / target-state improvements
 
 Read:
 
-- [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)
+- [future_architecture_improvements.md](./future_architecture_improvements.md)
 
-Treat this as the authoritative enterprise context.
+This contains desired improvements such as:
 
-Do not change these facts merely because an architecture option is difficult to support.
+- GTM Layer-7 health of external/internal VIPs;
+- cross-site/distributed prober visibility;
+- app-team readiness contracts;
+- dependency-local recovery;
+- cross-site WAF/front-end contingency;
+- SLO synthetic monitoring.
 
-If a real-world assumption changes, update the invariant file explicitly and record why.
+These must be labelled **target / to-be**, not current state.
 
-### 2. Changeable design variables and F5 assumptions
+## 1.3 Changeable technical variables
 
 Read:
 
 - [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)
 
-This contains:
+This contains selectable W1-W4/S1-S2 topologies, F5 behavior, timers, routing and maintenance assumptions.
 
-- W1-W4 candidate WAF topologies, each normally replicated across both sites;
-- local-only versus controlled cross-site routing;
-- GTM health-check models;
-- GTM response/preference models;
-- F5 LTM/GTM/WAF health-monitor behavior;
-- F5 HA/mirroring considerations;
-- recovery-time modelling assumptions.
+# 2. Fixed architecture facts for every diagram
 
-Change this file when testing a different topology, health-check strategy, capacity assumption or F5 recovery configuration.
+Ground every diagram in these facts unless the current-state baseline is explicitly updated:
 
-### 3. Derived analyses
+- two sites;
+- one BIG-IP DNS/GTM cluster per site;
+- cross-site GTM synchronization;
+- two HA edge-firewall pairs per tenant/site, two devices per pair (2 x 2);
+- GTM/DNS is inside the edge-firewall boundary;
+- external/customer DNS reaches edge GTM over private leased-line/VPN connectivity;
+- internal clients use internal enterprise DNS;
+- selected internal names/namespaces can be delegated/forwarded to the **same edge GTM service**;
+- DNS/GTM is control plane, not an inline application-data hop;
+- current tenant LTM HA boundary is retained;
+- internal users/DNS/internal LTM are outside private cloud;
+- a separate internal firewall sits before the private-cloud CFW;
+- CFW and ELB/service are separate private-cloud layers;
+- App A/B/C/D dependencies are first-class failure domains.
 
-Regenerate/update:
+# 3. Mandatory current-state diagram
 
-- **High-level architecture:** [high_level_architecture.md](./high_level_architecture.md)
+The current-state diagram must show:
 
-- **Executive recommendation:** [executive_recommendation.md](./executive_recommendation.md)
-- **Architecture summary:** [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md)
-- **Lens 1 — primary end-to-end service impact/recovery:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)
-- **Lens 1 technical appendix:** [common_failure_matrix.md](./common_failure_matrix.md)
-- **Lens 2 — maintainability/change safety:** [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md)
-
-Both are **derived outputs**. They should be regenerated when the invariant file or analysis-variable file changes.
-
-Do not copy new assumptions directly into either derived analysis without first deciding whether they belong in the invariant file or the variable file.
-
-A new analysis lens should be added as a separate derived document where possible rather than expanding the invariant baseline or mixing unrelated conclusions into the failure matrix.
-
----
-
-# Analysis instructions
-
-You are reviewing a dual-site enterprise application-delivery architecture using F5 BIG-IP DNS/GTM, LTM and Advanced WAF/ASM.
-
-Use the invariant and variable files above.
-
-## Mandatory high-level architecture view
-
-Maintain [high_level_architecture.md](./high_level_architecture.md) as the canonical entity/relationship view.
-
-Ground every diagram and derived analysis in these stable enterprise facts from [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md):
-
-- each site has a **BIG-IP DNS/GTM cluster**;
-- the Site 1 and Site 2 GTM clusters synchronize the enterprise GTM/DNS configuration/global availability view;
-- each site has **two HA edge-firewall pairs, two devices per pair (2 x 2 edge-firewall devices)**;
-- the site GTM/DNS cluster is an **edge service inside the edge-firewall security boundary**;
-- external/customer DNS reaches the edge GTM across the private leased-line/VPN path and edge firewall;
-- internal enterprise DNS can use the **same edge GTM service** for selected delegated/forwarded internal names;
-- DNS/GTM is a control-plane resolution service and must not be drawn as an inline application-data hop before the private leased line;
-- internal users/desktops, internal enterprise DNS and internal LTM/service VIPs are **outside the private-cloud boundary**;
-- a separate **internal firewall** sits between the enterprise internal network and the private-cloud CFW;
-- internal firewall and CFW are distinct security/state/failure domains.
-
-Do not silently change these facts when comparing WAF topologies.
-
-It must show an explicit **architecture ownership boundary** separating GTM/LTM/network owner decisions, EnterpriseWAF decisions, and platform/application decisions.
-
-It must show:
-
-- external human/API consumers;
+- external users/API clients;
 - external/customer DNS;
-- **site-local GTM/DNS clusters inside the edge-firewall boundary**, with cross-site synchronization;
-- internal users/systems and internal enterprise DNS using the same edge GTM service for selected names;
-- external/private-network ingress paths;
-- **two HA edge-firewall pairs per site (2 x 2 devices) and application VIPs**;
-- LTM;
-- WAF runtime/enforcement platform;
-- **application-specific WAF policy as a separate logical concept**;
+- private leased-line/VPN path;
+- edge firewall;
+- site GTM cluster;
+- tenant LTM and WAF;
+- internal users;
+- internal enterprise DNS;
+- delegated/forwarded internal names to edge GTM;
+- internal LTM/service VIP;
+- internal firewall;
 - CFW;
-- ELB/application platform;
-- App A/B/C/D dependency relationships;
-- Site 1/Site 2 recovery relationships.
+- ELB/service;
+- App A/B/C/D and shared state/dependencies;
+- Site 1/Site 2 GTM synchronization.
 
-Explicitly distinguish:
+Do **not** show X2A/X2B/XD1, GTM L7 monitor arrows or shared-S1 WAF as current-state features unless validated.
 
-- generic network/application-delivery infrastructure;
-- shared WAF enforcement capacity;
-- application-coupled WAF policy;
-- target-state security-zone/cloud sharing boundary.
+# 4. Mandatory target health-monitoring diagram
 
-The current primary scope is the **four-tenant extranet estate**. Retain the existing GTM and tenant LTM boundaries in the current target model. Treat LTM/GTM consolidation as a future joint architecture question requiring the owning teams; do not silently redesign those services in the WAF recommendation.
+Create a separate target/to-be diagram based on [future_architecture_improvements.md](./future_architecture_improvements.md).
 
-## Mandatory comparison dimensions
+It must distinguish these health layers:
 
-Analyse all selected WAF topology options:
+- **H1 device/HA liveness** - local HA only;
+- **H2 local member health** - LTM/ELB fast local withdrawal;
+- **H3 GTM external VIP L7 health** - site/DNS decision for external users;
+- **H4 GTM/internal authoritative L7 health** - internal delegated-name/site decision;
+- **H5 dependency health** - App A/D -> B -> C, including B1 -> B2 where selected;
+- **H6 independent synthetic monitoring** - user/SLO evidence.
 
-- W1 — LTM-fronted scalable independent WAF pool;
-- W2 — WAF HA cluster, with and without ingress LTM where relevant;
-- W3 — tenant-preferred WAFs plus shared reserve WAFs;
-- W4 — asymmetric design: Site 1 WAF HA cluster + one extra active/spare WAF; Site 2 WAF HA cluster only. Analyse both W4a (LTM in front) and W4b (no ingress LTM in front of WAF).
+Make the action boundary explicit:
 
-W1-W3 normally use the same logical WAF topology in both sites. W4 is the deliberate asymmetry exception: Site 1 has the cluster plus an extra active/spare WAF, while Site 2 has the cluster only. GTM/LTM roles remain similar per site unless a scenario explicitly says otherwise. GTM site recovery is part of each topology and is not a separate WAF option.
+> GTM decides site/DNS; local LTM/ELB decides members.
 
-Also distinguish:
+# 5. Health-check design rules
 
-- X1 — local-only dataplane routing;
-- X2A/X2B — controlled cross-site WAF/front-end contingency where technically applicable;
-- X2C — conventional site/application failover;
-- XD1 — App A -> App B remote-dependency fallback.
+For each protected application, state:
 
+- whether the current check is known or unknown;
+- current monitor location and type where known;
+- target monitor location;
+- external VIP checked;
+- internal VIP checked;
+- URI/host/SNI;
+- expected status/body;
+- authentication;
+- critical dependencies included;
+- non-critical dependencies excluded;
+- interval/timeout;
+- maintenance/drain semantics;
+- app-team owner.
 
-## Mandatory tenancy, sharing and four-tenant cost comparison
+Avoid:
 
-Treat tenancy/sharing as a design axis separate from W1-W4.
+- **false green**: listener up while CFW/ELB/app is unusable;
+- **false red**: one non-critical dependency causes broad site withdrawal.
 
-Use an illustrative **four-tenant** planning case and compare:
+# 6. GTM probing and convergence
 
-- fully dedicated tenant LTM + WAF capacity;
-- dedicated tenant LTMs + shared independent active WAF pool;
-- W3 dedicated preferred WAFs + shared reserve;
-- shared LTM + shared WAF pool;
-- shared WAF HA cluster where relevant.
+Analyse separately:
 
-For each pattern show:
+1. local service/path health detection;
+2. GTM receipt/derivation of unhealthy state;
+3. synchronization/global-state convergence;
+4. GTM DNS answer change;
+5. residual DNS TTL/cache;
+6. client retry/re-resolution;
+7. application recovery T6.
 
-- LTM/WAF device-unit count across two sites;
-- N-1 and N-2 WAF failure tolerance, with capacity caveat;
-- complete cluster/pool failure impact;
+Do not assume GTM synchronization implies direct cross-site probing.
+
+Where health is site-local only, include measured synchronization/state-learning delay before DNS convergence.
+
+# 7. Mandatory WAF topology comparison
+
+Compare:
+
+- **W1** - LTM-fronted independent active WAF pool;
+- **W2** - WAF HA/DSC cluster;
+- **W3** - tenant-preferred WAFs + shared reserve;
+- **W4** - asymmetric Site 1 extra-WAF design;
+- **S1** - tenant-specific LTMs -> shared active WAF pool;
+- **S2** - shared LTM -> shared active WAF pool, future consolidation only.
+
+For each show:
+
+- N-1/N-2 capacity;
+- complete-tier failure;
+- change/maintenance headroom;
 - cross-tenant blast radius;
-- maintenance/change blast radius;
-- cross-site aggregate capacity requirement;
-- whether one shared bad policy/configuration can affect all tenants.
+- four-tenant LTM/WAF device-unit count;
+- 99.95 potential;
+- application recovery implications.
 
-Use device-unit count only as a planning proxy; do not present it as vendor pricing.
+# 8. Mandatory application dependency analysis
 
-Do not silently change the invariant tenant count. Four tenants is an explicit comparison case derived from the wider 3–4 tenant estate.
+Always model:
 
-## Mandatory maintainability / change-safety lens
+```text
+App A ----\
+          -> App B -> App C
+App D ----/
+```
 
-After completing the failure/recovery analysis, regenerate:
+For B failure show both:
 
+- current/no-fallback cascade; and
+- target B1 -> B2 dependency-local recovery where safe.
+
+# 9. Mandatory actor/service outcome
+
+For every material failure state the impact to:
+
+- external humans;
+- external systems/API clients;
+- internal users/systems;
+- App A/B/C/D dependencies.
+
+Report:
+
+- unaffected/degraded/unavailable;
+- automatic/manual recovery;
+- local versus cross-site recovery;
+- recovery timing;
+- retry/reconnect/re-auth/state/replay requirements;
+- time to first successful business transaction.
+
+# 10. Application classes
+
+Use:
+
+- **AT1 stateless web**;
+- **AT2 stateful web**;
+- **AT3 WebSocket/long-lived**;
+- **AT4 non-web/L4**.
+
+Do not call infrastructure failover successful until the applicable application recovery is complete.
+
+# 11. 99.95 and change safety
+
+Treat 99.95% as a target to prove, not an assumed result.
+
+Assess:
+
+- routine node maintenance;
+- WAF policy/signature changes;
+- LTM/GTM changes;
+- CFW/platform changes;
+- application rolling changes;
+- one planned maintenance event plus one additional credible failure;
+- canary/staging/rollback;
+- external/internal synthetic success.
+
+# 12. Derived outputs to keep aligned
+
+Update as needed:
+
+- [executive_recommendation.md](./executive_recommendation.md)
+- [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md)
+- [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)
+- [common_failure_matrix.md](./common_failure_matrix.md)
 - [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md)
-
-Assess every W1-W4 topology for:
-
-- monitoring difficulty and operational visibility;
-- firmware/software upgrades;
-- WAF policy/signature deployment;
-- LTM/GTM rule/configuration deployment;
-- config-sync blast radius;
-- BIG-IQ or equivalent centralized change control;
-- rolling, canary and blue-green feasibility;
-- pool/member drain behavior;
-- application drain/reconnect/state requirements;
-- rollback;
-- maintenance capacity;
-- staggered node/site change waves;
-- whether one unplanned failure can still be tolerated during one planned maintenance event;
-- component, path and end-to-end 99.95% availability potential.
-
-Treat 99.95% as a target to test, not as an assumed result.
-
-For every change scenario identify:
-
-- change unit;
-- capacity removed during change;
-- remaining failure tolerance;
-- drain method;
-- config-sync behavior;
-- canary/blue-green option;
-- monitoring/acceptance criteria;
-- rollback trigger/path;
-- application behavior required;
-- whether Site 1 and Site 2 can be staggered;
-- whether the change can meet the availability target.
-
-Do not deliberately create configuration drift between HA peers merely to simulate blue-green when the product expects synchronized HA configuration. Prefer a separate pool member, virtual/pool, policy staging, reserve WAF, extra WAF, application version, or site as the canary/blue-green boundary.
-
-### No-cross-site cascading-failure requirement
-
-For every scenario where cross-site capability improves recovery, also show the **no-cross-site** outcome.
-
-Explicitly trace whether the absence of cross-site routing causes:
-
-- WAF failure -> whole application/site failover;
-- front-end failure -> healthy application move;
-- B1 dependency failure -> A/C/D readiness failure;
-- multiple application GTM withdrawals;
-- Site 2 capacity surge;
-- reconnect/login storm;
-- dependency/database/identity overload;
-- manual DR.
-
-Quantify the change in recovery class/timing where possible (for example ~16s-class local recovery versus ~46–150s+ site recovery).
-
-## Mandatory cross-site recovery study
-
-Also read and regenerate/update when relevant:
-
 - [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md)
 
-Distinguish these mechanisms:
-
-- **X2A:** surviving local LTM borrows remote WAF and routes back to the primary application;
-- **X2B:** remote site's firewall/LTM/WAF becomes the front end and routes back to the healthy primary-site application;
-- **X2C:** conventional full application/site failover;
-- **XD1:** App A remains local and uses remote App B through a health-aware service VIP/service-discovery layer.
-
-Do not describe them all simply as "cross-site routing". Their detection, DNS dependency, latency, capacity and failure modes differ materially.
-
-## Mandatory end-to-end service outcome
-
-The primary failure/recovery output is **not** a WAF or F5 component matrix.
-
-For every failure scenario, finish the analysis by stating:
-
-- impact to external human users;
-- impact to external systems/API clients;
-- impact to internal users/systems;
-- impact to App A -> App B -> App C or other dependency chains;
-- user-visible outage/degradation duration;
-- whether recovery is automatic, manual, partial or unavailable;
-- local-only result versus cross-site-enabled result;
-- application retry/reconnect/re-auth/state/replay requirements;
-- whether the business service has actually recovered after infrastructure recovery.
-
-Use the service RTO measure:
-
-> time from fault to successful business transaction for each affected actor.
-
-Do not use "device green" or "WAF recovered" as the final success criterion.
-
-Classify recoverability where useful:
-
-- **R0** — no user impact;
-- **R1** — automatic local recovery;
-- **R2** — automatic cross-site component/dependency recovery;
-- **R3** — automatic site/application recovery;
-- **R4** — manual recovery;
-- **R5** — not recoverable with current design.
-
-## Default LTM count
-
-The enterprise baseline is **two LTMs per site** in an HA/Sync-Failover pair wherever an ingress/tenant LTM tier is used.
-
-A three-device LTM DSC group is an optional comparison only. Do not silently promote it into W1-W4 baseline calculations.
-
-When node-count discussion is needed, use [appendix_ltm_waf_2_vs_3_nodes.md](./appendix_ltm_waf_2_vs_3_nodes.md) and distinguish:
-
-- DSC failover groups, where one traffic group/VIP has one active owner;
-- multiple traffic groups active on different DSC devices;
-- independent WAF pool members behind an LTM, where all healthy WAF members can process the same service concurrently.
-
-## Mandatory actor/path dimensions
-
-Analyse:
-
-- external users over private leased-line paths using the **external namespace**;
-- external systems/API clients using the external namespace;
-- internal users using **internal enterprise DNS**, with selected internal service names optionally delegated/forwarded to the **same edge GTM service** used for external resolution;
-- internal applications resolving App B/App C/internal service endpoints through internal DNS/service discovery and, where configured, edge GTM;
-- internal users that may bypass WAF and connect through **internal LTM/service VIP -> internal firewall -> CFW -> ELB/service** for private-cloud applications;
-- Application A -> Application B -> Application C and shared-dependency chains;
-- non-web services that bypass WAF.
-
-Treat **external namespace resolution** and **internal namespace resolution** as separate failure domains. Do not assume a DNS/GTM failure affects both unless the architecture actually shares that failure domain.
-
-## Mandatory internal-firewall and platform-firewall layers
-
-The enterprise internal network and private cloud are separated by a distinct internal firewall. For internal users, model:
-
-```text
-internal user -> internal DNS -> [edge GTM for selected names] -> internal LTM/service VIP
-  -> internal firewall -> private-cloud CFW -> ELB/service -> application
-```
-
-Treat the internal firewall and CFW as separate health, routing, state, change and failure domains.
-
-For external/private-cloud hosted applications, model the application path as:
-
-```text
-WAF/LTM
-  -> platform/cloud firewall (CFW)
-  -> application ELB/service
-  -> VM / Kubernetes / PaaS workload
-```
-
-Treat CFW and ELB as separate health, routing, NAT/state, change and failure domains.
-
-For CFW failures state:
-
-- whether external and internal flows share the same CFW;
-- CFW HA/member behavior;
-- full CFW context/service failure impact;
-- whether a healthy ELB/app becomes unreachable;
-- whether multiple applications behind the same CFW fail together;
-- whether cross-site routing can reach the alternate CFW/ELB;
-- whether GTM/app health correctly detects the failure;
-- whether CFW failure triggers unnecessary multi-application/site failover.
-
-## Mandatory application types
-
-Every failure scenario must state the applicable application type:
-
-1. stateless web;
-2. stateful web;
-3. socket/WebSocket/long-lived connection;
-4. non-web/L4 application bypassing WAF.
-
-Do not call infrastructure failover successful until the application-specific recovery requirement is also satisfied.
-
-## Mandatory failure layers
-
-Cover at least:
-
-1. external DNS/GTM namespace resolution;
-2. internal enterprise DNS resolution;
-3. internal DNS delegation/conditional forwarding to GTM;
-4. internal GTM/service-name resolution;
-5. GTM health-check false-positive/false-negative;
-6. leased-line access;
-7. edge firewall member and full pair;
-8. LTM member and full HA pair;
-9. one WAF member;
-10. multiple WAF members;
-11. entire local WAF service;
-12. common-mode WAF policy/configuration error;
-13. shared reserve exhaustion;
-14. platform/cloud firewall (CFW) member/HA service and full CFW context;
-15. application ELB/service tier;
-16. VM/Kubernetes member/cluster;
-17. application readiness;
-18. session/state store;
-19. App A -> App B -> App C dependency;
-20. cross-site route;
-21. asymmetric cross-site path;
-22. entire site;
-23. passive site not ready;
-24. long-lived connection recovery.
-
-## GTM analysis
-
-Ground the GTM analysis in the fixed cluster/placement model:
-
-- one GTM/DNS cluster per site;
-- site clusters synchronize the enterprise GTM/DNS view;
-- GTM is located inside the edge-firewall boundary;
-- the same GTM service is used by external/customer DNS and internal enterprise DNS for selected names;
-- **site-local GTM cluster health/probe perspective is distinct from cross-site health observation**.
-
-
-
-Compare at minimum:
-
-- external namespace GTM resolution;
-- internal namespace resolution through internal enterprise DNS;
-- selected internal-name delegation/conditional forwarding to GTM;
-- internal service-name GTM health/selection;
-- IP/port-only GTM health and the resulting **false-green risk** when WAF/LTM is reachable but CFW/ELB/application is not;
-- HTTP/application-layer health via WAF/LTM or an authoritative readiness signal;
-- application-team ownership of the health-check contract (URI/host, method, expected response, auth and dependency semantics);
-- full application-readiness health;
-- F5 DNS/LTM integration using BIG-IP monitor/iQuery;
-- local-only probing and the additional convergence delay when the other GTM cluster must learn state indirectly;
-- distributed/cross-site probing.
-
-For active/passive applications, analyse health-gated Global Availability behavior.
-
-For active/active/locality designs, analyse Topology load balancing only when LDNS/resolver source can reliably map to desired site.
-
-Never assume the site containing the GTM that answered the query is automatically the preferred application site.
-
-## CFW timing/recovery requirement
-
-For private-cloud paths, explicitly analyse:
-
-- one CFW HA member failure with the same local service path retained;
-- complete local CFW context/service failure;
-- CFW false-green where WAF/front-end is healthy but CFW -> ELB/application is unreachable.
-
-Do not assign an invented numeric CFW HA default. Record CFW HA timing as **measured/TBD** until the firewall product/configuration is known.
-
-However, show the service-level consequence:
-
-- successful CFW HA should remain local with **no DNS TTL**;
-- whole CFW failure that triggers site recovery uses the existing GTM/DNS recovery timing (~46–150s + T6 depending health model);
-- false-green CFW can be unbounded until through-path readiness detects it.
-
-## F5 timing rules
-
-### Numeric recovery timing requirement
-
-The primary output must contain an explicit timing table with numeric planning windows where defaults support them.
-
-At minimum show:
-
-- BIG-IP HA peer: ~3s+ detection plus convergence;
-- LTM member/WAF member: up to ~16s with common 5s/16s defaults;
-- GTM DNS A-record pool TTL: 30s default;
-- direct GTM monitor: 30s interval / 120s timeout for common HTTP/HTTPS/TCP-style monitors;
-- illustrative fast site move: ~16s local health + up to 30s residual TTL = ~46s + T6, plus measured iQuery/propagation;
-- default-direct-monitor site move: up to ~120s + up to 30s TTL = ~150s + T6;
-- manual DR: T5 + DNS/site timing + T6.
-
-Explicitly distinguish:
-
-- new uncached clients;
-- clients with cached old DNS answers;
-- already-established TCP/TLS/WebSocket connections;
-- applications with their own DNS/connection-pool cache.
-
-Do not state that DNS TTL moves an existing connection.
-
-Do not state that LTM member failover is interruption-free for a connection already anchored to the failed member.
-
-Do not invent a single vendor failover number.
-
-Use the timing model in the variables file:
-
-- BIG-IP HA peer failure: seconds-scale, approximately 3+ seconds peer-loss detection under common/default-style settings plus data-plane convergence;
-- LTM pool-member failure: driven by configured monitor interval/timeout, often around the documented 5s/16s defaults for many LTM monitors;
-- direct BIG-IP DNS health: often much slower with documented 30s/120s defaults unless tuned;
-- DNS/site recovery: health detection + GTM decision + DNS cache/TTL + client re-resolution + application readiness;
-- warm/cold/manual application startup: operator/process dependent.
-
-For every timing value state whether it is:
-
-- F5 documented default/behavior;
-- configured design target;
-- measured value;
-- or unknown/TBD.
-
-## Application compliance
-
-Call out application code/configuration prerequisites.
-
-### Stateless web
-
-Require:
-
-- safe retry;
-- idempotency where duplicate requests matter;
-- shared/external state;
-- readiness monitoring.
-
-### Stateful web
-
-Require:
-
-- documented state/session location;
-- portable/replicated state;
-- safe re-auth/session recovery;
-- transaction reconciliation;
-- compatible alternate-site data.
-
-### Socket/WebSocket
-
-Require:
-
-- disconnect detection;
-- reconnect;
-- exponential backoff + jitter;
-- re-resolution;
-- re-authentication;
-- resubscription;
-- sequence/gap detection;
-- snapshot/replay;
-- idempotent commands;
-- durable state.
-
-### App A -> App B
-
-Require:
-
-- bounded timeouts;
-- retries with budgets/backoff;
-- circuit breaker/bulkhead behavior where appropriate;
-- service discovery/stable VIP;
-- idempotent retry semantics;
-- dependency failover without unnecessary site failover.
-
-### Non-web
-
-Require:
-
-- protocol-specific reconnect/retry;
-- safe replay/transaction semantics;
-- endpoint re-resolution;
-- state/persistence documentation.
-
-If these are absent, explicitly mark the application **not end-to-end resilient** and explain how that reduces the overall recoverability even when F5 infrastructure is HA.
-
----
-
-# Required output structure
-
-## Executive recommendation output
-
-Regenerate [executive_recommendation.md](./executive_recommendation.md) with:
-
-1. a self-contained topology legend for **W1/W2/W3/W4/S1/S2** before any ranked table, with plain-English descriptions and small diagrams;
-2. a short legend for X2A/X2B/X2C/XD1;
-3. a ranked final recommendation rather than only neutral comparison;
-4. the preferred four-tenant cost/resilience option;
-5. the preferred highest-isolation option;
-6. a 99.95% architectural-potential rating for each major option;
-7. common/credible failure and maintenance events that should remain R0/R1;
-8. failures where R2 cross-site component/dependency recovery materially improves the outcome;
-9. options not recommended as the default and why;
-10. required change controls and application compliance;
-11. explicit decision/acceptance gates before claiming the 99.95 target.
-
-Do not claim that any topology **meets** 99.95 until fault-injection and maintenance testing provide measured end-to-end evidence. Use terms such as **high potential**, **credible**, or **conditional** until proven.
-
-## Architecture summary
-
-Regenerate [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md) with:
-
-- a self-contained **T1-T9 reference table** near the top so timing shorthand can be understood without opening another document;
-- a link back to the detailed timing assumptions;
-- examples showing how T4/T5/T6/T9 combine in service recovery.
-
-Then include:
-
-1. W1-W4 topology summary;
-2. one-node / two-node / whole-cluster-or-pool resilience;
-3. cross-site versus no-cross-site comparison;
-4. stateless/stateful/WebSocket/non-web comparison;
-5. failure scenarios from DNS/circuit/firewall through LTM/WAF/CFW/ELB/app/state/dependency/site;
-6. four-tenant dedicated/shared device-count and blast-radius comparison;
-7. explicit conclusions on cost efficiency versus isolation/common-mode risk.
-
-## Lens 1 — end-to-end service impact/recovery
-
-First regenerate [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md) as the primary output. It must lead with actor impact, service outage time and recoverability.
-
-Then regenerate [common_failure_matrix.md](./common_failure_matrix.md) as the technical component appendix with:
-
-1. topology shorthand;
-2. timing model;
-3. control-plane/ingress failure table;
-4. LTM failure table;
-5. WAF failure table;
-6. backend/application failure table;
-7. cross-site failure table;
-8. full-site failure table;
-9. socket/long-lived behavior;
-10. non-web bypass behavior;
-11. application resilience/compliance requirements;
-12. GTM health-check comparison;
-13. topology resilience summary;
-14. critical failure points;
-15. architecture conclusions.
-
-For each scenario identify:
-
-- failed component;
-- detection signal;
-- recovery mechanism;
-- timing driver;
-- W1-W4 outcome;
-- external-user impact;
-- internal-user impact;
-- application-type impact;
-- App A -> B impact where relevant;
-- state/session/connection impact;
-- cascading-failure risk;
-- capacity impact;
-- manual action;
-- compliance requirement;
-- overall recoverability.
-
-## Lens 2 — maintainability/change safety
-
-Regenerate the maintainability analysis with:
-
-1. availability/SLO budget;
-2. F5 operational capabilities;
-3. maintainability principles;
-4. monitoring complexity;
-5. firmware strategy by W1-W4;
-6. LTM maintenance/rule changes;
-7. GTM maintenance;
-8. WAF policy/signature strategy;
-9. blue-green/canary feasibility;
-10. application draining;
-11. 99.95 maintainability test;
-12. topology scorecard;
-13. critical maintainability risks;
-14. recommended operating model;
-15. maintainability conclusions.
-
----
-
-# Change-control rule
-
-Before changing any analysis:
-
-1. Ask: **Did the real enterprise environment change?**
-   - Yes -> update invariants.
-   - No -> leave invariants untouched.
-
-2. Ask: **Did a topology/health/timing assumption change?**
-   - Yes -> update variables.
-   - No -> leave variables untouched.
-
-3. Regenerate the end-to-end service impact/recoverability analysis.
-4. Regenerate the technical common failure matrix that supports it.
-5. Regenerate the maintainability/change-safety analysis from the same inputs.
-6. Keep findings in their derived lens; promote a fact into invariants or variables only when it is genuinely a reusable input.
-
-This separation is intended to prevent the baseline from drifting every time a new WAF option or failure scenario is considered.
+Management deck source must keep **current-state architecture** and **target-state health architecture** on separate slides.
