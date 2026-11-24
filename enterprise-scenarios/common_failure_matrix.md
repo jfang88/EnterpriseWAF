@@ -8,7 +8,8 @@
 
 **Inputs**
 
-- Stable baseline: [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)
+- Stable baseline: [current_architecture_and_invariants.md](./current_architecture_and_invariants.md)
+- Target improvements: [future_architecture_improvements.md](./future_architecture_improvements.md)
 - Changeable topology/F5 assumptions: [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)
 
 **Purpose**

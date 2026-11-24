@@ -1,55 +1,161 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
 <defs>
-  <marker id="navy" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#073b64"/></marker>
-  <marker id="orange" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#d17714"/></marker>
+  <marker id="navy" markerWidth="10" markerHeight="10" refX="8.5" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#073b64"/></marker>
+  <marker id="orange" markerWidth="10" markerHeight="10" refX="8.5" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#d17714"/></marker>
+  <marker id="orangeStart" markerWidth="10" markerHeight="10" refX="0.5" refY="3" orient="auto"><path d="M9,0 L9,6 L0,3 z" fill="#d17714"/></marker>
   <style>
-    .tx{font-family:Arial,sans-serif;fill:#162432}.h{font-family:Arial,sans-serif;fill:white;font-weight:bold}.b{stroke:#073b64;stroke-width:2}.flow{stroke:#073b64;stroke-width:4;fill:none;marker-end:url(#navy)}.ctl{stroke:#d17714;stroke-width:4;fill:none;stroke-dasharray:12 9;marker-end:url(#orange)}
+    .tx{font-family:Liberation Sans,Arial,sans-serif;fill:#162432}
+    .sub{font-family:Liberation Sans,Arial,sans-serif;fill:#536575}
+    .h{font-family:Liberation Sans,Arial,sans-serif;fill:#ffffff;font-weight:bold}
+    .b{stroke:#073b64;stroke-width:2}
+    .flow{stroke:#073b64;stroke-width:3.5;fill:none;marker-end:url(#navy)}
+    .ctl{stroke:#d17714;stroke-width:3;fill:none;stroke-dasharray:10 7;marker-end:url(#orange)}
+    .ctlb{stroke:#d17714;stroke-width:3;fill:none;stroke-dasharray:10 7;marker-start:url(#orangeStart);marker-end:url(#orange)}
   </style>
 </defs>
+
 <rect width="1600" height="900" fill="#ffffff"/>
-<text x="65" y="60" class="tx" font-size="39" font-weight="bold" fill="#073b64">Architecture planes and parallel paths</text>
-<text x="67" y="102" class="tx" font-size="20" fill="#536575">External and internal access are parallel ingress paths; DNS/GTM and health are control planes, not inline data layers.</text>
 
-<!-- headings -->
-<rect x="65" y="150" width="300" height="55" rx="12" fill="#073b64"/><text x="215" y="185" text-anchor="middle" class="h" font-size="20">CLIENT / RESOLVER PLANE</text>
-<rect x="395" y="150" width="275" height="55" rx="12" fill="#073b64"/><text x="533" y="176" text-anchor="middle" class="h" font-size="18">DNS / SITE-SELECTION</text><text x="533" y="198" text-anchor="middle" class="h" font-size="18">CONTROL PLANE</text>
-<rect x="700" y="150" width="370" height="55" rx="12" fill="#073b64"/><text x="885" y="185" text-anchor="middle" class="h" font-size="20">PARALLEL INGRESS PATHS</text>
-<rect x="1100" y="150" width="205" height="55" rx="12" fill="#073b64"/><text x="1202" y="176" text-anchor="middle" class="h" font-size="17">PRIVATE-CLOUD</text><text x="1202" y="198" text-anchor="middle" class="h" font-size="17">DELIVERY TIER</text>
-<rect x="1335" y="150" width="205" height="55" rx="12" fill="#073b64"/><text x="1438" y="176" text-anchor="middle" class="h" font-size="17">APPLICATION +</text><text x="1438" y="198" text-anchor="middle" class="h" font-size="17">DEPENDENCY TIER</text>
+<!-- Title & Legend -->
+<text x="55" y="54" class="tx" font-size="36" font-weight="bold" fill="#073b64">Architecture planes and parallel paths</text>
+<text x="55" y="88" class="sub" font-size="18">External and internal access are parallel ingress paths; DNS/GTM and health are control planes, not inline data layers.</text>
 
-<!-- client boxes -->
-<rect x="78" y="230" width="275" height="85" rx="18" fill="#f5f8fb" class="b"/><text x="215" y="264" text-anchor="middle" class="tx" font-size="20" font-weight="bold">External users +</text><text x="215" y="291" text-anchor="middle" class="tx" font-size="20" font-weight="bold">customer DNS</text>
-<rect x="78" y="350" width="275" height="85" rx="18" fill="#f5f8fb" class="b"/><text x="215" y="384" text-anchor="middle" class="tx" font-size="20" font-weight="bold">Internal users +</text><text x="215" y="411" text-anchor="middle" class="tx" font-size="20" font-weight="bold">enterprise DNS</text>
+<rect x="1085" y="28" width="460" height="42" rx="10" fill="#f5f8fb" stroke="#d9e6ef" stroke-width="1.5"/>
+<line x1="1108" y1="49" x2="1152" y2="49" stroke="#073b64" stroke-width="3.5" marker-end="url(#navy)"/>
+<text x="1164" y="54" class="tx" font-size="14" font-weight="bold">Data plane</text>
+<line x1="1272" y1="49" x2="1320" y2="49" stroke="#d17714" stroke-width="3" stroke-dasharray="8 6" marker-end="url(#orange)"/>
+<text x="1332" y="54" class="tx" font-size="14" font-weight="bold">DNS control plane</text>
 
-<!-- GTM -->
-<rect x="405" y="230" width="255" height="155" rx="22" fill="#dff5c1" class="b"/><text x="533" y="281" text-anchor="middle" class="tx" font-size="21" font-weight="bold">Site GTM / DNS clusters</text><text x="533" y="311" text-anchor="middle" class="tx" font-size="19">+ synchronization</text><text x="533" y="348" text-anchor="middle" class="tx" font-size="15" fill="#536575">same service can answer selected</text><text x="533" y="370" text-anchor="middle" class="tx" font-size="15" fill="#536575">external + delegated internal names</text>
+<!-- Top Control Plane Band: DNS / GTM -->
+<rect x="425" y="114" width="750" height="96" rx="16" fill="#dff5c1" stroke="#073b64" stroke-width="2"/>
+<rect x="425" y="114" width="750" height="32" rx="12" fill="#073b64"/>
+<rect x="425" y="132" width="750" height="14" fill="#073b64"/>
+<text x="800" y="136" text-anchor="middle" class="h" font-size="15">DNS / SITE-SELECTION CONTROL PLANE (NOT AN INLINE DATA HOP)</text>
+<text x="800" y="172" text-anchor="middle" class="tx" font-size="18" font-weight="bold">Site 1 &amp; Site 2 BIG-IP DNS / GTM clusters (+ synchronization)</text>
+<text x="800" y="196" text-anchor="middle" class="sub" font-size="14">Same edge GTM service can answer selected external + delegated internal endpoint names</text>
 
-<!-- ingress boxes -->
-<rect x="715" y="230" width="340" height="98" rx="18" fill="#dcf5f8" class="b"/><text x="885" y="264" text-anchor="middle" class="tx" font-size="20" font-weight="bold">External path</text><text x="885" y="293" text-anchor="middle" class="tx" font-size="18">leased line/VPN → edge FW → LTM → WAF</text>
-<rect x="715" y="365" width="340" height="88" rx="18" fill="#dcf5f8" class="b"/><text x="885" y="398" text-anchor="middle" class="tx" font-size="20" font-weight="bold">Internal path</text><text x="885" y="427" text-anchor="middle" class="tx" font-size="18">internal VIP/LTM → internal firewall</text>
+<!-- Column Headers -->
+<rect x="55" y="254" width="290" height="46" rx="10" fill="#073b64"/>
+<text x="200" y="283" text-anchor="middle" class="h" font-size="16">CLIENT / RESOLVER PLANE</text>
 
-<!-- cloud -->
-<rect x="1110" y="230" width="185" height="155" rx="22" fill="#ede8ff" class="b"/><text x="1202" y="285" text-anchor="middle" class="tx" font-size="22" font-weight="bold">CFW → ELB /</text><text x="1202" y="317" text-anchor="middle" class="tx" font-size="22" font-weight="bold">service</text><text x="1202" y="355" text-anchor="middle" class="tx" font-size="15" fill="#536575">external and internal paths</text><text x="1202" y="377" text-anchor="middle" class="tx" font-size="15" fill="#536575">converge here</text>
-<rect x="1345" y="230" width="185" height="210" rx="24" fill="#dff5c1" class="b"/><text x="1438" y="295" text-anchor="middle" class="tx" font-size="21" font-weight="bold">App A / D</text><text x="1438" y="326" text-anchor="middle" class="tx" font-size="21" font-weight="bold">→ B → C</text><text x="1438" y="364" text-anchor="middle" class="tx" font-size="18">+ state / DB / identity</text><text x="1438" y="397" text-anchor="middle" class="tx" font-size="15" fill="#536575">dependency recovery is a</text><text x="1438" y="419" text-anchor="middle" class="tx" font-size="15" fill="#536575">separate architecture concern</text>
+<rect x="425" y="254" width="470" height="46" rx="10" fill="#073b64"/>
+<text x="660" y="283" text-anchor="middle" class="h" font-size="16">PARALLEL INGRESS PATHS</text>
 
-<!-- arrows -->
-<path d="M353 272 H405" class="ctl"/><path d="M353 392 C375 392,380 335,405 325" class="ctl"/>
-<path d="M660 272 H715" class="ctl"/><path d="M660 326 C690 340,690 405,715 409" class="ctl"/>
-<path d="M1055 279 H1110" class="flow"/><path d="M1055 409 L1110 330" class="flow"/>
-<path d="M1295 307 H1345" class="flow"/>
+<rect x="965" y="254" width="245" height="46" rx="10" fill="#073b64"/>
+<text x="1088" y="274" text-anchor="middle" class="h" font-size="15">PRIVATE-CLOUD</text>
+<text x="1088" y="292" text-anchor="middle" class="h" font-size="15">DELIVERY TIER</text>
 
-<!-- health plane -->
-<rect x="90" y="525" width="1440" height="56" rx="10" fill="#0f8b8d"/><text x="810" y="561" text-anchor="middle" class="h" font-size="21">CROSS-CUTTING HEALTH / OBSERVABILITY / RECOVERY PLANE</text>
+<rect x="1280" y="254" width="265" height="46" rx="10" fill="#073b64"/>
+<text x="1412" y="274" text-anchor="middle" class="h" font-size="15">APPLICATION +</text>
+<text x="1412" y="292" text-anchor="middle" class="h" font-size="15">DEPENDENCY TIER</text>
 
-<!-- H boxes -->
+<!-- Column 1: Client / Resolver Plane -->
+<rect x="55" y="314" width="290" height="84" rx="14" fill="#f5f8fb" class="b"/>
+<text x="200" y="348" text-anchor="middle" class="tx" font-size="17" font-weight="bold">External users / API clients</text>
+<text x="200" y="374" text-anchor="middle" class="sub" font-size="14">+ external / customer DNS</text>
+
+<rect x="55" y="416" width="290" height="84" rx="14" fill="#f5f8fb" class="b"/>
+<text x="200" y="450" text-anchor="middle" class="tx" font-size="17" font-weight="bold">Internal users / systems</text>
+<text x="200" y="476" text-anchor="middle" class="sub" font-size="14">+ internal enterprise DNS</text>
+
+<!-- Column 2: Parallel Ingress Paths -->
+<rect x="425" y="314" width="470" height="84" rx="14" fill="#dcf5f8" class="b"/>
+<text x="660" y="346" text-anchor="middle" class="tx" font-size="18" font-weight="bold">External path</text>
+<text x="660" y="374" text-anchor="middle" class="tx" font-size="15">leased line / VPN → 2×2 edge FW → LTM → WAF</text>
+
+<rect x="425" y="416" width="470" height="84" rx="14" fill="#dcf5f8" class="b"/>
+<text x="660" y="448" text-anchor="middle" class="tx" font-size="18" font-weight="bold">Internal path (bypasses external WAF)</text>
+<text x="660" y="476" text-anchor="middle" class="tx" font-size="15">internal LTM / service VIP → internal firewall</text>
+
+<!-- Column 3: Private-Cloud Delivery Tier -->
+<rect x="965" y="314" width="245" height="186" rx="16" fill="#ede8ff" stroke="#5c4cd2" stroke-width="2"/>
+<text x="1088" y="366" text-anchor="middle" class="tx" font-size="20" font-weight="bold">CFW → ELB /</text>
+<text x="1088" y="394" text-anchor="middle" class="tx" font-size="20" font-weight="bold">service</text>
+<text x="1088" y="436" text-anchor="middle" class="sub" font-size="14">external and internal</text>
+<text x="1088" y="458" text-anchor="middle" class="sub" font-size="14">paths converge here</text>
+
+<!-- Column 4: Application + Dependency Tier -->
+<rect x="1280" y="314" width="265" height="186" rx="16" fill="#dff5c1" class="b"/>
+<text x="1412" y="358" text-anchor="middle" class="tx" font-size="19" font-weight="bold">App A / D → B → C</text>
+<text x="1412" y="390" text-anchor="middle" class="tx" font-size="16">+ state / DB / identity</text>
+<text x="1412" y="432" text-anchor="middle" class="sub" font-size="14">dependency recovery is a</text>
+<text x="1412" y="454" text-anchor="middle" class="sub" font-size="14">separate architecture concern</text>
+
+<!-- Data Plane Arrows (solid navy) -->
+<path d="M345 356 H422" class="flow"/>
+<path d="M345 458 H422" class="flow"/>
+<path d="M895 356 L962 380" class="flow"/>
+<path d="M895 458 L962 432" class="flow"/>
+<path d="M1210 407 H1277" class="flow"/>
+
+<!-- Control Plane Arrows (dashed orange, routed cleanly in whitespace) -->
+<!-- External DNS query/answer to GTM -->
+<path d="M200 254 V156 H422" class="ctlb"/>
+<text x="305" y="146" text-anchor="middle" class="tx" font-size="13" font-weight="bold" fill="#d17714">DNS query / VIP answer</text>
+<!-- Internal DNS delegated query/answer through open vertical chute x=385 -->
+<path d="M345 436 H385 V184 H422" class="ctlb"/>
+<!-- GTM steers site/VIP selection -->
+<path d="M660 210 V251" class="ctl"/>
+<text x="676" y="237" class="tx" font-size="13" font-weight="bold" fill="#d17714">selects Site 1 / Site 2 VIP</text>
+
+<!-- Cross-cutting Health / Observability Plane -->
+<rect x="55" y="542" width="1490" height="46" rx="10" fill="#0f8b8d"/>
+<text x="800" y="571" text-anchor="middle" class="h" font-size="19">CROSS-CUTTING HEALTH / OBSERVABILITY / RECOVERY PLANE</text>
+
+<!-- 6 Evenly Spaced Health Cards: x=55, w=235, gap=16 => total 1490 -->
 <g>
-<rect x="80" y="612" width="56" height="60" rx="10" fill="#0f8b8d"/><text x="108" y="650" text-anchor="middle" class="h" font-size="20">H1</text><rect x="145" y="612" width="175" height="60" rx="12" fill="#f5f8fb" class="b"/><text x="233" y="648" text-anchor="middle" class="tx" font-size="17" font-weight="bold">native HA</text><text x="200" y="712" text-anchor="middle" class="tx" font-size="15" fill="#536575">peer/device takeover</text>
-<rect x="340" y="612" width="56" height="60" rx="10" fill="#0f8b8d"/><text x="368" y="650" text-anchor="middle" class="h" font-size="20">H2</text><rect x="405" y="612" width="175" height="60" rx="12" fill="#f5f8fb" class="b"/><text x="493" y="648" text-anchor="middle" class="tx" font-size="17" font-weight="bold">LTM / ELB</text><text x="493" y="712" text-anchor="middle" class="tx" font-size="15" fill="#536575">local member withdrawal</text>
-<rect x="600" y="612" width="56" height="60" rx="10" fill="#0f8b8d"/><text x="628" y="650" text-anchor="middle" class="h" font-size="20">H3</text><rect x="665" y="612" width="185" height="60" rx="12" fill="#f5f8fb" class="b"/><text x="758" y="638" text-anchor="middle" class="tx" font-size="15" font-weight="bold">GTM-owned external</text><text x="758" y="658" text-anchor="middle" class="tx" font-size="15" font-weight="bold">endpoint health</text><text x="758" y="712" text-anchor="middle" class="tx" font-size="15" fill="#536575">external DNS/site choice</text>
-<rect x="870" y="612" width="56" height="60" rx="10" fill="#0f8b8d"/><text x="898" y="650" text-anchor="middle" class="h" font-size="20">H4</text><rect x="935" y="612" width="185" height="60" rx="12" fill="#f5f8fb" class="b"/><text x="1028" y="638" text-anchor="middle" class="tx" font-size="15" font-weight="bold">GTM-owned internal</text><text x="1028" y="658" text-anchor="middle" class="tx" font-size="15" font-weight="bold">endpoint health</text><text x="1028" y="712" text-anchor="middle" class="tx" font-size="15" fill="#536575">delegated-name/site choice</text>
-<rect x="1140" y="612" width="56" height="60" rx="10" fill="#0f8b8d"/><text x="1168" y="650" text-anchor="middle" class="h" font-size="20">H5</text><rect x="1205" y="612" width="145" height="60" rx="12" fill="#f5f8fb" class="b"/><text x="1278" y="638" text-anchor="middle" class="tx" font-size="14" font-weight="bold">service VIP /</text><text x="1278" y="657" text-anchor="middle" class="tx" font-size="14" font-weight="bold">discovery</text><text x="1278" y="712" text-anchor="middle" class="tx" font-size="14" fill="#536575">B1→B2 recovery</text>
-<rect x="1370" y="612" width="56" height="60" rx="10" fill="#0f8b8d"/><text x="1398" y="650" text-anchor="middle" class="h" font-size="20">H6</text><rect x="1435" y="612" width="105" height="60" rx="12" fill="#f5f8fb" class="b"/><text x="1488" y="638" text-anchor="middle" class="tx" font-size="13" font-weight="bold">independent</text><text x="1488" y="656" text-anchor="middle" class="tx" font-size="13" font-weight="bold">synthetic</text><text x="1488" y="712" text-anchor="middle" class="tx" font-size="13" fill="#536575">SLO outcome</text>
+  <!-- H1 -->
+  <rect x="55" y="608" width="46" height="62" rx="10" fill="#0f8b8d"/>
+  <text x="78" y="646" text-anchor="middle" class="h" font-size="18">H1</text>
+  <rect x="108" y="608" width="182" height="62" rx="12" fill="#f5f8fb" class="b"/>
+  <text x="199" y="645" text-anchor="middle" class="tx" font-size="16" font-weight="bold">native HA</text>
+  <text x="172" y="696" text-anchor="middle" class="sub" font-size="14">peer / device takeover</text>
+
+  <!-- H2 -->
+  <rect x="306" y="608" width="46" height="62" rx="10" fill="#0f8b8d"/>
+  <text x="329" y="646" text-anchor="middle" class="h" font-size="18">H2</text>
+  <rect x="359" y="608" width="182" height="62" rx="12" fill="#f5f8fb" class="b"/>
+  <text x="450" y="645" text-anchor="middle" class="tx" font-size="16" font-weight="bold">LTM / ELB</text>
+  <text x="423" y="696" text-anchor="middle" class="sub" font-size="14">local member withdrawal</text>
+
+  <!-- H3 -->
+  <rect x="557" y="608" width="46" height="62" rx="10" fill="#0f8b8d"/>
+  <text x="580" y="646" text-anchor="middle" class="h" font-size="18">H3</text>
+  <rect x="610" y="608" width="182" height="62" rx="12" fill="#f5f8fb" class="b"/>
+  <text x="701" y="635" text-anchor="middle" class="tx" font-size="14" font-weight="bold">GTM-owned external</text>
+  <text x="701" y="655" text-anchor="middle" class="tx" font-size="14" font-weight="bold">endpoint health</text>
+  <text x="674" y="696" text-anchor="middle" class="sub" font-size="14">external DNS / site choice</text>
+
+  <!-- H4 -->
+  <rect x="808" y="608" width="46" height="62" rx="10" fill="#0f8b8d"/>
+  <text x="831" y="646" text-anchor="middle" class="h" font-size="18">H4</text>
+  <rect x="861" y="608" width="182" height="62" rx="12" fill="#f5f8fb" class="b"/>
+  <text x="952" y="635" text-anchor="middle" class="tx" font-size="14" font-weight="bold">GTM-owned internal</text>
+  <text x="952" y="655" text-anchor="middle" class="tx" font-size="14" font-weight="bold">endpoint health</text>
+  <text x="925" y="696" text-anchor="middle" class="sub" font-size="14">delegated-name / site choice</text>
+
+  <!-- H5 -->
+  <rect x="1059" y="608" width="46" height="62" rx="10" fill="#0f8b8d"/>
+  <text x="1082" y="646" text-anchor="middle" class="h" font-size="18">H5</text>
+  <rect x="1112" y="608" width="182" height="62" rx="12" fill="#f5f8fb" class="b"/>
+  <text x="1203" y="635" text-anchor="middle" class="tx" font-size="14" font-weight="bold">service VIP /</text>
+  <text x="1203" y="655" text-anchor="middle" class="tx" font-size="14" font-weight="bold">discovery</text>
+  <text x="1176" y="696" text-anchor="middle" class="sub" font-size="14">B1 → B2 recovery</text>
+
+  <!-- H6 -->
+  <rect x="1310" y="608" width="46" height="62" rx="10" fill="#0f8b8d"/>
+  <text x="1333" y="646" text-anchor="middle" class="h" font-size="18">H6</text>
+  <rect x="1363" y="608" width="182" height="62" rx="12" fill="#f5f8fb" class="b"/>
+  <text x="1454" y="635" text-anchor="middle" class="tx" font-size="14" font-weight="bold">independent</text>
+  <text x="1454" y="655" text-anchor="middle" class="tx" font-size="14" font-weight="bold">synthetic</text>
+  <text x="1427" y="696" text-anchor="middle" class="sub" font-size="14">SLO outcome</text>
 </g>
 
-<rect x="95" y="785" width="1410" height="58" rx="12" fill="#ebf8e9" stroke="#5ca452" stroke-width="2"/><text x="800" y="820" text-anchor="middle" class="tx" font-size="17" font-weight="bold" fill="#073b64">Do not draw a single inline stack: the internal firewall is not “after” WAF. External and internal paths only converge at the private-cloud delivery tier.</text>
+<!-- Bottom Callout -->
+<rect x="55" y="750" width="1490" height="60" rx="12" fill="#ebf8e9" stroke="#5ca452" stroke-width="2"/>
+<text x="800" y="786" text-anchor="middle" class="tx" font-size="16" font-weight="bold" fill="#073b64">Do not draw a single inline stack: the internal firewall is not “after” WAF. External and internal paths only converge at the private-cloud delivery tier.</text>
+
+<!-- Consistent Deck Footer -->
+<text x="58" y="874" class="sub" font-size="13">EnterpriseWAF management summary</text>
+<text x="1542" y="874" text-anchor="end" class="sub" font-size="13">Nov 2026  •  3</text>
 </svg>

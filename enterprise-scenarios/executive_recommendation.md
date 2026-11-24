@@ -20,9 +20,9 @@ Therefore the target is not "one monolithic shared WAF policy." It is:
 
 > **shared WAF enforcement capacity with application-isolated policies and change blast radius.**
 
-See [high_level_architecture.md](./high_level_architecture.md) for the canonical entity/relationship view.
+See [current_architecture_and_invariants.md](./current_architecture_and_invariants.md) for the canonical current-state architecture and [future_architecture_improvements.md](./future_architecture_improvements.md) for the target health-monitoring and platform-rebuild model.
 
-The current architecture focus is the **four-tenant extranet estate**. Retain the existing GTM and tenant LTM boundaries in the current target recommendation. Consolidating GTM/LTM may be a valid future optimisation if applications converge onto common private-cloud platforms, but it requires participation from the GTM/LTM/network owners and is not assumed by this WAF analysis.
+The current architecture focus is the **four-tenant extranet estate** (currently running **BIG-IP 17.5.x**, with a target rebuild onto newer devices/software such as rSeries/VELOS F5OS + BIG-IP 21.1.x+ — see [future_architecture_improvements.md §15A](./future_architecture_improvements.md#15a-platform-rebuild-impact-big-ip-175x-current-vs-newer-devices-and-big-ip-211x--f5os-future)). Retain the existing GTM and tenant LTM boundaries in the current target recommendation. Consolidating GTM/LTM may be a valid future optimisation if applications converge onto common private-cloud platforms, but it requires participation from the GTM/LTM/network owners and is not assumed by this WAF analysis.
 
 ### Ownership constraint
 
@@ -33,7 +33,7 @@ This WAF architecture can recommend WAF topology, capacity, policy isolation and
 - firewall/routing/NAT changes;
 - DNS/GTM health-policy changes.
 
-X2A/X2B are therefore **candidate target capabilities** until the owning teams validate them. See [high_level_architecture.md](./high_level_architecture.md) for the ownership-boundary diagram.
+X2A/X2B are therefore **candidate target capabilities** until the owning teams validate them. See [current_architecture_and_invariants.md](./current_architecture_and_invariants.md) and [future_architecture_improvements.md](./future_architecture_improvements.md).
 
 There is no single topology that guarantees 99.95% availability. The target is credible only when:
 
@@ -52,10 +52,10 @@ The shorthand is used only to keep the comparison tables compact. Read the descr
 | ID | Plain-English description | Normal traffic model | Main trade-off |
 |---|---|---|---|
 | **W1** | **Tenant/dedicated LTM pair in front of independent active WAFs** | LTM load-balances the same service across 2..N active WAFs | Strong horizontal scale and maintenance flexibility; failed sockets normally reconnect |
-| **W2** | **WAF HA/DSC cluster**, optionally behind an LTM | One WAF owns a traffic group; peer is HA standby for that traffic group | Simple HA and possible connection mirroring, but pair/cluster is a hard local boundary |
+| **W2** | **WAF HA/DSC cluster**, optionally behind an LTM | One WAF owns a traffic group; peer is HA standby for that traffic group | Simple HA and possible connection mirroring (requires licensed LTM+AWAF), but pair/cluster is a hard local boundary |
 | **W3** | **Tenant LTM pair + tenant-preferred WAFs + shared reserve WAFs** | Preferred WAFs serve normally; shared reserve is contingency capacity | Keeps normal-state tenant separation but introduces shared reserve governance/contention |
 | **W4** | **Asymmetric cluster design**: Site 1 WAF HA cluster + extra WAF; Site 2 cluster only | Site 1 has extra local capacity; Site 2 has only the cluster | Stronger Site 1 resilience but asymmetric DR/maintenance |
-| **S1** | **Existing tenant-specific LTM pairs feeding one shared independent active WAF pool** | The current four extranet tenant LTM pairs remain; WAF capacity is shared behind them | Best shared-WAF candidate without redesigning LTM/GTM ownership boundaries |
+| **S1** | **Existing tenant-specific LTM pairs feeding one shared independent active WAF pool** | The current four extranet tenant LTM pairs remain; WAF capacity is shared behind them | Best shared-WAF candidate without redesigning LTM/GTM ownership boundaries (note: future rSeries/VELOS F5OS multi-tenancy can deliver S1-like hardware consolidation with Dedicated-W1 OS/upgrade isolation) |
 | **S2** | **Shared LTM pair + shared independent active WAF pool** | Tenants share both ingress LTM and WAF capacity | Comparison only; LTM consolidation is outside current scope and has a much larger common failure/change domain |
 
 ### W1 — dedicated independent WAF pool
@@ -94,26 +94,33 @@ A traffic group has one active WAF owner. This is not the same as W1 where sever
 ### W3 — preferred tenant WAFs plus shared reserve
 
 ~~~text
-Tenant 2-LTM HA pair
-       |
-  preferred WAF1 + WAF2
-       |
-       +------ shared reserve WAF(s)
-       |
-      CFW -> ELB/app
+      Tenant 2-LTM HA pair
+               |
+      +--------+--------+
+      |                 |
+preferred WAF1/WAF2   shared reserve WAF(s)
+(higher priority)     (lower priority contingency)
+      \                 /
+       +-------+-------+
+               |
+          CFW -> ELB/app
 ~~~
 
-Each tenant retains its preferred WAF capacity. Reserve WAFs are shared only for failure/maintenance capacity.
+Each tenant retains its preferred WAF capacity. Reserve WAFs sit in parallel as lower-priority contingency capacity for failure/maintenance.
 
 ### W4 — asymmetric cluster + extra Site 1 WAF
 
 ~~~text
-Site 1                         Site 2
-2-LTM pair                     2-LTM pair
-   |                              |
-WAF HA cluster                WAF HA cluster
-   |
-extra WAF
+Site 1                              Site 2
+2-LTM pair                          2-LTM pair
+    |                                   |
+    +---------------+               WAF HA cluster
+    |               |                   |
+WAF HA cluster  extra WAF (parallel)  CFW -> ELB/app
+    \               /
+     +------+------+
+            |
+       CFW -> ELB/app
 ~~~
 
 ### S1 — tenant LTMs + shared active WAF pool

@@ -23,15 +23,23 @@ def clear_slide(slide) -> None:
 
 
 planes_png = BUILD / "architecture_planes.png"
+topo_png = BUILD / "end_to_end_topology.png"
 health_png = BUILD / "target_health.png"
 placement_png = BUILD / "health_check_placement.png"
+
 render_svg(DIAGRAMS / "EnterpriseWAF_Architecture_Planes.svg", planes_png)
+render_svg(DIAGRAMS / "EnterpriseWAF_End_to_End_Topology.svg", topo_png)
 render_svg(DIAGRAMS / "EnterpriseWAF_Target_Health_Monitoring.svg", health_png)
 render_svg(DIAGRAMS / "EnterpriseWAF_Health_Check_Placement.svg", placement_png)
 
 prs = Presentation(PPTX)
-# Slides are 0-indexed. Replace slides 3, 5 and 6 with authoritative SVG renderings.
-for index, image in ((2, planes_png), (4, health_png), (5, placement_png)):
+# Slides are 0-indexed. Replace slides 3, 4, 5 and 6 with the four authoritative SVG renderings.
+for index, image in (
+    (2, planes_png),
+    (3, topo_png),
+    (4, health_png),
+    (5, placement_png),
+):
     slide = prs.slides[index]
     clear_slide(slide)
     slide.shapes.add_picture(str(image), 0, 0, width=prs.slide_width, height=prs.slide_height)

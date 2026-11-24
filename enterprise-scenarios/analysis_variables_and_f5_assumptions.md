@@ -624,12 +624,13 @@ Validated behavior:
 - once the member is marked down, BIG-IP LTM stops sending new connections to that member and redirects new traffic to another healthy pool member;
 - this can make a pool-member failure a relatively short **local recovery event** when healthy capacity remains;
 - already-established TCP/WebSocket connections on the failed member are **not automatically migrated** to another member;
-- F5's default Action On Service Down behavior is `None`, so an existing connection may remain until it ends, resets, or its profile/application timeout expires unless a different supported action is deliberately configured.
+- F5's default pool `Action On Service Down` behavior is `None`, so an existing connection may remain until it ends, resets, or its TCP/application timeout expires (`K15095`). For **W1/S1/W3 independent WAF pools** and **XD1 `App A -> B` pools**, configure `Action On Service Down = Reject` so BIG-IP LTM sends an immediate TCP RST to affected clients when a member fails, cutting dead-socket hang time and triggering prompt `T6` reconnect. Do **not** use `Reselect` on full-proxy HTTP/TLS virtual servers (`K15095`: `Reselect` does not establish a new TCP/TLS handshake to the replacement member and is ignored on Standard virtual servers with TCP and address/port translation enabled).
+- On the **LTM Virtual Server itself**, F5's default `Immediate Action On Service Down` is `None` (`K40554304`), meaning the virtual server continues answering TCP 3-way handshakes even when **all** pool members are down — creating a **false-green** risk for upstream firewall or L4 GTM checks. Set `Immediate Action On Service Down = Reject` (or `Drop`) where upstream TCP reachability must reflect pool availability.
 
 Planning model:
 
 - **new requests/connections:** up to approximately the configured member-monitor timeout (often ~16s with the documented defaults), then healthy-member selection;
-- **existing connection on failed member:** monitor timing does not bound the user outage; add client/application timeout + reconnect/retry (T6);
+- **existing connection on failed member:** monitor timing does not bound the user outage unless `Action On Service Down = Reject` is configured; add client/application timeout + reconnect/retry (T6);
 - **unaffected existing connections on healthy members:** no direct interruption.
 
 Do not describe this as "zero interruption" unless the affected connection is preserved by a tested HA/mirroring mechanism or the client/application retry is effectively transparent.
@@ -803,59 +804,73 @@ Recommendation:
 
 F5 recommends connection mirroring where failover would significantly disrupt a long-lived session, and generally does not recommend it for short-lived HTTP/UDP because of performance overhead.
 
-Important Advanced WAF/ASM limitations documented by F5 21.1 include:
+Important Advanced WAF/ASM limitations documented by F5 BIG-IP 17.5.x and 21.1.x include:
 
-- traffic is mirrored to only one standby peer;
-- third-device/multiple failover does not preserve the connection;
-- failback resets the connection;
-- some AWAF features have additional mirroring limitations.
+- **LTM licensing/provisioning prerequisite:** connection mirroring works fully **only with a licensed and provisioned LTM**; on a standalone ASM or standalone AWAF license (directly affecting **W2a** and **W4b**), mirroring degrades to non-floating Self-IP behavior even when a floating Self-IP is configured;
+- **only 2 devices supported:** traffic is mirrored to only one standby peer;
+- **no multiple failover support:** third-device/multiple failover resets the connection;
+- **no failback support:** failback resets the connection;
+- **no default SSL cert/key support** and additional per-feature AWAF mirroring limitations.
+
+**AT3 WebSocket profile caveats (official F5 MyF5 KBs):**
+
+- A **WebSocket profile** must be attached alongside the HTTP and ASM policy for BIG-IP AWAF to inspect WebSocket traffic (`K000132320`, `K84421441`);
+- Do **not** combine a **OneConnect** profile with a WebSocket profile (`K000151124` — causes WebSocket failures);
+- Removing an ASM policy while leaving a `websecurity` profile attached can stall WebSocket traffic (`K000140381`).
 
 Therefore:
 
-- W2 can improve continuity for a two-device HA event;
+- W2 can improve continuity for a two-device HA event **only where LTM+AWAF are licensed/provisioned and mirroring constraints are met**;
 - W4's third/spare WAF does **not** mean an existing connection can transparently survive every transition;
-- W1/W3 should assume connections on a failed independent WAF must reconnect;
-- application reconnect/state-recovery logic remains mandatory for socket/WebSocket designs.
+- W1/W3/S1 should assume connections on a failed independent WAF must reconnect;
+- application reconnect/state-recovery logic remains mandatory for socket/WebSocket designs on both BIG-IP 17.5.x and 21.1.x.
 
-# 7. F5 WAF policy/configuration consistency
+# 7. F5 WAF policy/configuration consistency and multi-tenant isolation
 
 F5 supports synchronizing Advanced WAF/ASM security policy/configuration across multiple BIG-IP systems using an ASM-enabled Sync-Only device group.
+
+Native F5 mechanisms supporting the **shared WAF runtime + application-coupled policy** model:
+
+- **Parent / Child Security Policies (BIG-IP 17.5 / 21.1):** enforce mandatory enterprise baseline controls via a parent policy while allowing isolated application-specific child policies, exceptions, and release cadence;
+- **Administrative Partitions + Route Domains:** provide logical L3/VLAN/RBAC separation per tenant on shared BIG-IP LTM/AWAF appliances (note: F5 does **not** support route domains on standalone BIG-IP DNS);
+- **F5OS Tenants (future rSeries / VELOS hardware rebuild):** provide hardware-level vCPU, memory, disk, OS, management-plane, and upgrade isolation per tenant — materially reducing S1's shared-OS blast radius on newer hardware (see [future_architecture_improvements.md](./future_architecture_improvements.md)).
 
 Key modelling assumptions:
 
 - all WAF pool members must enforce equivalent policy for a protected service;
 - reserve/shared WAFs must have validated tenant policy before receiving production traffic;
 - configuration synchronization is itself a common-mode risk: a bad policy pushed everywhere can fail the whole WAF service even when hardware is healthy;
+- **ASM Live Update (`K82512024`):** `liveupdate.allowautoinstallonsecondary` defaults to `false` on DSC groups; avoid uncontrolled `Real Time` signature installation in production and prefer **Scheduled or Manual** Live Updates combined with the **Enforcement Readiness Period (default 7 days staging)** and Policy Diff before enforcement;
 - F5 documentation requires members of an ASM-enabled device group to run the same ASM version/hotfix level.
 
-# 8. F5 HA design practices to preserve
+# 8. F5 HA and routing design practices to preserve
 
-- Configure redundant HA failover communication paths; F5 recommends management plus TMM/self-IP network failover paths.
-- Use health monitors that validate the service you actually need, not merely node reachability.
-- For local/remote preferred-member designs, use priority groups rather than ad-hoc manual routing where practical.
-- Consider MAC masquerade/appropriate network design to reduce ARP/network convergence effects after traffic-group failover.
-- Use connection mirroring selectively for long-lived/high-impact connections rather than assuming it should be enabled for all traffic.
+- **Redundant HA failover communication:** F5 recommends failover communication over both management IP and TMM/self-IP paths (`K10095`, `K7249`, `K000161390`, default `Failover.NetTimeoutSec = 3s`).
+- **Gateway and VLAN Fail-safe (`K16049`, BIG-IP 21.1 HA Fail-safe):** where Gateway Fail-safe is used, F5 recommends `1s` interval / `11s` timeout (greater than the `10s` TMM heartbeat) to avoid premature failover on transient stalls; note **VLAN Fail-safe defaults to `Reboot`** rather than `Failover` unless explicitly changed.
+- **BIG-IP VE hypervisor discipline (`K10095`, `K00421514`, `K22658205`):** if BIG-IP VE is used, reserve vCPU/RAM and prohibit live hypervisor VM snapshots, which freeze TMM and trigger clock-advance false failovers.
+- **Service-accurate health monitoring:** use L7 readiness monitors plus `Immediate Action On Service Down = Reject/Drop` on LTM virtual servers (`K40554304`) to prevent TCP false-greens, and `Action On Service Down = Reject` on active WAF/dependency pools (`K15095`).
+- **Cross-site X2A/X2B routing symmetry (`K13876`, `K95573163`, `K4816`):** `Auto Last Hop` preserves L2 MAC return symmetry locally, but cross-site L3 route-back through stateful firewalls requires a **SNAT Pool** (avoiding single-IP SNAT Automap port exhaustion under 4-tenant failover load) paired with **HTTP `X-Forwarded-For` insertion** on LTM and **Trust X-Forwarded-For** in AWAF policies so security rules/rate limits see real external client IPs.
+- **Local/remote preference:** use Priority Group Activation (and Virtual Location monitor where appropriate) rather than ad-hoc manual routing.
+- **MAC masquerade:** reduce ARP/L2 convergence disruption after traffic-group failover (noting `K000159606` when LTM probers run non-`bigip` monitors locally without SNAT).
+- **Selective connection mirroring:** enable mirroring only for long-lived/high-impact connections where LTM+AWAF licensing and 2-device limits are satisfied.
 
-# 9. F5 source references
+# 9. F5 official documentation verification summary
 
-Official F5 references reviewed for this analysis:
+Official F5 TechDocs and MyF5 Knowledge Base sources verified for both the **current BIG-IP 17.5.x baseline** and the **future BIG-IP 21.1.x+ / F5OS rebuild**:
 
-- BIG-IP LTM health/performance monitoring: https://techdocs.f5.com/en-us/bigip-17-0-0/big-ip-local-traffic-manager-implementations/implementing-health-and-performance-monitoring.html
-- BIG-IP LTM monitor settings: https://techdocs.f5.com/en-us/bigip-16-0-0/big-ip-local-traffic-manager-monitors-reference/monitors-settings-reference.html
-- BIG-IP DNS monitor settings: https://techdocs.f5.com/en-us/bigip-14-0-0/big-ip-dns-monitors-reference/monitors-settings-reference.html
-- BIG-IP DNS/GTM A-record pool TTL (default 30s): https://clouddocs.f5.com/api/icontrol-rest/APIRef_tm_gtm_pool_a.html
-- BIG-IP DSC Sync-Failover device groups (maximum eight devices): https://techdocs.f5.com/en-us/bigip-14-1-0/big-ip-device-service-clustering-administration-14-1-0/working-with-device-groups.html
-- BIG-IP DSC traffic groups / ordered and load-aware failover: https://techdocs.f5.com/en-us/bigip-14-1-0/big-ip-device-service-clustering-administration-14-1-0/managing-failover.html
-- BIG-IP LTM current health monitoring: https://techdocs.f5.com/en-us/bigip-17-0-0/big-ip-local-traffic-manager-implementations/implementing-health-and-performance-monitoring.html
-- BIG-IP pool action when service becomes unavailable: https://techdocs.f5.com/content/kb/en-us/products/big-ip_ltm/manuals/product/ltm-basics-13-0-0/_jcr_content/pdfAttach/download/file.res/BIG-IP_Local_Traffic_Management__Basics.pdf
-- BIG-IP DNS + LTM integration/iQuery: https://techdocs.f5.com/en-us/bigip-17-5-0/big-ip-dns-implementations/integrating-big-ip-dns-into-a-network-with-big-ip-ltm-systems.html
-- BIG-IP DNS Global Availability: https://techdocs.f5.com/en-us/bigip-15-0-0/big-ip-dns-load-balancing/about-load-balancing-and-resource-availability.html
-- BIG-IP DNS Topology load balancing: https://techdocs.f5.com/en-us/bigip-15-0-0/big-ip-dns-load-balancing/using-topology-load-balancing-to-distribute-dns-requests-to-specific-resources.html
-- LTM Priority Group Activation: https://techdocs.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/ltm-basics-11-6-0/4.html
-- Device Service Clustering failover: https://techdocs.f5.com/kb/en-us/products/big-ip_ltm/manuals/product/bigip-system-device-service-clustering-administration-13-0-0/6.html
-- Connection mirroring: https://techdocs.f5.com/en-us/bigip-14-1-0/big-ip-device-service-clustering-administration-14-1-0/managing-connection-mirroring.html
-- Advanced WAF/ASM connection-mirroring limitations (21.1): https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-asm-implementations/connection-mirroring-with-asm/connection-mirroring-limitations.html
-- Advanced WAF/ASM config synchronization: https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-asm-implementations/automatically-synchronizing-application-security-configurations.html
+| Product area | Capability / Verified Fact | Version scope | Official F5 Source |
+|---|---|---|---|
+| **LTM / Monitoring** | Active monitor default `5s` interval / `16s` timeout (`3×interval + 1`); Virtual Location monitor + Priority Group Activation | 17.5.x & 21.1.x | [BIG-IP 21.1 Monitors Settings Reference](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-local-traffic-manager-monitors-reference/monitors-settings-reference.html), [Monitors Concepts](https://techdocs.f5.com/en-us/bigip-16-0-0/big-ip-local-traffic-manager-monitors-reference/monitors-concepts.html) |
+| **LTM / Pool & VS Failover** | Default `Action On Service Down = None`; use `Reject` for fast dead-socket cutoff; do not use `Reselect` on full-proxy HTTP/TLS VS; VS `Immediate Action On Service Down` stops TCP 3WHS false-greens | 17.5.x & 21.1.x | [MyF5 K15095](https://my.f5.com/manage/s/article/K15095), [MyF5 K40554304](https://my.f5.com/manage/s/article/K40554304) |
+| **LTM / Maintenance Drain** | `Disabled` still accepts new persistent connections; `Forced Offline` blocks all new connections; `Receive Disable String` enables app-driven graceful drain | 17.5.x & 21.1.x | [MyF5 K13310](https://my.f5.com/manage/s/article/K13310), [MyF5 K12818](https://my.f5.com/manage/s/article/K12818) |
+| **LTM / Routing Symmetry** | `Auto Last Hop` handles local L2 return; cross-site L3 requires SNAT Pool + `X-Forwarded-For` (`Trust XFF` in AWAF) | 17.5.x & 21.1.x | [MyF5 K13876](https://my.f5.com/manage/s/article/K13876), [MyF5 K95573163](https://my.f5.com/manage/s/article/K95573163), [MyF5 K12757773](https://my.f5.com/manage/s/article/K12757773) |
+| **DSC / HA Failover** | Max 8 devices in Sync-Failover group; `Failover.NetTimeoutSec = 3s`; redundant TMM + mgmt failover paths; Gateway Fail-safe (`1s`/`11s` > `10s` TMM heartbeat); VLAN fail-safe defaults to `Reboot`; VE clock-advance/snapshot caution | 17.5.x & 21.1.x | [BIG-IP 21.1 HA Fail-safe](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-system-essentials/high-availability-fail-safe.html), [MyF5 K7249](https://my.f5.com/manage/s/article/K7249), [K16049](https://my.f5.com/manage/s/article/K16049), [K10095](https://my.f5.com/manage/s/article/K10095), [K000161390](https://my.f5.com/manage/s/article/K000161390), [DSC Device Groups](https://techdocs.f5.com/en-us/bigip-14-1-0/big-ip-device-service-clustering-administration-14-1-0/working-with-device-groups.html) |
+| **BIG-IP DNS (GTM) / Monitors & TTL** | Direct monitor default `30s`/`120s`; A-record pool default TTL `30s`; Global Availability & Topology LB; avoid duplicate LTM+GTM VS monitors | 17.5.x & 21.1.x | [MyF5 K15408](https://my.f5.com/manage/s/article/K15408), [K5431](https://my.f5.com/manage/s/article/K5431), [iControl REST GTM Pool A](https://clouddocs.f5.com/api/icontrol-rest/APIRef_tm_gtm_pool_a.html), [BIG-IP 17.5 DNS+LTM](https://techdocs.f5.com/en-us/bigip-17-5-0/big-ip-dns-implementations/integrating-big-ip-dns-into-a-network-with-big-ip-ltm-systems.html) |
+| **BIG-IP DNS / Firewall NAT & Prober Pools** | NAT `Translation` disables VS Auto-Discovery (TCP 4353 iQuery required); explicit `Specific Prober Pool` prevents unroutable `big3d` fallback (`no route`) and local non-`bigip` MAC flapping | 17.5.x & 21.1.x | [MyF5 K14707](https://my.f5.com/manage/s/article/K14707), [K55502976](https://my.f5.com/manage/s/article/K55502976), [K8170](https://my.f5.com/manage/s/article/K8170), [K08433560](https://my.f5.com/manage/s/article/K08433560), [K000163083](https://my.f5.com/manage/s/article/K000163083), [K000159606](https://my.f5.com/manage/s/article/K000159606) |
+| **BIG-IP DNS / Upgrade Order** | `big3d` is only backwards compatible: upgrade **BIG-IP DNS first**, then run `big3d_install` on monitored LTMs | 17.5.x & 21.1.x | [MyF5 K25923322](https://my.f5.com/manage/s/article/K25923322), [K13703](https://my.f5.com/manage/s/article/K13703), [K000161226](https://my.f5.com/s/article/K000161226) |
+| **AWAF / ASM Mirroring & WebSockets** | Mirroring requires licensed+provisioned LTM; max 2 devices; 3rd-device failover & failback reset connections; WebSocket profile required & incompatible with OneConnect | 17.5.x & 21.1.x | [BIG-IP 21.1 ASM Mirroring Limitations](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-asm-implementations/connection-mirroring-with-asm/connection-mirroring-limitations.html), [MyF5 K84421441](https://my.f5.com/manage/s/article/K84421441), [K000151124](https://my.f5.com/manage/s/article/K000151124), [K000140381](https://my.f5.com/manage/s/article/K000140381) |
+| **AWAF / ASM Policies, Sync & Live Update** | Parent/Child policies; 7-day Enforcement Readiness staging; ASM Sync-Only groups; `liveupdate.allowautoinstallonsecondary = false` default; Route Domains unsupported on standalone DNS | 17.5.x & 21.1.x | [BIG-IP 21.1 Policy Settings](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-asm-implementations/changing-security-policy-settings.html), [Auto Sync](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-asm-implementations/automatically-synchronizing-application-security-configurations.html), [MyF5 K82512024](https://my.f5.com/manage/s/article/K82512024), [Route Domains](https://techdocs.f5.com/en-us/bigip-17-5-0/big-ip-dns-implementations/configuring-big-ip-dns-on-a-network-with-one-route-domain.html) |
+| **Platform Rebuild / 21.1.x & F5OS** | 17.5.x EoTS Jan 1, 2029; 21.1.x EoTS May 5, 2029; BIG-IP Next 20.x EoTS Apr 30, 2025; 21.x runs ONLY on rSeries/VELOS/VE (no iSeries/VIPRION/vCMP); F5OS tenants (r2000 single-tenant only; min 88 GB disk for 21.1.x); `cloud-init`; `platform-migrate validate`; experimental in-place upgrade in 21.1.x (full in 22.0.x); ACMEv2, OpenAPI 3.1, HTTP/3 WAF, MCP, hybrid PQC TLS, Multi-RPZ | 21.1.x / F5OS | [BIG-IP 21.1.0 New Features](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-release-notes/big-ip-new-features.html), [Upgrade 21.1](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-release-notes/big-ip-upgrade.html), [F5OS Tenant Mgmt](https://techdocs.f5.com/en-us/f5os-a-1-5-0/f5-rseries-systems-administration-configuration/title-tenant-management.html), [VELOS Getting Started](https://techdocs.f5.com/en-us/f5os-2-0-0/velos-systems-getting-started/getting-started-with-velos.html), [MyF5 K15643](https://my.f5.com/manage/s/article/K15643), [K000163422](https://my.f5.com/s/article/K000163422), [K82540512](https://my.f5.com/manage/s/article/K82540512), [K45191957](https://my.f5.com/manage/s/article/K45191957) |
 
 
 # 10. Maintainability and change-management variables
@@ -978,7 +993,7 @@ Preferred sequence:
 - observe before continuing;
 - retain the other site as an unmodified fallback where feasible.
 
-For BIG-IP DNS/GTM synchronization groups, use the version-specific F5 upgrade procedure because software compatibility and probing/synchronization behavior can constrain how long versions may differ.
+**Mandatory F5 BIG-IP DNS / LTM upgrade order (`K25923322`, `K13703`):** Because the `big3d` agent is only backwards compatible, always upgrade **BIG-IP DNS (GTM) devices first**, immediately followed by running `big3d_install` to update `big3d` on monitored BIG-IP LTM devices before upgrading the LTM software. Use the version-specific F5 synchronization-group upgrade procedure because probing and config-sync constrain how long versions may differ.
 
 ## M6 — drain policy
 
@@ -1007,7 +1022,11 @@ Define a maximum drain policy per application class.
 - use protocol-specific drain behavior;
 - document whether existing long-lived connections can be terminated safely.
 
-F5 LTM supports a disabled member state in which new general traffic is stopped while active/persistent connections can continue, which should be considered for planned drain workflows.
+**F5 LTM member drain states (`K13310`, `K12818`):**
+
+- **`Disabled` (`session user-disabled`):** stops new general connections, but **still accepts new connections matching an existing persistence session** (e.g., cookie/source-IP persistence).
+- **`Forced Offline` (`session user-disabled state user-down`):** blocks **all** new connections (including persistent sessions) while letting existing active sockets finish — or immediately resets them if pool `Action On Service Down = Reject` is set (`K15095`).
+- **`Receive Disable String` (`K12818`):** lets an application/WAF readiness endpoint self-signal `Up (disabled)` to drain cleanly during automated rolling waves without manual LTM intervention.
 
 ## M7 — maintenance capacity policy
 

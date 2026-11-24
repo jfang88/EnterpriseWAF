@@ -33,7 +33,7 @@ The deck must keep current-state and target-state diagrams on different slides.
 # Reproducible generation
 
 - `source/build_management_deck.py` generates the base PowerPoint.
-- `source/replace_management_slides.py` inserts the authoritative SVG-derived architecture-plane, target-health and health-placement slides.
+- `source/replace_management_slides.py` inserts Slides 3, 4, 5, and 6 from the four authoritative SVG diagrams (`EnterpriseWAF_Architecture_Planes.svg`, `EnterpriseWAF_End_to_End_Topology.svg`, `EnterpriseWAF_Target_Health_Monitoring.svg`, and `EnterpriseWAF_Health_Check_Placement.svg`).
 - `.github/workflows/build-management-artifacts.yml` regenerates the PowerPoint, PDF and PNG diagrams when the architecture source changes on `main`.
 
 The automated generated-artifact commit uses the same stable filenames.

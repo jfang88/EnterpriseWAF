@@ -1,7 +1,8 @@
 # End-to-End Service Impact and Recoverability Analysis
 
 **Status:** Primary derived output for failure/recovery  
-**Stable baseline:** [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)  
+**Stable baseline:** [current_architecture_and_invariants.md](./current_architecture_and_invariants.md)  
+**Target improvements:** [future_architecture_improvements.md](./future_architecture_improvements.md)  
 **Changeable assumptions:** [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)  
 **Technical component matrix:** [common_failure_matrix.md](./common_failure_matrix.md)  
 **Cross-site/dependency detail:** [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md)  

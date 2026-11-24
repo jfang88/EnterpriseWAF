@@ -19,8 +19,8 @@ Authoritative for:
 - current topology and failure domains;
 - stable infrastructure and DNS/GTM facts;
 - external and internal application paths;
-- L0-L7 architecture layer model;
-- current health-check unknowns;
+- architecture planes and parallel-path model;
+- current BIG-IP 17.5.x software baseline and health-check unknowns;
 - application dependency grounding;
 - availability and RTO rules;
 - canonical current-state diagram.
@@ -37,12 +37,13 @@ Authoritative for:
 - prober diversity and cross-site visibility;
 - dependency-local recovery;
 - cross-site contingency improvements;
+- platform rebuild impact (BIG-IP 17.5.x -> BIG-IP 21.1.x+ on rSeries/VELOS/F5OS);
 - synthetic/SLO validation;
 - implementation and acceptance gates.
 
 ## Essential project orientation
 
-The project analyses a two-site, multi-tenant F5-based application-delivery environment involving:
+The project analyses a two-site, multi-tenant F5-based application-delivery environment (currently **BIG-IP 17.5.x**, with a target rebuild onto newer devices/software) involving:
 
 - BIG-IP DNS/GTM for DNS/site selection;
 - edge firewalls;
