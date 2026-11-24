@@ -291,34 +291,29 @@
 <text x="1100" y="680" class="t" font-size="12" font-weight="bold">4 tenants / 2 sites: 4 LTM + 8 WAF = 12 (lowest count, highest risk)</text>
 <text x="1100" y="700" class="sub" font-size="11">Breaks tenant LTM isolation; one bad change can affect all 4 tenants at once.</text>
 
-<!-- ================= BOTTOM REBUILD BAND: F5OS HARDWARE-ISOLATED TENANTS ================= -->
+<!-- ================= BOTTOM REBUILD BAND: CONFIRMED r2800 PIZZA-BOX STANDARD ================= -->
 <rect x="34" y="748" width="1532" height="100" rx="14" fill="#ebf8e9" stroke="#5ca452" stroke-width="2"/>
-<!-- Left visual of 3 physical rSeries/VELOS hosts with isolated F5OS tenants -->
-<rect x="52" y="762" width="166" height="72" rx="8" fill="#ffffff" stroke="#073b64" stroke-width="1.5"/>
-<text x="135" y="779" text-anchor="middle" class="hd" font-size="11">rSeries / VELOS Host 1</text>
-<rect x="60" y="786" width="72" height="20" rx="4" fill="#dcf5f8" stroke="#073b64"/><text x="96" y="800" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS A-1</text>
-<rect x="138" y="786" width="72" height="20" rx="4" fill="#ccefed" stroke="#0f8b8d"/><text x="174" y="800" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS B-1</text>
-<rect x="60" y="810" width="72" height="20" rx="4" fill="#ede8ff" stroke="#5c4cd2"/><text x="96" y="824" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS C-1</text>
-<rect x="138" y="810" width="72" height="20" rx="4" fill="#fff7dc" stroke="#d17714"/><text x="174" y="824" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS D-1</text>
+<!-- Left visual of r2800 2-tenant pools (Pool 1: A+B across 3 r2800s; Pool 2: C+D across 3 r2800s) -->
+<rect x="50" y="762" width="124" height="72" rx="8" fill="#ffffff" stroke="#073b64" stroke-width="1.5"/>
+<text x="112" y="779" text-anchor="middle" class="hd" font-size="10.5">r2800 #1–3 (S1)</text>
+<rect x="58" y="786" width="108" height="20" rx="4" fill="#dcf5f8" stroke="#073b64"/><text x="112" y="800" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">Tenant A (4c/12G)</text>
+<rect x="58" y="810" width="108" height="20" rx="4" fill="#ccefed" stroke="#0f8b8d"/><text x="112" y="824" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">Tenant B (4c/12G)</text>
 
-<rect x="230" y="762" width="166" height="72" rx="8" fill="#ffffff" stroke="#073b64" stroke-width="1.5"/>
-<text x="313" y="779" text-anchor="middle" class="hd" font-size="11">rSeries / VELOS Host 2</text>
-<rect x="238" y="786" width="72" height="20" rx="4" fill="#dcf5f8" stroke="#073b64"/><text x="274" y="800" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS A-2</text>
-<rect x="316" y="786" width="72" height="20" rx="4" fill="#ccefed" stroke="#0f8b8d"/><text x="352" y="800" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS B-2</text>
-<rect x="238" y="810" width="72" height="20" rx="4" fill="#ede8ff" stroke="#5c4cd2"/><text x="274" y="824" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS C-2</text>
-<rect x="316" y="810" width="72" height="20" rx="4" fill="#fff7dc" stroke="#d17714"/><text x="352" y="824" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS D-2</text>
+<rect x="184" y="762" width="124" height="72" rx="8" fill="#ffffff" stroke="#073b64" stroke-width="1.5"/>
+<text x="246" y="779" text-anchor="middle" class="hd" font-size="10.5">r2800 #4–6 (S1)</text>
+<rect x="192" y="786" width="108" height="20" rx="4" fill="#ede8ff" stroke="#5c4cd2"/><text x="246" y="800" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">Tenant C (4c/12G)</text>
+<rect x="192" y="810" width="108" height="20" rx="4" fill="#fff7dc" stroke="#d17714"/><text x="246" y="824" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">Tenant D (4c/12G)</text>
 
-<rect x="408" y="762" width="166" height="72" rx="8" fill="#ffffff" stroke="#073b64" stroke-width="1.5"/>
-<text x="491" y="779" text-anchor="middle" class="hd" font-size="11">rSeries / VELOS Host 3</text>
-<rect x="416" y="786" width="72" height="20" rx="4" fill="#dcf5f8" stroke="#073b64"/><text x="452" y="800" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS A-3</text>
-<rect x="494" y="786" width="72" height="20" rx="4" fill="#ccefed" stroke="#0f8b8d"/><text x="530" y="800" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS B-3</text>
-<rect x="416" y="810" width="72" height="20" rx="4" fill="#ede8ff" stroke="#5c4cd2"/><text x="452" y="824" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS C-3</text>
-<rect x="494" y="810" width="72" height="20" rx="4" fill="#fff7dc" stroke="#d17714"/><text x="530" y="824" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS D-3</text>
+<rect x="328" y="762" width="150" height="72" rx="8" fill="#f5f8fb" stroke="#0f8b8d" stroke-width="1.5"/>
+<text x="403" y="779" text-anchor="middle" class="hd" font-size="10.5">OR S1 Full-Box r2800</text>
+<rect x="338" y="788" width="130" height="38" rx="5" fill="#ccefed" stroke="#0f8b8d"/>
+<text x="403" y="805" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">1 Shared WAF (8c/24G)</text>
+<text x="403" y="820" text-anchor="middle" class="sub" font-size="9">K+2 active boxes/site</text>
 
-<!-- Right explanation of F5OS rebuild advantage -->
-<text x="598" y="781" class="hd" font-size="14.5">Target Hardware Rebuild Option (rSeries r4000–r12000 or VELOS + BIG-IP 21.1.x+): F5OS Per-Tenant WAFs</text>
-<text x="598" y="805" class="t" font-size="12.5">• Each F5OS tenant runs an isolated BIG-IP OS/policy/upgrade domain on shared hardware — combining S1 physical consolidation with W1 tenant isolation.</text>
-<text x="598" y="827" class="sub" font-size="12">• Mandatory rule: spread each tenant's 2–3 active WAF tenants across separate physical rSeries appliances or VELOS blades (r2000 does not support multi-tenancy).</text>
+<!-- Right explanation of confirmed r2800 standard -->
+<text x="502" y="779" class="hd" font-size="14">Confirmed Target Hardware Standard: F5 rSeries r2800 Pizza Boxes ONLY (F5OS-A 1.8.0+ • No Blade Chassis)</text>
+<text x="502" y="802" class="t" font-size="12">• Max 2 F5OS tenants/r2800 (4 vCPU / 12 GB each) halves dedicated W1-3 WAF boxes (24 → 12) &amp; LTM boxes (16 → 8); OR S1 full-box gives 8 vCPU / 24 GB.</text>
+<text x="502" y="823" class="sub" font-size="11.5">• Guardrails: single 480 GB SSD (no RAID-1 → remote HSL logs + K+2 spread + cloud-init rebuild) • no STP on r2800 (dual-homed LACP LAGs, K000152319).</text>
 
 <!-- Consistent Deck Footer -->
 <text x="34" y="878" class="sub" font-size="13">End-to-end application delivery summary</text>

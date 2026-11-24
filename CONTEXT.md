@@ -37,13 +37,13 @@ Authoritative for:
 - prober diversity and cross-site visibility;
 - dependency-local recovery;
 - cross-site contingency improvements;
-- platform rebuild impact (BIG-IP 17.5.x -> BIG-IP 21.1.x+ on rSeries/VELOS/F5OS);
+- platform rebuild impact (BIG-IP 17.5.x -> BIG-IP 21.1.x+ on confirmed rSeries `r2800` pizza boxes running `F5OS-A 1.8.0+`, no blade chassis);
 - synthetic/SLO validation;
 - implementation and acceptance gates.
 
 ## Essential project orientation
 
-The project analyses a two-site, multi-tenant **end-to-end application-delivery environment** (currently **BIG-IP 17.5.x**, with a target rebuild onto newer devices/software), with an **initial delivery focus on the WAF tier** (and its F5 LTM/GTM interfaces) because firewalls, private-cloud CFW/ELB, and applications are owned by partner teams. The end-to-end path includes:
+The project analyses a two-site, multi-tenant **end-to-end application-delivery environment** (currently **BIG-IP 17.5.x**, with a confirmed target rebuild standard of **F5 rSeries `r2800` pizza boxes** running `F5OS-A 1.8.0+` + BIG-IP 21.1.x+, no blade chassis), with an **initial delivery focus on the WAF tier** (and its F5 LTM/GTM interfaces) because firewalls, private-cloud CFW/ELB, and applications are owned by partner teams. The end-to-end path includes:
 
 - BIG-IP DNS/GTM for DNS/site selection;
 - edge firewalls (*Network/Security owned*);

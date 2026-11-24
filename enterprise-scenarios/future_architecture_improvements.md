@@ -359,30 +359,40 @@ Prefer the smallest safe recovery domain.
 
 Continue to evaluate:
 
-1. **S1 - tenant-specific LTM pairs + shared independent active WAF pool** as the leading cost/resilience candidate on dedicated/current BIG-IP 17.5.x appliances;
-2. **dedicated W1 with three independent WAFs per tenant/site** as the high-isolation fallback (or **F5OS-isolated dedicated per-tenant WAF tenants on shared rSeries/VELOS hardware** during the target rebuild — see §15A);
-3. W3 where dedicated normal-state WAFs plus shared reserve are operationally preferred;
-4. W2 where simple HA and connection mirroring matter more than horizontal WAF scale.
+1. **S1 - tenant-specific LTM pairs + shared independent active WAF pool (`K + 2` active `r2800`s/site)** as the lowest-box-count candidate giving each WAF full `r2800` memory (`8 vCPU / 24 GB RAM`);
+2. **`r2800` 2-tenant F5OS WAF isolation (`6–8 × r2800`/site at 2 tenants/box, `4 vCPU / 12 GB RAM` each on `F5OS-A 1.8.0+`)** as the high-isolation hardware-consolidated option (halving dedicated `W1-3` WAF boxes from 24 to 12 if AWAF load testing confirms `12 GB` RAM headroom);
+3. **dedicated W1 (`1` tenant/`r2800`, 3 WAFs/tenant/site = 24 WAF boxes)** only if tenants require both strict physical isolation and full `24 GB` RAM per WAF;
+4. W3 where dedicated normal-state WAFs plus shared reserve are operationally preferred; W2 where simple HA/mirroring matters more than horizontal WAF scale.
 
-Whichever topology is selected must support rolling maintenance, staged/canary WAF policy deployment, application-level policy isolation, rollback, required N-1/N-2 capacity and one planned maintenance event plus one additional credible failure where the SLO requires it.
+> **`N-2` (`K + 2`) active-pool sizing rule:** In `S1` (or any active WAF pool), **`N` is the number of WAF nodes in the pool per site, not the number of tenants**. Let **`K`** = minimum WAFs needed to carry 100% of peak aggregate load (including DR surge). To survive 1 planned maintenance wave + 1 simultaneous unplanned hardware/SSD failure (`N-2`), deploy **`K + 2` active pool members** (e.g., `K = 2` → `4` active WAFs/site; `K = 4` → `6` active WAFs/site). Prefer **active pool members** over idle hot spares to prevent silent policy/cert drift and keep steady-state CPU lower.
 
-## 15A. Platform rebuild impact: BIG-IP 17.5.x (current) vs. newer devices and BIG-IP 21.1.x+ / F5OS (future)
+Whichever topology is selected must support rolling maintenance, staged/canary WAF policy deployment, application-level policy isolation, rollback, required `K + 2` (`N-2`) capacity, and 4 planned changes/year per major tech stack within the combined managed + unmanaged 99.95% availability budget.
 
-The current estate runs **BIG-IP 17.5.x** (End of Technical Support: **January 1, 2029**, MyF5 `K15643`), and the target state assumes a rebuild onto newer F5 hardware and software (**rSeries / VELOS running F5OS** with **BIG-IP 21.1.x**, EoTS **May 5, 2029**, or subsequent BIG-IP 22.x/23.x releases). Note that **BIG-IP Next 20.x reached EoTS on April 30, 2025** (`K15643`), so the supported target path is modern BIG-IP TMOS on F5OS (rSeries/VELOS) or VE.
+## 15A. Platform rebuild impact: BIG-IP 17.5.x (current) vs. confirmed `r2800` / BIG-IP 21.1.x+ / `F5OS-A` (target)
 
-### What DOES change the recommendations (and why)
+The current estate runs **BIG-IP 17.5.x** (End of Technical Support: **January 1, 2029**, MyF5 `K15643`). Based on confirmed hardware orders, the target rebuild standardizes on **F5 rSeries `r2800` pizza boxes ONLY** (no VELOS blade chassis, no `r4800`/`r5000+`) running **`F5OS-A 1.8.0+`** (or `2.0.x`) with **BIG-IP 21.1.x** (EoTS **May 5, 2029**, or subsequent BIG-IP 22.x/23.x releases). Note that **BIG-IP Next 20.x reached EoTS on April 30, 2025** (`K15643`), so the supported target path is modern BIG-IP TMOS on `F5OS-A` (`r2800`).
 
-| Newer Platform / BIG-IP 21.1.x+ Feature | How It Changes Recommendations | Why (Verified F5 Basis) |
+### Confirmed `r2800` Hardware Envelope (`F5OS-A 1.8.0+`, `K45191957`, `K000152319`)
+
+- **Compute & RAM:** `8` usable CPU cores (`4` vCPU min/tenant), `32 GB` total RAM (`24 GB` usable for tenants; `12,288 MB` / `12 GB` min/tenant).
+- **Multi-tenancy ceiling:** **Max 2 F5OS tenants per `r2800`** on `F5OS-A 1.8.0+` (only **1 tenant** on `F5OS-A ≤ 1.7.x`). Because 4 tenants cannot fit on one `r2800`, 2-tenant isolation splits the 4 tenants across two pairs (`Tenants A + B` and `Tenants C + D`).
+- **Single-SSD failure domain (NO RAID-1):** Each `r2800` has a **single 480 GB NVMe SSD (~447 GB usable)** with no hardware RAID-1 mirroring. One SSD failure takes down the entire appliance until RMA/rebuild — making **multi-box `N-2` spread, remote HSL logging, and automated `cloud-init`/UCS rebuild mandatory**.
+- **L2 Networking (No STP, No FPGA):** `r2800` has no FPGA and **does not support Spanning Tree Protocol (`STP`)** (`K000152319`, `K000151396`), restricting each VLAN to a single interface or single LAG. All LAGs and host VLANs must be configured at the `F5OS-A` host layer (`K1689`) using dual-homed **LACP LAGs** to MC-LAG/vPC switches.
+
+### What DOES change the recommendations on `r2800` + BIG-IP 21.1.x+ (and why)
+
+| `r2800` / BIG-IP 21.1.x+ Factor | How It Changes Recommendations | Why (Verified F5 Basis) |
 |---|---|---|
-| **F5OS Hardware Multi-Tenancy (rSeries / VELOS)** | **Reframes S1 vs. Dedicated W1:** Instead of accepting S1's shared-OS/shared-upgrade blast radius to reduce appliance count, you can run **dedicated per-tenant BIG-IP WAF tenants on shared rSeries/VELOS hardware** (providing S1-like hardware consolidation with Dedicated-W1 OS, RBAC, policy, and upgrade isolation). | Each F5OS tenant runs an isolated BIG-IP TMOS instance with dedicated vCPU, memory, disk, management IP, and software image (`F5OS Tenant Management`). **Hardware fault rule:** spread each tenant's 2–3 active WAF tenants across *separate physical rSeries appliances or VELOS blades/chassis* so one physical host failure remains an N-1 event. Note: `r2000` does not support multi-tenancy (`r2800` supports up to 2 on F5OS-A 1.8+; `r4000`/`r5000`/`r10000`/`r12000` and VELOS support full multi-tenancy). |
-| **BIG-IP 21.x hardware drop of legacy appliances** | **Makes hardware rebuild mandatory before 21.x:** Cannot upgrade iSeries/VIPRION/vCMP to BIG-IP 21.x in place. Plan a parallel greenfield/blue-green rebuild using `platform-migrate validate`. | BIG-IP 21.x is **not supported on iSeries, VIPRION, or vCMP** — only rSeries, VELOS, and VE (`BIG-IP 21.1.0 New Features`). Use `tmsh load sys ucs <file> platform-migrate validate` (new in 21.1.0, `K82540512`); note 21.1.0 strips HA-group trunks on migration and requires >= 88 GB tenant virtual disk (vs. 86 GB on 17.5.x, `K45191957`/`K000164011`). |
-| **`cloud-init` for F5OS tenants (BIG-IP 21.1.0+)** | **Reduces W1/S1/W3 operational drift & rebuild RTO:** Supports declarative first-boot tenant onboarding (paired with AS3/BIG-IQ), making 3+ node independent WAF pools significantly easier to keep consistent and rebuild rapidly. | Native `cloud-init` support on VELOS/rSeries F5OS tenants automates onboarding and declarative configuration (`BIG-IP 21.1.0 Cloud-Init Support`). |
-| **64-bit BIG-IP + `bigd` scale + SNAT pool IPs in in-TMM monitors + OOM priority** | **Improves target H2/H3/H4 L7 monitoring reliability at scale** and reduces monitor-daemon bottlenecks in large four-tenant estates. | Documented in `BIG-IP 21.1.0 New Features`. |
-| **ACMEv2, TLS 1.3 default parent profiles, X25519 HW offload, Hybrid Post-Quantum TLS & Modern WAF (OpenAPI 3.1, HTTP/3 WAF, MCP)** | **Lowers certificate-expiry outage risk** (a frequent real-world 99.95% breaker) and prepares WAF for modern APIs/AI workloads without redesigning LTM/WAF topology. | `BIG-IP 21.1.0 New Features` adds native ACMEv2, `SecP256rMLKEM768`/`SecP384rMLKEM1024`, OpenAPI 3.1, MCP inspection/persistence, client-side HTTP/3 WAF (LTM HTTP/3 remains experimental; no BADOS yet), and Multi-RPZ (up to 65,535 zones) on BIG-IP DNS. |
+| **`r2800` 2-Tenant F5OS-A Isolation (`F5OS-A 1.8.0+`)** | **Cuts dedicated LTM & WAF box counts in half without blade chassis:**<br>• **Tenant LTM tier:** Consolidate 4 tenant HA pairs/site onto **`4 × r2800`/site (`8` total vs `16`)** at 2 LTM tenants/box (`A+B` on pair 1; `C+D` on pair 2), limiting host-reboot failover to 2 tenants.<br>• **WAF tier:** Either run **`6–8 × r2800`/site (`12–16` total)** at 2 WAF tenants/box (`4 vCPU / 12 GB` each) for full per-tenant OS/policy isolation, OR **`S1` full-box (`4–6 × r2800`/site, `8 vCPU / 24 GB` each)** if AWAF needs >12 GB RAM. | `F5OS-A 1.8.0+` enables 2 isolated BIG-IP TMOS tenants per `r2800` (`4 vCPU / 12 GB` each, `.tar.bundle` format per `K000158849`). **Mandatory gate:** benchmark heaviest tenant's AWAF policy inside `4 vCPU / 12 GB RAM` (with remote HSL logging) before choosing 2-tenant WAF vs. `S1` full-box. |
+| **Single SSD (no RAID-1) & Pizza-Box Host Reboots** | **Elevates `N-2` (`K + 2`) physical spread & fast rebuild to mandatory:** Never rely on a 2-box `N+0` WAF tier (`W1-2`/`W2`) without cross-site `X2A`; drain all tenants on an `r2800` before `F5OS-A` host upgrades (4/yr). | Official F5 rSeries specs confirm `r2800` uses a single 480 GB NVMe SSD (~447 GB usable); an `F5OS-A` upgrade or SSD failure affects all tenants on that physical box simultaneously. |
+| **BIG-IP 21.x hardware drop of legacy appliances** | **Makes parallel rebuild mandatory before 21.x:** Cannot upgrade iSeries/VIPRION/vCMP to 21.x in place. Run `platform-migrate validate` before cutover. | BIG-IP 21.x is **not supported on iSeries, VIPRION, or vCMP** (`BIG-IP 21.1.0 New Features`). Use `tmsh load sys ucs <file> platform-migrate validate` (`K82540512`); strips HA-group trunks on migration; requires ≥ 88 GB tenant virtual disk (vs. 86 GB on 17.5.x, `K45191957`). |
+| **`cloud-init` for F5OS tenants (BIG-IP 21.1.0+)** | **Cuts rebuild RTO after single-SSD failure & reduces drift across `r2800` pools.** | Native `cloud-init` on rSeries `F5OS-A` tenants automates declarative first-boot onboarding (`BIG-IP 21.1.0 Cloud-Init Support`). |
+| **64-bit BIG-IP + `bigd` scale + SNAT pool IPs in in-TMM monitors + OOM priority** | **Improves target H2/H3/H4 L7 monitoring reliability at scale.** | Documented in `BIG-IP 21.1.0 New Features`. |
+| **ACMEv2, TLS 1.3 defaults, X25519 HW offload, Hybrid PQC TLS & Modern WAF (OpenAPI 3.1, HTTP/3 WAF, MCP)** | **Lowers certificate-expiry outage risk** and prepares WAF for modern APIs/AI without redesigning topology. | `BIG-IP 21.1.0 New Features` adds ACMEv2, `SecP256rMLKEM768`/`SecP384rMLKEM1024`, OpenAPI 3.1, MCP, client-side HTTP/3 WAF (LTM HTTP/3 experimental; no BADOS), and DNS Multi-RPZ (65,535 zones). |
 
-### What does NOT change on BIG-IP 21.1.x+
+### What does NOT change on `r2800` + BIG-IP 21.1.x+
 
-- **Rolling maintenance & N-1/N-2 headroom remain mandatory:** In-place upgrade in BIG-IP **21.1.x is still experimental** and components requiring reboot still take the node offline (full in-place upgrade support starts in **BIG-IP 22.0.x** per `Upgrading to BIG-IP Version 21.1.0`). Do **not** relax node-draining or N-1/N-2 sizing requirements on 21.1.x.
+- **Rolling maintenance & `K + 2` (`N-2`) headroom remain mandatory:** In-place upgrade in BIG-IP **21.1.x is still experimental** and components requiring reboot still take the node offline (full in-place upgrade support starts in **BIG-IP 22.0.x** per `Upgrading to BIG-IP Version 21.1.0`).
 - **AWAF/ASM connection mirroring limits are unchanged:** Still max 2 devices, requires licensed & provisioned LTM, resets on 3rd-device failover, and resets on failback (`BIG-IP 21.1 ASM Connection Mirroring Limitations`). AT3 WebSocket applications **must** still implement client reconnect/backoff/re-auth/replay.
 - **Core control/data-plane fundamentals remain unchanged:** DSC single active owner per traffic group, GTM-first + `big3d_install` upgrade order (`K25923322`), NAT `Translation` disabling GTM auto-discovery (`K14707`/`K9138`), DNS TTL vs. established TCP sockets, and App A/B/C/D dependency cascade risk all apply identically.
 
@@ -401,7 +411,8 @@ Confirm:
 - monitor intervals/timeouts;
 - LTM `Action On Service Down` and VS `Immediate Action On Service Down` settings;
 - application readiness endpoints;
-- independent synthetic monitoring.
+- independent synthetic monitoring;
+- **AWAF memory/CPU benchmark on `r2800`** (`4 vCPU / 12 GB` 2-tenant slice vs. `8 vCPU / 24 GB` full-box) and switch MC-LAG/LACP readiness (no STP on `r2800`).
 
 ## Phase 1 - define application health contracts
 
@@ -419,13 +430,13 @@ Test application failure, WAF failure, CFW failure, site failure and inter-site 
 
 Pilot B1 -> B2 where state/data/business semantics allow it.
 
-## Phase 5 - cross-site WAF/front-end contingency
+## Phase 5 - `r2800` rebuild & cross-site WAF/front-end contingency
 
-Pilot X2A/X2B only after routing, NAT/SNAT, stateful firewall, capacity and ownership are agreed.
+Execute parallel `r2800` (`F5OS-A 1.8.0+` + BIG-IP 21.1.x+) rebuild with `platform-migrate validate` and `cloud-init`, and pilot X2A/X2B only after routing, NAT/SNAT, stateful firewall, capacity and ownership are agreed.
 
 ## Phase 6 - prove the 99.95% design
 
-Measure p50/p95/p99 fault-to-successful-business-transaction time for external, internal, stateful/WebSocket and dependency scenarios, including planned maintenance plus a second failure.
+Measure p50/p95/p99 fault-to-successful-business-transaction time for external, internal, stateful/WebSocket and dependency scenarios, including planned maintenance (4 changes/yr per major stack) plus a second failure.
 
 # 17. Acceptance gates
 
@@ -442,7 +453,7 @@ Before calling the target health architecture ready:
 9. internal delegated-name behavior and external DNS behavior are tested separately;
 10. App A/B/C/D dependency cascades are tested;
 11. independent synthetic monitoring measures the user/business outcome;
-12. planned maintenance, rollback and failback are tested within the 99.95% objective.
+12. planned maintenance (including `F5OS-A` host reboots on `r2800`), rollback and failback are tested within the combined managed + unmanaged 99.95% objective.
 
 # 18. F5 official documentation reference summary
 
@@ -453,6 +464,6 @@ Before calling the target health architecture ready:
 | **BIG-IP DNS Upgrade Order** | Upgrade BIG-IP DNS first, then update `big3d` on monitored LTMs via `big3d_install` | 17.5.x & 21.1.x | [MyF5 K25923322](https://my.f5.com/manage/s/article/K25923322), [K13703](https://my.f5.com/manage/s/article/K13703) |
 | **LTM False-Green & Graceful Drain** | Set VS `Immediate Action On Service Down = Reject/Drop` to stop TCP 3WHS false-greens; pool `Action On Service Down = Reject` for fast reconnect; `Receive Disable String` + `Disabled` vs `Forced Offline` | 17.5.x & 21.1.x | [MyF5 K40554304](https://my.f5.com/manage/s/article/K40554304), [K15095](https://my.f5.com/manage/s/article/K15095), [K12818](https://my.f5.com/manage/s/article/K12818), [K13310](https://my.f5.com/manage/s/article/K13310) |
 | **AWAF Mirroring, Policies & WebSockets** | Mirroring needs licensed+provisioned LTM (max 2 devices; no 3rd failover/failback); WebSocket profile required & incompatible with OneConnect; Parent/Child policies; Live Update staging | 17.5.x & 21.1.x | [BIG-IP 21.1 ASM Mirroring Limitations](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-asm-implementations/connection-mirroring-with-asm/connection-mirroring-limitations.html), [Policy Settings](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-asm-implementations/changing-security-policy-settings.html), [MyF5 K84421441](https://my.f5.com/manage/s/article/K84421441), [K000151124](https://my.f5.com/manage/s/article/K000151124), [K82512024](https://my.f5.com/manage/s/article/K82512024) |
-| **Rebuild: BIG-IP 21.1.x / F5OS / rSeries / VELOS** | Hardware-isolated F5OS tenants (not on r2000); 21.x drops iSeries/VIPRION/vCMP; 17.5.x EoTS Jan 2029; 21.1.x EoTS May 2029; BIG-IP Next 20.x EoTS Apr 2025; `cloud-init`; `platform-migrate validate`; experimental in-place upgrade in 21.1.x (full in 22.0.x); ACMEv2, OpenAPI 3.1, HTTP/3 WAF, MCP, PQC TLS, Multi-RPZ | 21.1.x / F5OS | [BIG-IP 21.1.0 New Features](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-release-notes/big-ip-new-features.html), [Upgrade 21.1](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-release-notes/big-ip-upgrade.html), [Cloud-Init](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-f5os-cloud-init-support-velos-rseries/cloud-init-support-velos-rseries.html), [F5OS Tenant Mgmt](https://techdocs.f5.com/en-us/f5os-a-1-5-0/f5-rseries-systems-administration-configuration/title-tenant-management.html), [VELOS Getting Started](https://techdocs.f5.com/en-us/f5os-2-0-0/velos-systems-getting-started/getting-started-with-velos.html), [MyF5 K15643](https://my.f5.com/manage/s/article/K15643), [K000163422](https://my.f5.com/s/article/K000163422), [K82540512](https://my.f5.com/manage/s/article/K82540512), [K45191957](https://my.f5.com/manage/s/article/K45191957) |
+| **Confirmed Rebuild: `r2800` / `F5OS-A 1.8.0+` / BIG-IP 21.1.x** | `r2800` max 2 tenants (`F5OS-A 1.8.0+`), `8` cores / `24 GB` tenant RAM (`4 vCPU / 12 GB` min/tenant), single 480 GB NVMe SSD (~447 GB, no RAID-1), no STP / 1 LAG per VLAN, `.tar.bundle` format, ≥ 88 GB disk for 21.1.x; 17.5.x EoTS Jan 2029; 21.1.x EoTS May 2029; BIG-IP Next 20.x EoTS Apr 2025; `cloud-init`; `platform-migrate validate`; experimental in-place upgrade in 21.1.x (full in 22.0.x); ACMEv2, OpenAPI 3.1, HTTP/3 WAF, MCP, PQC TLS, Multi-RPZ | 21.1.x / F5OS-A | [BIG-IP 21.1.0 New Features](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-release-notes/big-ip-new-features.html), [Upgrade 21.1](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-release-notes/big-ip-upgrade.html), [Cloud-Init](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-f5os-cloud-init-support-velos-rseries/cloud-init-support-velos-rseries.html), [F5OS-A 1.8.4 Tenant Mgmt](https://techdocs.f5.com/en-us/f5os-a-1-8-4/f5-rseries-systems-administration-configuration/title-tenant-management.html), [MyF5 K15643](https://my.f5.com/manage/s/article/K15643), [K000163422](https://my.f5.com/manage/s/article/K000163422), [K82540512](https://my.f5.com/manage/s/article/K82540512), [K45191957](https://my.f5.com/manage/s/article/K45191957), [K000152319](https://my.f5.com/manage/s/article/K000152319), [K1689](https://my.f5.com/manage/s/article/K1689), [K000158849](https://my.f5.com/manage/s/article/K000158849) |
 
 Validate exact configuration syntax and behavior against the deployed BIG-IP release before implementation.

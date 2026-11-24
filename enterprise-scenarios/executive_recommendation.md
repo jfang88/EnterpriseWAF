@@ -22,7 +22,7 @@ Therefore the target is not "one monolithic shared WAF policy." It is:
 
 See [current_architecture_and_invariants.md](./current_architecture_and_invariants.md) for the canonical current-state architecture and [future_architecture_improvements.md](./future_architecture_improvements.md) for the target health-monitoring and platform-rebuild model.
 
-The current architecture focus is the **four-tenant extranet estate** (currently running **BIG-IP 17.5.x**, with a target rebuild onto newer devices/software such as rSeries/VELOS F5OS + BIG-IP 21.1.x+ — see [future_architecture_improvements.md §15A](./future_architecture_improvements.md#15a-platform-rebuild-impact-big-ip-175x-current-vs-newer-devices-and-big-ip-211x--f5os-future)). Retain the existing GTM and tenant LTM boundaries in the current target recommendation. Consolidating GTM/LTM may be a valid future optimisation if applications converge onto common private-cloud platforms, but it requires participation from the GTM/LTM/network owners and is not assumed by this WAF analysis.
+The current architecture focus is the **four-tenant extranet estate** (currently running **BIG-IP 17.5.x**, with a confirmed target rebuild standard of **F5 rSeries `r2800` pizza boxes only** running `F5OS-A 1.8.0+` + BIG-IP 21.1.x+, no blade chassis — see [future_architecture_improvements.md §15A](./future_architecture_improvements.md#15a-platform-rebuild-impact-big-ip-175x-current-vs-confirmed-r2800--big-ip-211x--f5os-a-target)). Retain the existing GTM and tenant LTM boundaries in the current target recommendation. Consolidating GTM/LTM may be a valid future optimisation if applications converge onto common private-cloud platforms, but it requires participation from the GTM/LTM/network owners and is not assumed by this WAF analysis.
 
 ### Ownership constraint
 
@@ -51,11 +51,11 @@ The shorthand is used only to keep the comparison tables compact. Read the descr
 
 | ID | Plain-English description | Normal traffic model | Main trade-off |
 |---|---|---|---|
-| **W1** | **Tenant/dedicated LTM pair in front of independent active WAFs** | LTM load-balances the same service across 2..N active WAFs | Strong horizontal scale and maintenance flexibility; failed sockets normally reconnect |
+| **W1** | **Tenant/dedicated LTM pair in front of independent active WAFs** | LTM load-balances the same service across 2..N active WAFs | Strong horizontal scale and maintenance flexibility; failed sockets normally reconnect (on `r2800` + `F5OS-A 1.8.0+`, 2 isolated WAF tenants/box can halve dedicated `W1-3` WAF boxes from 24 to 12 if AWAF fits in `4 vCPU / 12 GB RAM`) |
 | **W2** | **WAF HA/DSC cluster**, optionally behind an LTM | One WAF owns a traffic group; peer is HA standby for that traffic group | Simple HA and possible connection mirroring (requires licensed LTM+AWAF), but pair/cluster is a hard local boundary |
 | **W3** | **Tenant LTM pair + tenant-preferred WAFs + shared reserve WAFs** | Preferred WAFs serve normally; shared reserve is contingency capacity | Keeps normal-state tenant separation but introduces shared reserve governance/contention |
 | **W4** | **Asymmetric cluster design**: Site 1 WAF HA cluster + extra WAF; Site 2 cluster only | Site 1 has extra local capacity; Site 2 has only the cluster | Stronger Site 1 resilience but asymmetric DR/maintenance |
-| **S1** | **Existing tenant-specific LTM pairs feeding one shared independent active WAF pool** | The current four extranet tenant LTM pairs remain; WAF capacity is shared behind them | Best shared-WAF candidate without redesigning LTM/GTM ownership boundaries (note: future rSeries/VELOS F5OS multi-tenancy can deliver S1-like hardware consolidation with Dedicated-W1 OS/upgrade isolation) |
+| **S1** | **Existing tenant-specific LTM pairs feeding one shared independent active WAF pool** | The current four extranet tenant LTM pairs remain; WAF capacity is shared behind them | Best shared-WAF candidate without redesigning LTM/GTM ownership boundaries (on `r2800`, 1 full-box WAF tenant/box gives `8 vCPU / 24 GB RAM` per member at `K + 2` active boxes/site) |
 | **S2** | **Shared LTM pair + shared independent active WAF pool** | Tenants share both ingress LTM and WAF capacity | Comparison only; LTM consolidation is outside current scope and has a much larger common failure/change domain |
 
 ### W1 — dedicated independent WAF pool
