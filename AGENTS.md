@@ -8,21 +8,19 @@ Before making any change, read:
 
 1. `CONTEXT.md`
 2. `README.md`
-3. `enterprise-scenarios/enterprise_scenario_invariants.md`
-4. `enterprise-scenarios/high_level_architecture.md`
-5. `enterprise-scenarios/future_architecture_improvements.md`
-6. Any topic-specific document affected by the task
+3. `enterprise-scenarios/current_architecture_and_invariants.md`
+4. `enterprise-scenarios/future_architecture_improvements.md`
+5. Any topic-specific document affected by the task
 
 ## Source-of-truth order
 
 When sources conflict, use this precedence:
 
 1. Explicit task/user instruction
-2. `enterprise-scenarios/enterprise_scenario_invariants.md` for current/stable facts
-3. `enterprise-scenarios/high_level_architecture.md` for current-state topology
-4. `enterprise-scenarios/future_architecture_improvements.md` for target/to-be design
-5. Detailed scenario analyses
-6. Management slides, PDFs and diagrams
+2. `enterprise-scenarios/current_architecture_and_invariants.md` for all current-state facts, topology and invariants
+3. `enterprise-scenarios/future_architecture_improvements.md` for target/to-be design
+4. Detailed scenario analyses
+5. Management slides, PDFs and diagrams
 
 Do **not** turn a recommendation, assumption or future capability into a current-state fact unless it has been explicitly validated.
 
