@@ -174,7 +174,7 @@ def simple_table(s, headers, rows, x, y, colw, rowh=0.46, fs=9.2, headh=None, al
         yy += rowh
 
 
-# Slide 1 — Executive Summary (End-to-End Application Delivery; Initial Focus: WAF Tier)
+# Slide 1 — Executive Summary (Joint Responsibility • End-to-End Application Delivery)
 s = slide()
 add_text(
     s,
@@ -192,23 +192,23 @@ add_text(
 )
 add_text(
     s,
-    "Management summary — full end-to-end delivery (initial Phase 1 focus: WAF tier) • BIG-IP 17.5.x → 21.1.x+ rebuild • 99.95% availability",
+    "Joint responsibility across Infra & App teams • Phase 1 focus: WAF tier • BIG-IP 17.5.x → r2800 (21.1.x+) • 99.95% & ≤ 25% impact",
     0.52,
     1.14,
     12.30,
     0.42,
-    13.0,
+    12.4,
     False,
     NAVY,
     radius=False,
 )
 bullet_block(
     s,
-    "End-to-end scope & Phase 1 WAF focus",
+    "Joint responsibility & scope",
     [
-        "99.95% availability (managed + unmanaged outages) requires end-to-end resilience across DNS, firewalls, LTM, WAF, private cloud, and apps.",
-        "Phase 1 execution focuses on the F5 WAF tier (and LTM/GTM interfaces); firewalls, Cloud FW/ELB, and apps are owned by partner teams.",
-        "Keep tenant Local Traffic Manager (LTM) boundaries; evaluate S1 full-box (24 GB) vs. r2800 2-tenant F5OS WAFs (12 GB each) on rebuild.",
+        "Infrastructure teams deliver resilient, rolling-upgradeable tiers, deterministic SNAT/XFF headers, and layer-accurate health steering.",
+        "App teams build failure-tolerant apps (T6 retries, external state, WS replay) and own L7 readiness & protocol contracts.",
+        "99.95% (managed + unmanaged) & potential ≤ 25% impact cap: evaluate S1+2 (6/site, 24 GB) vs. W1-3 (both 20 r2800s on rebuild).",
     ],
     0.55,
     1.85,
@@ -217,15 +217,15 @@ bullet_block(
     GREEN,
     MID,
     NAVY,
-    9.9,
+    9.7,
 )
 bullet_block(
     s,
-    "Target layered health monitoring",
+    "Health & recovery at the right layer",
     [
-        "Use 6 coordinated health layers (H1–H6), not one monitor.",
-        "BIG-IP DNS (GTM) owns global site choice using Layer-7 checks of external & internal Virtual IPs (VIPs) with Specific Prober Pools.",
-        "LTM & Cloud Load Balancer (ELB) withdraw failed nodes locally (Action On Service Down = Reject; VS Reject on all-down).",
+        "Use 6 coordinated health layers (H1–H6) so infra & app teams architect against clear contracts, not guesswork.",
+        "BIG-IP DNS (GTM) owns global site choice via L7 external & internal VIP health with Specific Prober Pools.",
+        "LTM & Cloud ELB eject failed nodes locally (Action=Reject; VS Reject on all-down) and pass/inject XFF & sticky cookies cleanly.",
     ],
     4.70,
     1.85,
@@ -234,15 +234,15 @@ bullet_block(
     CYAN,
     MID,
     NAVY,
-    9.9,
+    9.7,
 )
 bullet_block(
     s,
     "Key management risks to close",
     [
-        "Current BIG-IP 17.5.x GTM monitor depth, firewall NAT Translation mappings (K14707), and prober behavior remain unknown / to validate.",
-        "Port-up / default TCP handshake checks (K40554304) can show false green while the application is broken.",
-        "Partner teams must agree on Layer-7 readiness, graceful drain, and shared-dependency (App B) recovery contracts.",
+        "Current BIG-IP 17.5.x GTM monitor depth, NAT Translation maps (K14707), TLS termination/XFF & SNAT baselines remain to validate.",
+        "Port-up / TCP handshake checks (K40554304) show false green while Cloud FW, ELB, or the application is broken.",
+        "2-WAF designs (W1-2/W2b) lose local N-2 during 4/yr upgrades; S1+2 needs Parent/Child canary gates to stay ≤ 25% impact.",
     ],
     8.85,
     1.85,
@@ -251,16 +251,16 @@ bullet_block(
     PALEYELLOW,
     ORANGE,
     NAVY,
-    9.9,
+    9.7,
 )
 add_text(
     s,
-    "Key decision: validate current BIG-IP 17.5.x GTM health first, deliver Phase 1 WAF resilience + layered L7 health, and benchmark AWAF on the confirmed r2800 standard (no blade chassis; Glossary on Slide 16).",
+    "Key decision: audit current 17.5.x health/SNAT/XFF baselines, sign joint Infra + App contracts per fault domain (Slide 14), and choose S1+2 vs. W1-3 on the confirmed r2800 standard (Glossary on Slide 17).",
     0.55,
     5.50,
     12.22,
     0.76,
-    12.0,
+    11.4,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -269,61 +269,61 @@ add_text(
 )
 footer(s, 1)
 
-# Slide 2 — Separate Current State from Target State (+ Team Ownership)
+# Slide 2 — Separate Current Invariants from Target Controls (+ Joint Responsibility)
 s = slide()
 title(
     s,
-    "Separate current state from target state (and team boundaries)",
-    "Management should clearly see what exists today (BIG-IP 17.5.x) versus what is proposed for the end-to-end target and r2800 rebuild.",
+    "Separate baseline invariants from target layer controls",
+    "Keep validated current facts & enterprise invariants distinct from target-state infra/app improvements and r2800 rebuild.",
 )
 bullet_block(
     s,
-    "CURRENT / validated baseline (BIG-IP 17.5.x)",
+    "CURRENT baseline & enterprise invariants",
     [
-        "2 sites; one BIG-IP DNS (GTM) cluster per site inside the edge firewall",
-        "Network/Security team: 2 × HA edge-firewall pairs/site (external VIPs) + separate internal firewall",
-        "F5/ADC team: tenant LTM HA pairs (2/tenant/site) + WAF tier (Phase 1 focus) + edge GTM",
-        "Cloud Platform team: private-cloud Cloud Firewall (CFW) → Cloud Load Balancer (ELB)",
-        "App teams: App A / B / C / D dependencies (mostly active/passive)",
-        "BIG-IP 17.5.x (EoTS Jan 2029); current GTM monitor depth & probers: validate",
+        "2 sites; edge GTM cluster/site; 2×2 HA edge FWs & separate internal FW (NetSec); Cloud FW → ELB (Cloud); App A/B/C/D (Apps)",
+        "F5/ADC: tenant LTM HA pairs (2/tenant/site) + WAF tier (Phase 1 focus) on BIG-IP 17.5.x (EoTS Jan 2029)",
+        "Invariant — Client IP tracking: some apps require real external IP (via no-SNAT, SNAT+XFF at 1st L7 hop, or ELB-injected headers)",
+        "Invariant — App classes: stateless (AT1), stateful + potential sticky sessions (AT2), WebSockets (AT3), non-web L4 (AT4)",
+        "Targets: 99.95% combined (managed + unmanaged) & potential ≤ 25% max impact (1 of 4 tenants / ≤ 25% canary exposure)",
+        "Unknown / validate in Phase 0: current GTM monitor depth, probers, TLS termination, SNAT & sticky-session config",
     ],
     0.55,
     1.22,
     5.92,
-    4.72,
+    4.76,
     LIGHT,
     MID,
     NAVY,
-    10.3,
+    9.8,
 )
 bullet_block(
     s,
-    "TARGET / to-be improvement & r2800 rebuild (21.1.x+)",
+    "TARGET controls (Joint Infra + App) & r2800 rebuild",
     [
-        "GTM Layer-7 health of external VIPs + NAT Translation & Specific Prober Pools",
-        "GTM or authoritative internal LTM / iQuery Layer-7 health of internal VIPs",
-        "App-team readiness contracts + Receive Disable graceful drain (K12818)",
-        "Dependency-local App B1 → B2 recovery (XD1) where state/data allow",
-        "Confirmed hardware rebuild: rSeries r2800 pizza boxes ONLY (F5OS-A 1.8.0+; max 2 tenants/box; no blade chassis)",
-        "Single 480 GB SSD (no RAID-1) + no STP → K+2 spread, remote HSL logs, LACP LAGs & cloud-init",
+        "Infra — Layered L7 health (H1–H6), Specific Prober Pools, NAT Translation maps & separate ext/int VIP state",
+        "Infra — Consistent sticky path (ELB cookie + LTM OneConnect/CARP), multi-IP SNAT Pools, XFF/ELB header injection & App B XD1",
+        "App — Own /health/ready + Receive Disable drain (K12818), externalized session state (AT2), WS reconnect/replay (AT3) & retries",
+        "Topology — S1+2 (4+2=6 WAFs/site for rolling + outage + canary) vs. W1-3 (strict ≤ 25% tenant cap); W1-2 needs X2A",
+        "Confirmed rebuild: rSeries r2800 pizza boxes ONLY (F5OS-A 1.8.0+; max 2 tenants/box; no blade chassis)",
+        "r2800 guardrails: single 480 GB SSD (no RAID-1) + no STP → K+2 spread, remote HSL logs, LACP LAGs & cloud-init",
     ],
     6.86,
     1.22,
     5.92,
-    4.72,
+    4.76,
     PALEGREEN,
     RGBColor(92, 164, 82),
     TEAL,
-    10.3,
+    9.8,
 )
 add_text(
     s,
-    "Rule: target-state health probes, r2800 F5OS-A rebuild features, and cross-site paths (X2A/X2B/XD1) must not appear on the current-state diagram until deployed and validated.",
+    "Joint Responsibility Rule: Infrastructure delivers resilient layers, routing/XFF & health steering; Applications deliver T6 recovery & readiness contracts — never draw target controls as deployed facts.",
     0.55,
     6.20,
     12.23,
     0.56,
-    10.6,
+    10.1,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -678,42 +678,42 @@ add_text(
 )
 footer(s, 11)
 
-# Slide 12 — End-to-End Multi-Layer Path Consistency, Sticky Sessions, SNAT & Throughput (AT1-AT4)
+# Slide 12 — End-to-End Multi-Layer Path Consistency, Sticky Sessions, Client-IP Headers, SNAT & Throughput (AT1-AT4)
 s = slide()
 title(
     s,
-    "End-to-end path consistency, sticky sessions, SNAT & throughput",
+    "End-to-end sticky sessions, client-IP headers, SNAT & throughput",
     "Target multi-layer alignment (Network/FW → LTM → WAF → CFW/ELB → App): high throughput in steady state + clean recovery on failure.",
-    tsize=20.5,
+    tsize=20.0,
 )
 at_rows = [
     (
         "AT1:\nStateless\nWeb / API",
-        "5-tuple LACP LAG (no STP); f5-tcp-wan/lan + TLS 1.3 reuse; OneConnect + Least Conn (or stateless CARP); SNAT Pool + XFF if asymmetric/OneConnect",
+        "5-tuple LACP LAG (no STP); f5-tcp-wan/lan + TLS 1.3 reuse; OneConnect + Least Conn (or CARP); SNAT Pool + strip/inject XFF if LTM terminates TLS",
         "Stateless active pool; Trust XFF (K4816); server keep-alive + TLS cache to ELB; disable extra WAF caching/gzip to save r2800 CPU",
-        "Least Conn / Least Outstanding Req; no sticky cookie; keep-alive pool; fast H2 eject + graceful drain; CFW timeout > keep-alive",
-        "Stateless service; external/shared state only; idempotent writes; automated client retry with backoff/jitter",
+        "Least Conn / LOR; no sticky cookie; preserve/append XFF (inject own XFF if ELB terminates TLS); fast H2 eject + graceful drain",
+        "Stateless service; external/shared state only; idempotent writes; automated client retry with backoff/jitter; read trusted XFF",
     ),
     (
         "AT2:\nStateful\nWeb",
         "f5-tcp-wan/lan + OneConnect (mandatory so Keep-Alive honors cookies, K7964); LTM→WAF stateless CARP (K11362); SNAT Pool + XFF (K9816)",
         "Pass ELB/app sticky cookie untouched; Trust XFF; keep-alive + TLS reuse to ELB; Disabled / Receive Disable (K12818) drains sticky flows",
-        "Single app-node sticky owner: ELB/Ingress cookie routes ANY WAF node to exact right App Node; Slow Start + graceful drain",
+        "Single app-node sticky owner: ELB/Ingress cookie routes ANY WAF node to exact right App Node; preserve/inject XFF; Slow Start + drain",
         "Externalized/replicated session store (Redis/DB) makes sticky a speed/locality optimization (not SPOF); graceful re-auth & reconcile",
     ),
     (
         "AT3:\nWebSocket /\nReal-Time",
         "FW/NAT idle timeouts > app ping; WebSocket profile (K84421441); NEVER enable OneConnect (K000151124); Action=Reject (K15095); SNAT Pool + XFF",
         "WebSocket profile + AWAF policy (K000140381); Trust XFF; no mirroring on N>2 pools (2-device / no-failback limit unchanged in 21.1)",
-        "Pin established WS TCP stream to target node; ELB idle timeout > ping; fast reset on crash; cookie/CARP on Upgrade if needed",
+        "Pin established WS TCP stream to target node; ELB idle timeout > ping; preserve/inject XFF on Upgrade; fast reset on crash",
         "Client reconnect + exponential backoff/jitter + re-auth + resubscribe + sequence-gap replay (mandatory)",
     ),
     (
         "AT4:\nNon-Web /\nLayer-4",
-        "Perf L4 VS + FastL4 (K09948701, SW TMM on r2800); Source-IP/CARP; avoid SNAT if inline + IP ACLs/FTP (K15249), else SNAT Pool + PROXY Proto",
+        "Perf L4 VS + FastL4 (K09948701, SW TMM on r2800); Source-IP/CARP; inline no-SNAT for IP ACLs/FTP (K15249), else SNAT Pool + PROXY Proto",
         "Bypasses external WAF tier (where permitted by policy) to avoid L7 proxy overhead & non-HTTP protocol breakage",
-        "CFW stateful allow + L4 ELB (NLB/TCP passthrough); consistent 5-tuple / Source-IP hash; fast H2 target removal",
-        "Protocol-native reconnect, DNS/service re-resolution, and safe transaction replay",
+        "CFW stateful allow + L4 ELB (NLB/TCP passthrough) keeping raw IP or PROXY Protocol; 5-tuple/Source-IP hash; fast H2 removal",
+        "Protocol-native reconnect, DNS/service re-resolution, safe transaction replay & PROXY Protocol parsing if behind SNAT",
     ),
 ]
 # y=1.12, headh=0.42, 4 rows * 1.09 = 4.36 => ends at y=5.90 (clean gap before banner at y=6.04!)
@@ -731,18 +731,18 @@ simple_table(
     1.12,
     [1.40, 3.15, 2.65, 2.75, 2.62],
     rowh=1.09,
-    fs=8.1,
+    fs=8.0,
     headh=0.42,
     aligns=[PP_ALIGN.CENTER, PP_ALIGN.LEFT, PP_ALIGN.LEFT, PP_ALIGN.LEFT, PP_ALIGN.LEFT],
 )
 add_text(
     s,
-    "SNAT & Throughput Rules: Use multi-IP SNAT Pools (never single-IP Automap — ~65k port cap/IP, K7820/K8246) for one-arm L3 asymmetry, X2A/X2B route-back & LTM→AWAF OneConnect (K9816; pair with XFF + AWAF Trust XFF, K4816). Avoid Source-IP stickiness for partner web behind NAT; never mix OneConnect with WebSocket (K000151124) or HTTP/2 full-proxy (K95032535).",
+    "Client-IP & SNAT Rules: First L7 TLS terminator (LTM, WAF, or Cloud ELB) strips untrusted XFF & injects real client IP (if ELB terminates TLS, upstream must keep raw IP or pass PROXY Protocol). Use multi-IP SNAT Pools (not Automap — ~65k port cap/IP, K7820/K8246) for L3 asymmetry, X2A/X2B & LTM→AWAF OneConnect (K9816). Never mix OneConnect with WebSocket (K000151124) or HTTP/2 full-proxy (K95032535).",
     0.38,
-    6.04,
+    6.02,
     12.57,
-    0.78,
-    8.7,
+    0.84,
+    8.3,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -751,56 +751,108 @@ add_text(
 )
 footer(s, 12)
 
-# Slide 13 — Four-Tenant Device Counts (EXPLICIT LTM vs WAF Breakdown!)
+# Slide 13 — Four-Tenant Topology Variant Scorecard (25% Impact, 99.95%, Longest Outage, Auto/Manual, Pros/Cons)
 s = slide()
 title(
     s,
-    "Four-tenant device counts (LTM + WAF) vs blast radius",
-    "Explicit 2-site breakdown across 4 tenants (LTM + WAF devices only; excludes GTM clusters & firewalls) — not vendor pricing.",
+    "Topology variant scorecard: 25% impact, 99.95% & longest outage",
+    "4-tenant / 2-site LTM + WAF comparison (excludes GTM & FWs) including W1-2 sub-variant & S1+2 (rolling + outage + canary).",
+    tsize=20.2,
 )
-rows = [
-    ("W1 (3 WAF/tenant/site) — dedicated active pool", "16", "24", "40", "Low (per-tenant)"),
-    ("W3 — 2 preferred/tenant + 2 shared reserve/site", "16", "20", "36", "Medium (shared reserve)"),
-    ("W4a — asymmetric (3 WAF S1 / 2 WAF S2 per tenant)", "16", "20", "36", "Low (weaker Site 2 DR)"),
-    ("W1 (2 WAF/tenant) or W2b (2-node WAF cluster + LTM)", "16", "16", "32", "Low (tight maintenance)"),
-    ("S1 — tenant LTMs + 4 shared active WAFs/site", "16", "8", "24", "High at WAF tier"),
-    ("Rebuild: r2800 2-tenant F5OS WAFs (4c/12G each)*", "8* (2/box)", "12* (2/box)", "20 r2800s*", "Low OS/policy; 2 tenants/box"),
-    ("S2 — shared LTM + shared WAF (out of current scope)", "4", "8", "12", "Very high (all tenants)"),
+score_rows = [
+    (
+        "W1-3 (3 WAF/tenant/site)",
+        "16 + 24 = 40",
+        "PASS (≤25% / 1 tenant; 1 node ≤8%)",
+        "Very Strong (N-2)",
+        "1–2 WAF: 0–16s+T6 (Auto R0/R1)\nFull tier: ~16s X2A / ~46–150s R3",
+        "Pro: hard ≤25% isolation & 24 GB RAM\nCon: highest box count (40 units)",
+    ),
+    (
+        "W1-2 sub-variant (2 WAF/tenant)",
+        "16 + 16 = 32",
+        "PARTIAL (tenant ≤25%, but 1 fault = 50% cap)",
+        "Moderate (needs X2A)",
+        "1 WAF: 0–16s+T6 (Auto R1); Maint+fault:\n~16s X2A / ~46–150s R3 / T5 Manual DR",
+        "Pro: saves 8 WAFs vs W1-3\nCon: 0 local N-2 on 4/yr upgrades",
+    ),
+    (
+        "r2800 2-tenant F5OS (W1-3)*",
+        "8* + 12* = 20*",
+        "PASS (policy ≤25%; 1 box = 0% outage)",
+        "Very Strong (if ≤12 GB)",
+        "1 box/host reboot: 0–16s+T6 (Auto R0/R1)\nMulti-box: ~16s X2A / R3 / Manual T5",
+        "Pro: halves W1-3 to 20 r2800s\nCon: 12 GB RAM cap; 2 tenants/box",
+    ),
+    (
+        "S1+2 (4+2=6 shared WAF/site)*",
+        "16 (8*) + 12 = 28 (20*)",
+        "COND. PASS (1 canary ≤17%; needs policy gates)",
+        "Very Strong (+2 buffer)",
+        "1–2 WAF (roll+SSD+canary): 0–16s+T6 (Auto)\nFull tier: ~16s X2A / ~46–150s R3 (4-ten)",
+        "Pro: full 24 GB RAM + canary/N-2 @ 20*\nCon: bad global push can >25%",
+    ),
+    (
+        "S1 base (4 shared WAF/site)",
+        "16 + 8 = 24",
+        "TIGHT (1 node = 25%; no canary cushion)",
+        "Strong if K≤2 only",
+        "1 WAF: 0–16s+T6 (Auto R1); Maint+fault\n(K>2): throttled / X2A / Manual T5",
+        "Pro: lowest shared WAF count (8)\nCon: no +2 rolling/canary margin",
+    ),
+    (
+        "W3 (2 pref + 2 reserve/site)",
+        "16 + 20 = 36",
+        "PASS normal / MED reserve risk",
+        "Strong (if free)",
+        "1–2 WAF: ~16s+T6 via reserve (Auto PG)\nContention/drift: R2/R3 or Manual T5",
+        "Pro: dedicated normal path\nCon: saves only 4 WAFs; complex",
+    ),
+    (
+        "W2b (DSC pair) / W4a (asym)",
+        "16+16=32 / 16+20=36",
+        "PARTIAL (0 maint N-2; W4a S2 fragile)",
+        "Moderate / Asym.",
+        "1st WAF: ~3s T1 (Auto); Maint+fault:\n~16s X2A / R3 / Manual T5 (+WS reset)",
+        "Pro: simple HA / 1st-fault WS mirror\nCon: no canary or horizontal scale",
+    ),
+    (
+        "S2 (Shared LTM+WAF — OOS)",
+        "4 + 8 = 12",
+        "FAIL (100% — all 4 tenants at risk)",
+        "Lowest Confidence",
+        "1 peer: ~3–16s (Auto); Bad LTM/WAF push:\nmins+ Manual T5 across all 4 tenants",
+        "Pro: lowest device count (12)\nCon: breaks tenant LTM & 25% cap",
+    ),
 ]
-# y=1.18, headh=0.46, 7 rows * 0.54 = 3.78 => ends at y=5.42 (clean gap before note & callout!)
+# y=1.10, headh=0.42, 8 rows * 0.57 = 4.56 => ends at y=6.08 (clean gap before banner at y=6.18!)
 simple_table(
     s,
-    ["Topology option (see Slide 9 diagrams)", "LTM devices\n(2 sites)", "WAF devices\n(2 sites)", "Total LTM+WAF\n(2 sites)", "Cross-tenant\nblast radius"],
-    rows,
-    0.45,
-    1.18,
-    [4.75, 1.50, 1.60, 1.85, 2.75],
-    rowh=0.54,
-    fs=8.9,
-    headh=0.50,
-    aligns=[PP_ALIGN.LEFT, PP_ALIGN.CENTER, PP_ALIGN.CENTER, PP_ALIGN.CENTER, PP_ALIGN.CENTER],
+    [
+        "Topology Variant (Slide 9)",
+        "LTM + WAF\n(2 sites)",
+        "≤ 25% Impact Cap",
+        "99.95%\n(4 chg/yr)",
+        "Longest Outage & Auto / Manual",
+        "Key Pros / Cons",
+    ],
+    score_rows,
+    0.38,
+    1.10,
+    [2.50, 1.38, 1.92, 1.32, 2.95, 2.50],
+    rowh=0.57,
+    fs=7.6,
+    headh=0.42,
+    aligns=[PP_ALIGN.LEFT, PP_ALIGN.CENTER, PP_ALIGN.LEFT, PP_ALIGN.CENTER, PP_ALIGN.LEFT, PP_ALIGN.LEFT],
 )
 add_text(
     s,
-    "*Confirmed r2800 standard (F5OS-A 1.8.0+; no blade chassis): max 2 tenants/r2800 (4 vCPU/12 GB each) halves W1-3 WAF boxes (24→12) & LTM boxes (16→8). If AWAF needs >12 GB RAM, use S1 full-box (8 vCPU/24 GB; K+2 active boxes/site). Single 480 GB SSD (no RAID-1) & no STP.",
-    0.45,
-    5.50,
-    12.45,
-    0.54,
-    8.4,
-    False,
-    SLATE,
-    PP_ALIGN.LEFT,
-    radius=False,
-)
-add_text(
-    s,
-    "Health design does not eliminate shared-platform blast radius: a bad shared WAF policy/config or capacity surge in S1/S2 can still impact multiple tenants simultaneously.",
-    0.45,
-    6.16,
-    12.45,
-    0.58,
-    10.2,
+    "*Confirmed r2800 rebuild (no blade chassis): BOTH W1-3 (2-tenant F5OS @ 4c/12G) AND S1+2 (full-box @ 8c/24G) land at 20 r2800s total (8 LTM @ 2/box + 12 WAF). Whole-site DR is Auto R3 (~46–150s+T6) for Active/Active or Manual R4/T5 (mins+) for passive-startup apps.",
+    0.38,
+    6.18,
+    12.57,
+    0.66,
+    8.5,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -809,7 +861,108 @@ add_text(
 )
 footer(s, 13)
 
-# Slide 14 — End-to-End Implementation Sequence & Cross-Team Gates
+# Slide 14 — NEW: Joint Responsibility & Fault-Domain Recovery Matrix (Infra vs. App per Layer)
+s = slide()
+title(
+    s,
+    "Joint responsibility: infra & app obligations per fault domain",
+    "Infrastructure delivers resilient layers & accurate health steering; App teams deliver T6 recovery & contracts at every fault domain.",
+    tsize=20.5,
+)
+fd_rows = [
+    (
+        "1. DNS / BIG-IP GTM\n(H3 / H4)",
+        "Node: 0–3s\nSite: ~46–150s+T6",
+        "Automated\n(R1 / R3)",
+        "Dual-site GTM; Specific Prober Pools (K08433560); NAT Translation maps (K14707); separate ext/int wide-IPs; 30s TTL; upgrade GTM first",
+        "Respect DNS TTLs (no infinite JVM/pool IP pinning); re-resolve on socket error; own & version /health/ready contract",
+    ),
+    (
+        "2. Network & Edge FW\n(H1)",
+        "Link/peer: 0–10s+T6\nFull edge: ~46–150s",
+        "Automated\n(R0/R1 / R3)",
+        "2×2 HA edge FW pairs/tenant; dual-homed F5OS-A LACP LAGs (no STP on r2800, K000152319); FW idle timeouts > LTM/ELB keep-alives & WS ping",
+        "Client retry with backoff/jitter (AT1/AT2); WebSocket ping & reconnect/replay (AT3); tolerate brief packet loss",
+    ),
+    (
+        "3. Tenant LTM HA Pair\n(H1 / H2)",
+        "1 peer: ~3s (T1)+T6\nBoth: ~46–150s+T6",
+        "Auto (R1/R3)\nManual if no X2B",
+        "Redundant TMM+mgmt HA; MAC masq; VS Immediate Action=Reject (K40554304); Action=Reject; OneConnect+CARP (no WS); SNAT Pool + XFF strip/inject",
+        "Idempotent writes on HA failover resets; reconnect dropped sockets (AT3/AT2); read trusted XFF header position",
+    ),
+    (
+        "4. WAF Tier (AWAF)\n(H2 / r2800)",
+        "1–2 WAF: 0–16s+T6\nTier: ~16s X2A / R3",
+        "Auto (R0–R3)\nManual rollback/DR",
+        "Size S1+2 or W1-3 (single-SSD/host-reboot safety); remote HSL + cloud-init; Trust XFF (K4816); pass ELB sticky cookies; 1-node canary ≤17–25%",
+        "Co-own canary policy sign-off (7-day staging, K82512024); never rely on AWAF mirroring for AT3 WS; handle reconnects",
+    ),
+    (
+        "5. Internal FW & CFW\n(H4 / T9)",
+        "Member: ~3–10s+T6\nWhole CFW: ~46–150s",
+        "Auto HA / R3\n(unbounded if green!)",
+        "Separate int-VIP (H4) from ext-VIP (H3); L7 probes MUST cross CFW→ELB→App (no T9C false-green); note X2A cannot bypass local CFW",
+        "Expose lightweight /health/ready behind CFW so CFW outage triggers automatic steering; tolerate site failover on CFW loss",
+    ),
+    (
+        "6. Cloud ELB / Ingress\n(H2)",
+        "Node: 0–10s+T6\nWhole ELB: ~46–150s",
+        "Automated\n(R0/R1 / R3)",
+        "Own single AT2 app-node sticky cookie; inject/append own XFF if terminating TLS (preserve upstream XFF); Slow Start + graceful drain",
+        "Implement Pod/VM readiness & preStop drain hooks (Receive Disable / HTTP 503) so rolling app updates stay R0/R1",
+    ),
+    (
+        "7. App & Shared Deps\n(App A/D→B→C, H5)",
+        "Node: 0–10s (R0/R1)\nApp B1: ~5–16s XD1",
+        "Auto (R0–R2)\nManual DB reconcile",
+        "Stable App B service VIP (H5) with Action=Reject (K15095) + pre-approved B1→B2 cross-site routing/FW rules (XD1)",
+        "Separate critical vs optional deps in /health/ready (no cascades); circuit breakers; external session store (AT2); rolling DB/app updates",
+    ),
+    (
+        "8. Whole Site / DR\n(X2C)",
+        "Active/Act: ~46–150s\nPassive: mins+ (T5)",
+        "Auto (R3 Act/Act)\nManual (R4 Passive)",
+        "Size Site 2 r2800 LTM/WAF (S1+2 or W1-3), SNAT Pools, CFW & ELB for 100% 4-tenant DR surge; keep policies & certs synced",
+        "Replicate state/data within RPO; automate passive-site startup & DB promotion (manual DR rapidly burns 262.8 min/yr budget)",
+    ),
+]
+# y=1.10, headh=0.40, 8 rows * 0.58 = 4.64 => ends at y=6.14 (clean gap before banner at y=6.22!)
+simple_table(
+    s,
+    [
+        "Fault Domain / Layer",
+        "Longest Outage",
+        "Auto / Manual",
+        "Specific Infrastructure Obligations",
+        "Specific Application Obligations",
+    ],
+    fd_rows,
+    0.38,
+    1.10,
+    [1.82, 1.50, 1.30, 4.10, 3.85],
+    rowh=0.58,
+    fs=7.5,
+    headh=0.40,
+    aligns=[PP_ALIGN.LEFT, PP_ALIGN.CENTER, PP_ALIGN.CENTER, PP_ALIGN.LEFT, PP_ALIGN.LEFT],
+)
+add_text(
+    s,
+    "Joint Accountability: Health checks & recovery must be built at the exact right layer — infrastructure prevents false-greens & single-node outages; applications own T6 recovery & readiness contracts.",
+    0.38,
+    6.22,
+    12.57,
+    0.58,
+    9.4,
+    True,
+    NAVY,
+    PP_ALIGN.CENTER,
+    PALEGREEN,
+    RGBColor(92, 164, 82),
+)
+footer(s, 14)
+
+# Slide 15 — End-to-End Implementation Sequence & Cross-Team Gates
 s = slide()
 title(
     s,
@@ -817,18 +970,18 @@ title(
     "Start with F5/WAF & GTM validation we own directly, while aligning Network/Security, Cloud Platform, and App teams on contracts.",
 )
 phases = [
-    ("0", "Inventory monitors,\nSNAT, probers &\nr2800 AWAF RAM"),
-    ("1", "Phase 1: WAF tier\ndesign + app L7\ncontracts"),
+    ("0", "Inventory monitors,\nSNAT/XFF, probers &\nr2800 AWAF RAM"),
+    ("1", "Phase 1: S1+2/W1-3\ndesign + app L7\ncontracts"),
     ("2", "Implement ext +\nint L7 VIP health\n(F5 + NetSec)"),
     ("3", "Add Specific\nProber Pools &\nH6 synthetics"),
     ("4", "Pilot App B1→B2\nXD1 recovery\n(App + Cloud)"),
     ("5", "Execute r2800\n21.1.x+ rebuild &\nX2A/X2B"),
-    ("6", "Fault-inject &\nprove 99.95%\n(mgmt + unmgmt)"),
+    ("6", "Fault-inject &\nprove 99.95% &\n≤25% impact"),
 ]
 for i, (n, t) in enumerate(phases):
     x = 0.45 + i * 1.82
     add_text(s, n, x + 0.56, 1.18, 0.36, 0.34, 10.5, True, WHITE, PP_ALIGN.CENTER, TEAL, TEAL)
-    add_text(s, t, x, 1.58, 1.48, 1.02, 8.4, True, DARK, PP_ALIGN.CENTER, LIGHT, MID)
+    add_text(s, t, x, 1.58, 1.48, 1.02, 8.3, True, DARK, PP_ALIGN.CENTER, LIGHT, MID)
     if i < 6:
         arrow(s, x + 1.52, 2.09, x + 1.78, 2.09, TEAL, width=2.0)
 
@@ -839,8 +992,8 @@ checks = [
     "inter-site link loss never withdraws a healthy local site",
     "GTM / prober / sync convergence time measured end-to-end",
     "App A / B / C / D cascade & XD1 fallback tested with App teams",
-    "AT1–AT4 sticky sessions, SNAT Pool/XFF & no-OneConnect on WS",
-    "managed maintenance + extra failure tested (GTM upgraded first)",
+    "AT1–AT4 sticky, XFF/ELB headers, SNAT Pool & no-OneConnect WS",
+    "managed maintenance + extra failure + 1-node canary ≤ 25% tested",
     "r2800 LACP LAG (no STP), HSL logs & platform-migrate validated",
 ]
 add_text(s, "Cross-team acceptance gates before claiming 99.95% readiness", 0.55, 2.95, 7.5, 0.38, 12.5, True, NAVY, radius=False)
@@ -863,9 +1016,9 @@ add_text(
     PALEYELLOW,
     GOLD,
 )
-footer(s, 14)
+footer(s, 15)
 
-# Slide 15 — Appendix A: Recovery Timing Shorthand (T1-T9)
+# Slide 16 — Appendix A: Recovery Timing Shorthand (T1-T9)
 s = slide()
 title(
     s,
@@ -909,9 +1062,9 @@ add_text(
     PALEGREEN,
     RGBColor(92, 164, 82),
 )
-footer(s, 15)
+footer(s, 16)
 
-# Slide 16 — Appendix B: Executive Glossary of Acronyms & Shorthand Codes (NEW!)
+# Slide 17 — Appendix B: Executive Glossary of Acronyms & Shorthand Codes
 s = slide()
 title(
     s,
@@ -936,8 +1089,8 @@ right_terms = [
     ("H5 / H6", "Health layers: H5 = Shared dependency (App B) • H6 = Independent synthetic SLO"),
     ("R0 / R1", "Recovery classes: R0 = Zero user impact • R1 = Auto local recovery (secs)"),
     ("R2 / R3 / R4", "R2 = Cross-site component • R3 = Auto site/DNS failover • R4 = Manual DR"),
-    ("W1 – W4", "Dedicated WAF topologies (active pool, DSC cluster, reserve, asymmetric)"),
-    ("S1 / S2 / K+2", "Shared WAF topologies • K+2 active WAFs/site survives 2 simultaneous losses"),
+    ("W1-3 / W1-2 / W2–4", "Dedicated WAFs: W1-3 (3/site, N-2) vs W1-2 (2/site, N-1); W2 DSC; W3/W4"),
+    ("S1 / S1+2 / S2", "Shared WAFs: S1 (4/site), S1+2 (+2 for rolling/outage/canary), S2 (OOS)"),
     ("X2A / X2B / XD1", "Cross-site R2 patterns: remote WAF, remote front-end, App B fallback"),
     ("CARP / FastL4", "Stateless consistent hash persistence • Low-overhead L4 forwarding"),
     ("AT1 – AT4 / SLO", "App types (stateless, stateful, WebSocket, L4) • Service Level Objective"),
@@ -960,7 +1113,7 @@ simple_table(
     right_terms,
     6.75,
     1.16,
-    [1.70, 4.43],
+    [1.75, 4.38],
     rowh=0.47,
     fs=8.3,
     headh=0.40,
@@ -980,7 +1133,7 @@ add_text(
     LIGHT,
     MID,
 )
-footer(s, 16)
+footer(s, 17)
 
 prs.save(OUT)
 print(OUT)

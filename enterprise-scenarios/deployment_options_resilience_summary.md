@@ -41,11 +41,13 @@ A single WAF or backend failure should remain a **local member failure**. It sho
 
 | ID | Meaning |
 |---|---|
-| **W1** | Dedicated/tenant LTM HA pair -> **independent active WAF pool** (2..N WAFs) |
+| **W1-3** | Dedicated/tenant LTM HA pair -> **3 independent active WAFs/tenant/site** (dedicated `N-2` / rolling-upgrade pool) |
+| **W1-2** | Sub-variant: dedicated/tenant LTM HA pair -> **2 independent active WAFs/tenant/site** (lower box count; `N-1` only — 50% tenant capacity loss on 1 fault, 0 local maintenance `N-2`) |
 | **W2** | **WAF HA/DSC cluster**, with or without ingress LTM; one active owner per traffic group |
 | **W3** | Tenant LTM pair -> tenant-preferred WAFs + **shared reserve WAF capacity** |
 | **W4** | Asymmetric: Site 1 WAF HA cluster + extra WAF; Site 2 WAF HA cluster only |
-| **S1** | **Tenant-specific LTM pairs -> shared independent active WAF pool** |
+| **S1 (baseline, P=4)** | **Tenant-specific LTM pairs -> 4 shared independent active WAFs/site** (tight headroom if peak `K > 2`) |
+| **S1+2 (P=4+2=6)** | **Tenant-specific LTM pairs -> `K + 2` (e.g. `4 + 2 = 6`) shared independent active WAFs/site** — explicitly adds **+2 active WAFs/site** to absorb rolling upgrades (4/yr) + simultaneous unplanned hardware/SSD outage + isolated canary testing |
 | **S2** | **Shared LTM pair -> shared independent active WAF pool (future comparison; outside current LTM/GTM scope)** |
 | **X2A** | Surviving local LTM uses remote WAF and routes back to the local application path |
 | **X2B** | Remote front end routes back to the healthy primary-site application path |
@@ -54,11 +56,11 @@ A single WAF or backend failure should remain a **local member failure**. It sho
 
 The important distinction is:
 
-- **W1/S1/S2 active WAF pool:** multiple healthy independent WAFs can process the same service concurrently.
+- **W1-3 / W1-2 / S1 / S1+2 / S2 active WAF pool:** multiple healthy independent WAFs can process the same service concurrently.
 - **W2/W4 WAF HA cluster:** one device owns a traffic group; another device is the HA failover target.
 - **W3:** combines tenant-preferred active WAFs with shared reserve capacity.
 
-Detailed diagrams are in section 3 below and in [executive_recommendation.md](./executive_recommendation.md).
+Detailed diagrams are in section 3 below, in [EnterpriseWAF_Topology_Options.svg](../management-artifacts/diagrams/EnterpriseWAF_Topology_Options.svg), and in [executive_recommendation.md](./executive_recommendation.md).
 
 ## 1.2 Timing reference — T1 to T9
 
@@ -89,21 +91,22 @@ Examples:
 
 These are **engineering planning values, not SLAs**. Measure the end-to-end time from fault injection to the first successful business transaction for each actor/application type.
 
-## 1.3 Executive recommendation
+## 1.3 Executive recommendation (joint responsibility + 99.95% + 25% impact)
 
-For the final ranked recommendation and 99.95% assessment, see [executive_recommendation.md](./executive_recommendation.md).
+End-to-end resilience is a **joint responsibility**: infrastructure delivers resilient, rolling-upgradeable layers and accurate health steering; application teams build failure-tolerant apps (`T6`) and publish clear readiness, client-IP, and session contracts. For the full ranked recommendation and per-fault-domain obligations, see [executive_recommendation.md](./executive_recommendation.md) and [future_architecture_improvements.md §15C](./future_architecture_improvements.md#15c-joint-responsibility--fault-domain-recovery-matrix-infrastructure-vs-application-per-layer).
 
 In summary:
 
 | Priority | Preferred design | Why |
 |---|---|---|
-| **Best four-tenant cost/resilience balance** | tenant-specific 2-LTM HA pair + shared independent active WAF pool | preserves tenant ingress boundaries while sharing horizontally useful WAF capacity |
-| **Best isolation / highest-confidence maintainability** | dedicated W1 with 2 LTMs + 3 independent WAFs per tenant/site | strongest local maintenance and N-2-style headroom with smallest cross-tenant blast radius |
-| **Good but more complex** | W3 preferred WAFs + shared reserve | strong recovery if reserve is guaranteed, but shared reserve governance is complex |
-| **Simple but less maintenance margin** | W2b two-node WAF HA cluster | good first-failure HA/mirroring; pair boundary leaves less redundancy during maintenance |
-| **Not preferred / outside current target scope** | shared LTM + shared WAF service | requires LTM-owner redesign and has the largest common-mode/cross-tenant blast radius |
+| **1 — Best four-tenant cost/resilience + canary balance** | **`S1+2`:** tenant-specific 2-LTM HA pairs + **shared active WAF pool with `+2` extra WAFs/site (`4 + 2 = 6`/site)** | Preserves tenant LTM boundaries while giving full `r2800` RAM (`24 GB`/WAF) and absorbing **rolling upgrades + 1 unplanned SSD/box outage + isolated canary testing (≤ 17% exposure)** with 0% capacity loss — **requires strict per-tenant Parent/Child policy isolation & canary gating to stay ≤ 25% impact** |
+| **1A — Best strict 25% tenant isolation** | **Dedicated `W1-3`** (2 LTMs + **3 independent WAFs/tenant/site**; or **`r2800` 2-tenant F5OS** halving WAF boxes 24 → 12 if AWAF fits `12 GB` RAM) | Hard ≤ 25% (1 of 4 tenants) blast-radius boundary + full local `N-2` rolling maintenance headroom without cross-tenant policy risk |
+| **Conditional low-cost dedicated sub-variant** | **Dedicated `W1-2`** (2 LTMs + **2 independent WAFs/tenant/site**) | Keeps tenant blast radius ≤ 25%, **but** 1 WAF loss cuts that tenant's WAF capacity by **50%**, and maintenance + 2nd fault causes **100% tenant WAF loss** — viable for 99.95% **only if `X2A` remote WAF borrow is deployed** |
+| **Good but more complex** | **W3** preferred pair + shared reserve | Strong recovery if reserve is guaranteed, but shared reserve governance/contention adds complexity for modest savings vs. `W1-3` |
+| **Simple but tight maintenance margin** | **W2b** two-node WAF HA cluster | Good first-failure HA/mirroring; pair boundary leaves 0 local WAF redundancy during maintenance |
+| **Not preferred / outside current scope** | **S2** shared LTM + shared WAF pool | Fails 25% impact cap at both LTM and WAF tiers; requires LTM-owner redesign |
 
-The 99.95% target is most credible when normal changes are effectively no-outage, common failures stay R0/R1, and whole-tier/dependency failures can use R2 recovery rather than forcing a site move.
+The 99.95% combined managed+unmanaged target and ≤ 25% impact threshold are credible only when normal changes (4/yr per major stack) roll cleanly (`R0`/`R1`), common failures stay local (`R0`/`R1`), whole-tier/dependency failures use `R2` (`X2A`/`XD1`), and applications fulfill their `T6` recovery contracts.
 
 # 2. Common stack
 
@@ -405,33 +408,28 @@ The benefit is **shared spare capacity**, not the absolute minimum device count.
 
 ## 8.4 Shared independent active WAF pool
 
-### S1 — tenant LTM pairs, shared WAF pool
+### S1 & S1+2 — tenant LTM pairs, shared active WAF pool
 
 ~~~text
 Tenant1 LTM pair --\
-Tenant2 LTM pair ---+--> shared active WAF pool --> tenant/app CFW/ELB
-Tenant3 LTM pair ---+
+Tenant2 LTM pair ---+--> shared active WAF pool (S1: 4/site | S1+2: 4 + 2 = 6/site) --> tenant/app CFW/ELB
+Tenant3 LTM pair ---+       [+2 active WAFs absorb rolling upgrades + 1 unplanned outage + canary testing]
 Tenant4 LTM pair --/
 ~~~
 
 Across two sites:
 
 ~~~text
-16 LTM + 2P WAF
+16 LTM + 2P WAF   (or on confirmed r2800 rebuild: 8 LTM boxes @ 2 tenants/box + 2P full-box 24 GB WAFs)
 ~~~
 
-where **P = WAFs per shared site pool**.
+where **P = active WAFs per shared site pool**:
 
-Illustrative **P=4**:
+- **S1 baseline (`P = 4`/site):** `16 LTM + 8 WAF = 24 device-units` — survives 2 WAF failures *only* if aggregate peak load fits on `K ≤ 2` WAFs; leaves no extra canary/rolling+outage headroom if `K = 3–4`.
+- **`S1+2` (`P = K + 2`, illustrative `4 + 2 = 6`/site):** `16 LTM + 12 WAF = 28 device-units` (or **`8 LTM + 12 WAF = 20 r2800` boxes** on rebuild!) — explicitly adds **+2 active WAFs per site** above peak `K` so the pool can simultaneously absorb **1 rolling upgrade wave (4/yr) + 1 unplanned hardware/SSD failure + isolated 1-node canary testing (≤ 17% exposure)** with **0% capacity loss**.
 
-~~~text
-16 LTM + 8 WAF = 24 device-units
-~~~
-
-If the four-WAF pool is sized so two surviving WAFs can carry required aggregate load, it can tolerate two WAF-node failures without losing the WAF service.
-
-**Benefits:** lower WAF count, shared aggregate spare capacity, horizontal scale.  
-**Risks:** cross-tenant WAF blast radius, noisy-neighbour capacity, shared policy/configuration risk.
+**Benefits:** lower WAF count than dedicated `W1-3`, full `r2800` `24 GB` RAM per WAF, horizontal scale, built-in canary/rolling headroom in `S1+2`.  
+**Risks:** cross-tenant WAF blast radius if policy/change controls fail, noisy-neighbour capacity; requires strict Parent/Child policy isolation and 1-node canary gates to respect the **≤ 25% impact** cap.
 
 ### S2 — shared LTM pair + shared WAF pool
 
@@ -469,17 +467,33 @@ This is device-efficient, but the cluster is a common multi-tenant failure domai
 
 | Tenancy / topology pattern | LTM units | WAF units | Total | 1 WAF failure | 2 WAF failures | Tenant isolation | Cross-tenant blast radius |
 |---|---:|---:|---:|---|---|---|---|
-| **4x dedicated W1, 2 WAF/tenant/site** | 16 | 16 | **32** | Yes | No local WAF service for affected tenant | **High** | Low |
-| **4x dedicated W1, 3 WAF/tenant/site** | 16 | 24 | **40** | Yes | Yes if N-2 capacity | **High** | Low |
-| **4x dedicated W2a HA cluster, no ingress LTM** | 0 | 16 | **16** | Yes | Cluster lost for affected tenant | **High** | Low; WAF owns/receives ingress directly |
-| **4x dedicated W2b HA cluster + LTM** | 16 | 16 | **32** | Yes | Cluster lost for affected tenant | **High** | Low |
-| **4x dedicated W4a asymmetric** | 16 | 20 | **36** | Yes | Site 1 can use extra WAF after cluster loss; Site 2 cannot | **High** | Low |
-| **W3: 2 preferred/tenant + 2 shared reserve/site** | 16 | 20 | **36** | Yes | Usually yes for one tenant if reserve free | Medium-High | Medium |
-| **S1 tenant LTMs + shared active pool, P=4/site** | 16 | 8 | **24** | Yes | Yes if 2 remaining WAFs sized for aggregate load | LTM high / WAF shared | **High at WAF tier** |
-| **S2 shared LTM + shared active pool, P=4/site** | 4 | 8 | **12** | Yes | Yes if capacity | Low | **Very high** |
-| **Shared LTM + shared 2-node WAF HA cluster** | 4 | 4 | **8** | Yes | No; whole shared WAF service lost | Low | **Very high** |
+| **4x dedicated `W1-2` (2 WAF/tenant/site sub-variant)** | 16 | 16 | **32** | Yes (50% tenant cap lost) | **No local WAF service for affected tenant** | **High** | Low (≤ 25% / 1 tenant) |
+| **4x dedicated `W1-3` (3 WAF/tenant/site)** | 16 | 24 | **40** | Yes | **Yes (`N-2`)** if capacity sized | **High** | Low (≤ 25% / 1 tenant) |
+| **Rebuild `r2800` 2-tenant F5OS (`W1-3`: 4c/12G each)** | 8* | 12* | **20 r2800s*** | Yes | **Yes** across 3 physical boxes/tenant | **High (OS/policy)** | Low policy (≤ 25%); 2 tenants share 1 physical box (0% outage w/ 3 boxes) |
+| **4x dedicated `W2a` HA cluster, no ingress LTM** | 0 | 16 | **16** | Yes | Cluster lost for affected tenant | **High** | Low; WAF owns ingress directly |
+| **4x dedicated `W2b` HA cluster + LTM** | 16 | 16 | **32** | Yes | Cluster lost for affected tenant | **High** | Low (≤ 25% / 1 tenant) |
+| **4x dedicated `W4a` asymmetric** | 16 | 20 | **36** | Yes | Site 1 can use extra WAF; Site 2 cannot | **High** | Low (≤ 25% / 1 tenant) |
+| **`W3`: 2 preferred/tenant + 2 shared reserve/site** | 16 | 20 | **36** | Yes | Usually yes for one tenant if reserve free | Medium-High | Medium |
+| **`S1` baseline: tenant LTMs + 4 shared WAFs/site** | 16 | 8 | **24** | Yes | Only if peak fits on `K ≤ 2` WAFs | LTM high / WAF shared | **High at WAF tier** (> 25% if un-canaried change) |
+| **`S1+2`: tenant LTMs + `4+2=6` shared WAFs/site** | 16 *(8\*)* | 12 | **28** *(20\*)* | **Yes (0% cap loss)** | **Yes (`K+2`: rolling + outage + canary)** | LTM high / WAF shared | **Controlled ≤ 17–25% on canary/node; High if global bad push** |
+| **`S2`: shared LTM + shared active pool, P=4/site** | 4 | 8 | **12** | Yes | Yes if capacity | Low | **Very high (100% at LTM + WAF)** |
+| **Shared LTM + shared 2-node WAF HA cluster** | 4 | 4 | **8** | Yes | No; whole shared WAF service lost | Low | **Very high (100%)** |
 
-These totals are planning examples, not purchase quotes or recommendations by themselves.
+*\*Confirmed `r2800` rebuild (`F5OS-A 1.8.0+`, no blade chassis): 2 isolated LTM tenants/box reduces 16 LTMs → 8 `r2800`s; 2 isolated WAF tenants/box (`4 vCPU / 12 GB`) reduces `W1-3` 24 WAFs → 12 `r2800`s if AWAF RAM benchmarks pass, whereas `S1+2` uses 1 full-box WAF/box (`8 vCPU / 24 GB`, 12 WAF boxes).*
+
+## 8.7 Topology variant scorecard: 25% impact, 99.95%, longest outage, auto/manual & pros/cons
+
+| Topology Variant | ≤ 25% Impact Requirement | 99.95% (4 changes/yr, mgmt+unmgmt) | Longest Expected Outage / Recovery | Auto vs. Manual | Pros & Cons |
+|---|---|---|---|---|---|
+| **`W1-3` (LTM HA → 3 WAF/tenant/site)** | **PASS** — hard 1-tenant (25%) ceiling; 1 node = 33% of 1 tenant (≤ 8% estate) | **Very Strong** — drains 1 WAF while retaining 2 active (`N-2` rolling + fault) | 1 WAF: **0s–16s + `T6`** (`R0`/`R1`). Maint + 2nd fault: **0s–16s + `T6`** (`R1` degraded). Full tenant WAF tier: **~16s + `T6`** (`X2A`) or **~46–150s + `T6`** (`R3`). Site DR: **`R3`/`R4` (`T5`)** | **Auto** (`R0`/`R1`/`R2`/`R3`); **Manual** only for warm-DR (`T5`) or bad-policy rollback | **Pros:** cleanest blast radius, best dedicated maintenance/canary margin, full `24 GB` RAM/box. **Cons:** highest appliance count (40 units unless 2-tenant `r2800` fits `12 GB`). |
+| **`W1-2` (Sub-variant: LTM HA → 2 WAF/tenant/site)** | **PARTIAL / CAUTION** — tenant blast radius ≤ 25%, **but 1 WAF loss cuts that tenant's capacity by 50%**; maint + fault = **100% loss of that tenant (25% estate)** | **Moderate (Conditional)** — **zero local `N-2` margin** during 4/yr `F5OS-A`/BIG-IP upgrades (risky on single-SSD `r2800` without `X2A`) | 1 WAF: **0s–16s + `T6`** (`R0`/`R1` if 1 node holds 100% peak). Maint + 2nd fault: **~16s + `T6`** (**if `X2A`**) or **~46–150s + `T6` (`R3` site move)** / **`T5` (minutes+)** if passive DR | **Auto** for 1st WAF (`R1`) & `X2A`/`R3`; **Manual (`T5`)** if passive DR triggered during maint + 2nd fault | **Pros:** saves 8 WAF boxes vs `W1-3` (32 vs 40) while preserving per-tenant isolation & active-active load sharing. **Cons:** no local `N-2` or canary spare; **requires `X2A` to stay credible for 99.95%**. |
+| **`r2800` 2-Tenant F5OS (`W1-3` @ `4c/12G` each)** | **PASS (with 3 boxes/tenant)** — software/policy fault ≤ 25% (1 tenant); 1 physical `r2800` SSD/host loss touches 2 tenants' 1st node = **0% service outage** (2 boxes still up per tenant) | **Very Strong** *(conditional on Phase 0 AWAF `12 GB` RAM benchmark)* | Same as `W1-3`: **0s–16s + `T6`** (`R0`/`R1`) for 1 box/host reboot; **`R2`/`R3`/`R4`** only on multi-box loss | **Auto** (`R0`/`R1`/`R2`/`R3`); **Manual** for `F5OS-A` host-drain sequencing / warm DR | **Pros:** halves dedicated `W1-3` hardware to **20 `r2800`s total** (`8 LTM + 12 WAF`) with full per-tenant OS/policy isolation. **Cons:** `12 GB` RAM ceiling/tenant; host upgrade drains 2 tenants at once. |
+| **`S1+2` (Tenant LTMs → `4+2=6` shared WAFs/site)** | **CONDITIONAL PASS** — 1 node/canary fault = **0% outage / ≤ 17% canary exposure** (≤ 25%); **passes 25% cap ONLY if Parent/Child policy isolation + 1-node canary gating are enforced** | **Very Strong** — `+2` active nodes simultaneously absorb **rolling upgrades (4/yr) + 1 unplanned `r2800` SSD failure + isolated canary testing** | 1–2 WAFs (rolling + SSD fault + canary): **0s–16s + `T6`** (`R0`/`R1`). Whole shared WAF tier: **~16s + `T6`** (`R2` w/ `X2A`) or **~46–150s + `T6`** (`R3` 4-tenant surge) | **Auto** (`R0`/`R1`/`R2`/`R3`); **Manual** for canary promotion / bad-policy rollback / warm DR | **Pros:** full `r2800` `24 GB` RAM/WAF, true rolling + outage + canary headroom at **20 `r2800`s** (`8 LTM + 12 WAF`), lowest cost per GB RAM. **Cons:** shared WAF policy/sync error can exceed 25% if change discipline fails. |
+| **`S1` baseline (`4` shared WAFs/site)** | **CONDITIONAL / TIGHT** — 1 node loss = 25% pool; no dedicated canary + rolling + outage margin if peak `K > 2` | **Strong only if peak `K ≤ 2`**; **Moderate** if `K = 3–4` (drops below 100% peak during rolling + fault) | 1 WAF: **0s–16s + `T6`** (`R1`). Maint + 2nd fault (if `K > 2`): **degraded/throttled** until node restored (`T5`) or `X2A` (`~16s + T6`) | **Auto** (`R1`/`R2`); **Manual** if capacity overload or policy rollback occurs | **Pros:** lowest shared-WAF box count (8 WAFs total). **Cons:** no `+2` buffer for simultaneous canary + rolling upgrade + SSD outage; higher shared blast radius. |
+| **`W2b` (LTM HA → 2-node WAF DSC cluster)** | **PARTIAL** — 1 tenant (≤ 25%), **but** standby node carries 0 traffic and maintenance leaves **0 local WAF redundancy** | **Moderate** — 4/yr upgrades leave 1 active WAF exposed; second failure forces site move or `X2A` | 1st WAF: **~3s (`T1`)** (may preserve supported WS via mirroring). Maint + 2nd fault: **~16s (`X2A`)** or **~46–150s + `T6` (`R3`)** / **`T5`** | **Auto** (`R1` DSC HA; `R3` GTM); **Manual** for failback (resets mirrored WS!) & warm DR | **Pros:** simple HA, possible first-failure WS mirroring (with licensed LTM+AWAF). **Cons:** no horizontal scale, no canary node, zero maintenance `N-2`, mirroring resets on failback. |
+| **`W3` (2 preferred/tenant + 2 shared reserve/site)** | **PASS (normal) / MEDIUM (contingency)** — normal path ≤ 25%; reserve exhaustion/bad shared policy can affect > 1 tenant | **Strong** — reserve absorbs maintenance/2nd fault for 1 tenant at a time | 1st WAF: **~16s + `T6`** (`R1`). 2nd WAF: **~16s + `T6`** via reserve (`R1`) if policy-synced & uncontended; else **`R2`/`R3`** | **Auto** via LTM Priority Group Activation; **Manual** governance for reserve contention | **Pros:** dedicated normal path + shared spare. **Cons:** saves only 4 WAFs vs `W1-3` (36 vs 40) while adding reserve policy drift and contention risk. |
+| **`W4a` (Asymmetric: 3 S1 / 2 S2 per tenant)** | **PASS (tenant ≤ 25%)**, but **Site 2 DR has `W2b`/`W1-2` fragility** (0 maintenance `N-2` on DR) | **Strong in S1 / Moderate in S2** — fails symmetric DR maintenance test | Site 1: like `W1-3` (`0s–16s + T6`). Site 2 (during DR): like `W2b` (**`R3`/`T5`** if 2nd fault hits during DR) | **Auto** (`R1`); **Manual (`T5`)** if Site 2 loses cluster while running DR | **Pros:** strong primary site. **Cons:** asymmetric operations and weaker DR resilience; saves only 4 WAFs vs `W1-3`. |
+| **`S2` (Shared LTM + shared WAF — out of scope)** | **FAIL** — single LTM or WAF fault/change impacts **100% (4 of 4 tenants)** | **Conditional / Lowest Confidence** — LTM maintenance & changes become 4-tenant risk | 1 peer/WAF: **~3s–16s + `T6`**. Bad shared LTM/WAF change: **minutes+ (`T5`) across all 4 tenants** | **Auto** (`R1`); **Manual (`T5`)** multi-tenant rollback | **Pros:** fewest devices (12). **Cons:** breaks tenant LTM boundaries and fails 25% blast-radius cap at both tiers. |
 
 ### W2/W4 dedicated count notes
 

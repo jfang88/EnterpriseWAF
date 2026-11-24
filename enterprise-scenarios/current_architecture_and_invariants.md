@@ -11,6 +11,11 @@ This file is the single grounding source for **what exists today, how the curren
 
 While the architecture evaluates **end-to-end application delivery** across every hop (DNS/GTM, edge firewalls, LTM, WAF, internal firewall, private-cloud CFW/ELB, and applications/dependencies), **initial implementation focuses on the WAF tier** (and F5 LTM/GTM interfaces) because edge/internal firewalls, private-cloud CFW/ELB, and applications are owned by partner teams and require coordinated cross-team contracts.
 
+**Joint responsibility operating principle (enterprise baseline):** End-to-end resilience is a **shared responsibility**:
+- **Infrastructure teams** (F5/ADC, Network/Security, Cloud Platform) deliver resilient, rolling-upgradeable infrastructure, deterministic routing/SNAT/header propagation, and accurate layer-appropriate health steering;
+- **Application teams** build applications that tolerate and recover cleanly from infrastructure and site failures (`T6`) and publish explicit readiness, session, protocol, and client-IP contracts;
+- **Health checks and recovery controls** are placed at the exact right layer and articulated clearly so both infrastructure and application teams can architect against explicit contracts.
+
 Use it to ground:
 
 - end-to-end application-delivery diagrams;
@@ -42,8 +47,11 @@ Where the exact current implementation has not yet been confirmed, this file say
 | **Internal firewall** | A distinct **internal firewall** separates the enterprise internal network from private cloud (*Network/Security team owned*) |
 | **Private-cloud firewall** | A distinct **CFW** sits in front of private-cloud ELB/service endpoints (*Cloud Platform team owned*) |
 | **Applications** | Applications may run on VMs, Kubernetes, PaaS or on-premises platforms (*Application teams*); App A/B/C/D dependency chains are first-class availability dependencies |
+| **Application portfolio & protocol baseline (invariant)** | The enterprise portfolio includes **stateless web/API (`AT1`)**, **stateful web with potential sticky-session requirements (`AT2`)**, **WebSocket / long-lived real-time connections (`AT3`)**, and **non-web / L4 services (`AT4`)** that may bypass WAF |
+| **External client-IP visibility (invariant)** | Some applications **require tracking the real external user/client IP address** (for security, audit, fraud/compliance, rate-limiting, or IP ACLs). Preserving client IP depends on SNAT usage and **where TLS/HTTP is terminated** — requiring raw L3 preservation (no SNAT), **SNAT + `X-Forwarded-For` (`XFF`)** injection at the first HTTP/TLS terminator (LTM, WAF, or **Cloud ELB/Ingress** injecting its own headers when ELB terminates TLS), or **PROXY Protocol** for L4 TCP |
 | **Application mode** | Most applications are active/passive; some passive-site applications may require manual startup; some applications may be active/active |
 | **Availability requirement** | Evaluate the end-to-end service against a **99.95% total availability target (`4h 22m 48s / year`) covering BOTH managed (planned maintenance/changes) and unmanaged (unplanned failure) outages combined** |
+| **Blast-radius / impact threshold (potential requirement)** | Evaluate every topology variant against a **≤ 25% maximum impact threshold** (1 of 4 tenants = 25% estate blast radius, and/or ≤ 25% capacity/canary user exposure during a single failure, rolling upgrade, or canary wave) |
 | **Cross-site routing** | Cross-site WAF/front-end/dependency routing is **not assumed to exist today** unless separately confirmed |
 
 # 3. Architecture planes and parallel paths
@@ -340,27 +348,30 @@ The dependency can use:
 
 The current existence of an automatic **B1 -> B2 cross-site fallback** is not assumed unless confirmed.
 
-# 10. Application classes in scope
+# 10. Application classes, baseline requirements, and invariant vs. layer-specific obligations
 
 Every relevant failure scenario must distinguish:
 
-- **AT1 - stateless web**;
-- **AT2 - stateful web**;
-- **AT3 - WebSocket/socket/long-lived connection**;
-- **AT4 - non-web/L4 application that may bypass WAF**.
+- **AT1 - stateless web / API**;
+- **AT2 - stateful web** (may have **sticky-session** requirements);
+- **AT3 - WebSocket / socket / long-lived real-time connection**;
+- **AT4 - non-web / L4 application** that may bypass WAF.
 
-Infrastructure recovery is not considered complete until the application-specific recovery requirement is also satisfied.
+**Joint responsibility rule:** Infrastructure recovery is not considered complete until the application-specific recovery requirement is also satisfied. Infrastructure teams deliver resilient infrastructure, deterministic routing/SNAT/header propagation, and layer-accurate health steering; application teams build applications that tolerate infrastructure/site failures (`T6`) and publish explicit readiness and protocol contracts.
 
-Typical implications:
+## 10.1 What is an enterprise invariant vs. layer-specific infrastructure or application requirements
 
-- stateless web: retry/idempotency;
-- stateful web: session/state portability and transaction reconciliation;
-- WebSocket: reconnect, re-authenticate, re-subscribe, sequence/gap recovery and replay;
-- non-web/L4: protocol-specific reconnect/re-resolution/replay behavior.
+| Requirement | Enterprise Invariant (Baseline Fact) | Extra Infrastructure Requirement (Per Layer — Target Design) | Extra Application Requirement (Per App Class — Target Design) |
+|---|---|---|---|
+| **External Client-IP Visibility** | **Invariant:** Some applications must track the real external user/client IP address (security, audit, fraud/compliance, rate-limiting, IP ACLs) | **Layer-dependent on TLS/HTTP termination & SNAT:** (1) No-SNAT inline routing preserves raw L3 IP where symmetric; (2) where SNAT is used, the **first L7 HTTP/TLS terminator** (LTM, WAF, or **Cloud ELB/Ingress** when TLS passes through to ELB) strips untrusted external headers and injects `X-Forwarded-For` (`XFF`), while downstream hops preserve/append `XFF` (WAF `Trust XFF`, `K4816`); (3) **Cloud ELB** must be able to inject/append its own `XFF` header when it terminates TLS; (4) `AT4` TCP behind SNAT uses PROXY Protocol where supported | Declare whether raw client IP, `XFF`, or PROXY Protocol is required; parse the agreed trusted header position rather than raw socket IP when behind SNAT; never trust client-spoofed `XFF` |
+| **Stateless vs. Stateful Web & Sticky Sessions** | **Invariant:** Portfolio contains both stateless (`AT1`) and stateful (`AT2`) web apps, including apps with potential **sticky-session** affinity requirements | Designate a **single authoritative app-node sticky tier** (typically Cloud ELB/Ingress cookie passed intact through WAF) + LTM `OneConnect` (`K7964`) + stateless `CARP` (`K11362`) to WAF pool; avoid partner NAT Source-IP hot-spotting; graceful drain (`Receive Disable`, `K12818`) | `AT1`: stateless, idempotent writes, automated retry with backoff. `AT2`: **externalized/replicated session store** (Redis/DB) so sticky sessions remain a throughput/locality optimization rather than a SPOF; graceful re-auth & transaction reconciliation |
+| **WebSockets / Long-Lived (`AT3`)** | **Invariant:** Portfolio includes WebSocket / persistent-socket apps sensitive to proxy idle timeouts, upgrades, and failover resets | Attach F5 **WebSocket profile** (`K84421441`); **never enable `OneConnect`** (`K000151124`); raise Edge FW / CFW / ELB idle timeouts above app heartbeat pings; `Action On Service Down = Reject` (`K15095`); do not rely on AWAF mirroring across N>2 pools or failback | Mandatory client reconnect + exponential backoff/jitter + re-authentication + re-subscription + sequence-gap replay/snapshot recovery |
+| **Non-Web / Layer-4 (`AT4`)** | **Invariant:** Some non-HTTP/TCP/L4 applications bypass the external WAF tier | Performance (L4) + `FastL4` (`K09948701`), symmetric L4 hashing, `Action=Reject`, avoid SNAT (or pin SNAT IP) for legacy IP-ACL/multi-channel protocols (e.g., passive FTP `K15249`) | Protocol-native reconnect, DNS/service re-resolution, and safe transaction replay |
+| **Health Checks & Recovery** | **Invariant:** Faults occur at every layer; device/port green does not equal business availability | Place health checks and recovery at the exact right layer (`H1` HA, `H2` local LTM/ELB member, `H3`/`H4` GTM external/internal L7 VIP, `H5` App B dependency, `H6` synthetic SLO) | Own and version the L7 readiness contract (`/health/ready`, status, receive string, `Receive Disable` maintenance semantics, critical vs. non-critical dependencies) |
 
-**Current persistence, SNAT, and throughput-profile baseline (`unknown / validate`):** The exact deployed sticky-session ownership across LTM/WAF/ELB, SNAT vs. inline routing configuration, TCP optimization profiles (`f5-tcp-wan`/`f5-tcp-lan`), `OneConnect`, and `FastL4` settings per application class have not yet been audited across all four tenants and must be inventoried in Phase 0. Target-state end-to-end sticky-session alignment, SNAT rules, and high-throughput path optimizations are documented in [future_architecture_improvements.md](./future_architecture_improvements.md).
+**Current persistence, SNAT, header-injection, and throughput-profile baseline (`unknown / validate`):** The exact deployed TLS termination point per app, `XFF`/ELB header injection config, sticky-session ownership across LTM/WAF/ELB, SNAT vs. inline routing, TCP optimization profiles (`f5-tcp-wan`/`f5-tcp-lan`), `OneConnect`, and `FastL4` settings have not yet been audited across all four tenants and must be inventoried in Phase 0. Target-state implementation design is documented in [future_architecture_improvements.md](./future_architecture_improvements.md).
 
-# 11. Current availability requirement and reporting rule
+# 11. Current availability requirement, 25% impact threshold, and reporting rule
 
 Use **99.95% total availability** as the end-to-end service-level target to assess.
 
@@ -369,6 +380,13 @@ This **99.95% target explicitly includes BOTH managed outages (planned maintenan
 - **4 hours 22 minutes 48 seconds per year** (managed + unmanaged combined);
 - **21 minutes 54 seconds per average month**;
 - **5 minutes 2 seconds per week**.
+
+## 11.1 Potential 25% maximum impact threshold
+
+Evaluate every topology option and change model against a **potential ≤ 25% maximum impact requirement**, assessed across two complementary dimensions:
+
+1. **Estate / tenant blast-radius dimension:** In a four-tenant estate, **1 tenant = 25%**. A single infrastructure failure, maintenance error, or bad policy push should affect **at most 1 tenant (≤ 25%)** — never all 4 tenants (100%) simultaneously.
+2. **Capacity / user-exposure dimension:** During a single-node outage, rolling upgrade wave, or canary test, capacity loss or canary blast radius should remain **≤ 25%** (and **0% user outage** whenever `K + 2` / `N-2` active capacity is maintained).
 
 Every failure analysis must report outcomes separately for:
 
