@@ -6,6 +6,7 @@ on:
     paths:
       - 'enterprise-scenarios/**'
       - 'management-artifacts/source/**'
+      - 'management-artifacts/diagrams/*.svg'
       - 'management-artifacts/README.md'
       - '.github/workflows/build-management-artifacts.yml'
   workflow_dispatch:
@@ -30,10 +31,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install python-pptx
           sudo apt-get update
-          sudo apt-get install -y libreoffice-impress poppler-utils
+          sudo apt-get install -y libreoffice-impress poppler-utils librsvg2-bin
 
       - name: Build PowerPoint
-        run: python management-artifacts/source/build_management_deck.py
+        run: |
+          python management-artifacts/source/build_management_deck.py
+          python management-artifacts/source/replace_management_slides.py
 
       - name: Export PDF
         run: |
@@ -45,12 +48,18 @@ jobs:
       - name: Render version-controlled diagrams
         run: |
           mkdir -p management-artifacts/diagrams
+          pdftoppm -png -r 150 -f 3 -singlefile \
+            management-artifacts/EnterpriseWAF_Management_Summary.pdf \
+            management-artifacts/diagrams/EnterpriseWAF_Architecture_Planes
           pdftoppm -png -r 150 -f 4 -singlefile \
             management-artifacts/EnterpriseWAF_Management_Summary.pdf \
             management-artifacts/diagrams/EnterpriseWAF_End_to_End_Topology
           pdftoppm -png -r 150 -f 5 -singlefile \
             management-artifacts/EnterpriseWAF_Management_Summary.pdf \
             management-artifacts/diagrams/EnterpriseWAF_Target_Health_Monitoring
+          pdftoppm -png -r 150 -f 6 -singlefile \
+            management-artifacts/EnterpriseWAF_Management_Summary.pdf \
+            management-artifacts/diagrams/EnterpriseWAF_Health_Check_Placement
           pdftoppm -png -r 150 -f 7 -singlefile \
             management-artifacts/EnterpriseWAF_Management_Summary.pdf \
             management-artifacts/diagrams/GTM_Health_and_Convergence
@@ -62,8 +71,10 @@ jobs:
           git add \
             management-artifacts/EnterpriseWAF_Management_Summary.pptx \
             management-artifacts/EnterpriseWAF_Management_Summary.pdf \
+            management-artifacts/diagrams/EnterpriseWAF_Architecture_Planes.png \
             management-artifacts/diagrams/EnterpriseWAF_End_to_End_Topology.png \
             management-artifacts/diagrams/EnterpriseWAF_Target_Health_Monitoring.png \
+            management-artifacts/diagrams/EnterpriseWAF_Health_Check_Placement.png \
             management-artifacts/diagrams/GTM_Health_and_Convergence.png
           if git diff --cached --quiet; then
             echo 'Management artifacts are already current.'
