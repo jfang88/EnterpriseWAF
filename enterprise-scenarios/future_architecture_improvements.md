@@ -396,6 +396,43 @@ The current estate runs **BIG-IP 17.5.x** (End of Technical Support: **January 1
 - **AWAF/ASM connection mirroring limits are unchanged:** Still max 2 devices, requires licensed & provisioned LTM, resets on 3rd-device failover, and resets on failback (`BIG-IP 21.1 ASM Connection Mirroring Limitations`). AT3 WebSocket applications **must** still implement client reconnect/backoff/re-auth/replay.
 - **Core control/data-plane fundamentals remain unchanged:** DSC single active owner per traffic group, GTM-first + `big3d_install` upgrade order (`K25923322`), NAT `Translation` disabling GTM auto-discovery (`K14707`/`K9138`), DNS TTL vs. established TCP sockets, and App A/B/C/D dependency cascade risk all apply identically.
 
+## 15B. End-to-end path consistency, sticky sessions, SNAT, and high-throughput optimization
+
+Because every external request traverses multiple active tiers (**Client → Network / Edge FW → Tenant LTM → WAF Pool (AWAF) → Private-Cloud CFW → Cloud ELB / Ingress → Application Node**), resilience and throughput cannot rely on application-layer controls alone. Each layer must be engineered so traffic takes a **consistent, high-throughput path** during steady state while shedding failed nodes cleanly without conflicting persistence or SNAT port exhaustion.
+
+### End-to-end multi-layer control matrix (`AT1`–`AT4`)
+
+| App Class | Network & Edge FW | Tenant LTM (Fronting WAF / Internal) | WAF Tier (AWAF Active Pool) | CFW & Cloud ELB / Ingress | Application Tier (`T6` Recovery) |
+|---|---|---|---|---|---|
+| **AT1 — Stateless Web & API** | 5-tuple symmetric hash on LACP LAG (`F5OS-A`, no STP) & HA FW; MTU clean; FW idle timeout > LTM/ELB keep-alive | `f5-tcp-wan` (client) + `f5-tcp-lan` (server) (`K10281257`, `K37412295`); TLS 1.3 session resumption; **OneConnect** (`K7208`) + **Least Connections** (no stickiness needed, or optional stateless **CARP** `K11362`); **SNAT Pool + XFF** where needed (`K9816`) | Stateless active pool (`W1`/`S1`); **Trust XFF** (`K4816`); persistent server-side keep-alive + TLS session cache toward CFW/ELB; disable redundant WAF caching/compression to save `r2800` CPU | `Least Connections` / `Least Outstanding Requests`; no sticky sessions; HTTP keep-alive pool; fast member eject (`H2`) + graceful deregistration drain | Stateless design; external/shared state only; idempotent writes; automated client retry with backoff/jitter |
+| **AT2 — Stateful Web** | Same symmetric LACP/ECMP & FW timeout hygiene; never split a TCP flow across stateful FW peers | Split-TCP (`f5-tcp-wan`/`lan`) + **OneConnect** (`K7964` — mandatory so HTTP Keep-Alive honors per-request cookies!); LTM→WAF uses stateless **CARP** (`K11362`, zero RAM/mirroring) or distinct **Cookie Insert** (`K83419154`); **SNAT Pool + XFF** (`K9816`) | **Pass ELB/app sticky cookies untouched** (never strip/overwrite); **Trust XFF** (`K4816`); reuse server-side keep-alive/TLS to CFW/ELB; `Disabled` (`K13310`) / `Receive Disable` (`K12818`) drains sticky sessions cleanly | **Single authoritative app-node sticky owner:** ELB/Ingress cookie (distinct from any LTM cookie; `HttpOnly`/`Secure`) routes requests from **any** WAF node to the exact right App Node; `Slow Start` + graceful drain | **Externalized/replicated session store** (e.g., Redis/DB) makes sticky sessions a **throughput/locality optimization**, not a SPOF; graceful re-auth & transaction reconciliation on node loss |
+| **AT3 — WebSocket / Long-Lived** | Symmetric 5-tuple hash; raise FW/NAT idle timeouts above app heartbeat/ping intervals so idle sockets are not silently dropped | Split-TCP + **WebSocket profile** (`K84421441`); **NEVER enable OneConnect** (`K000151124`); cookie/CARP on initial HTTP Upgrade handshake only if reconnects should prefer same node; `Action On Service Down = Reject` (`K15095`) | **WebSocket profile** + AWAF policy (never leave orphaned `websecurity` profile, `K000140381`); **Trust XFF**; no mirroring across N>2 pools (2-device / no-failback limit unchanged in 21.1) | Pin established WS TCP stream to target node; align ELB idle timeout > app ping; fast reset on target crash; cookie/header affinity on Upgrade if needed | Mandatory client reconnect + exponential backoff/jitter + re-auth + re-subscribe + sequence-gap replay |
+| **AT4 — Non-Web / Layer-4** | Symmetric LACP/ECMP & FW timeouts matched to protocol keep-alive | **Performance (Layer 4) VS + `FastL4`** (`K09948701` — software TMM on `r2800`, lowest packet overhead); **Source-IP / CARP** persistence (`K11362`); `Action On Service Down = Reject`; **SNAT only when required** (see below) | **Bypasses external WAF tier** (where permitted by security policy) to avoid L7 proxy overhead and protocol breakage | CFW stateful allow + L4 ELB (`NLB`/TCP passthrough) with consistent 5-tuple / source-IP affinity and fast target health removal | Protocol-native reconnect, DNS/service re-resolution, and safe transaction replay |
+
+### Cross-layer sticky-session & path-consistency rules
+
+1. **Designate one authoritative app-node sticky tier (no competing cookies):** For `AT2` stateful web, let **Cloud ELB / K8s Ingress** (or the application cookie) own backend **App Node** stickiness, and ensure the WAF tier passes that cookie **unchanged**. Between LTM and the WAF pool, use **stateless deterministic `CARP` hashing** (`K11362`) or **Least Connections + OneConnect** — so even if a WAF node is drained or fails, traffic shifts to a surviving WAF node and **still lands on the exact same backend App Node** via the intact ELB/app cookie.
+2. **Avoid Source-IP persistence for partner web (`AT1`/`AT2`):** External partner/extranet traffic frequently arrives behind shared NAT gateways or proxies; Source-IP stickiness creates severe hot-spotting on one WAF or App Node. Use **Cookie Insert / App-Cookie** or **CARP keyed on session/XFF** instead.
+3. **Never rely on sticky sessions for durability:** Sticky sessions optimize **throughput, TLS/session-cache locality, and in-memory state efficiency**, while **externalized/replicated session state** guarantees the application survives node failure or rolling maintenance (`R0`/`R1`).
+4. **Prevent HTTP Keep-Alive persistence bypass (`K7964`, `K000149855`):** On HTTP/1.1 virtual servers using cookie persistence behind upstream proxies or multiplexed connections, enable **OneConnect** (`K7208`) so BIG-IP evaluates persistence per HTTP request rather than pinning all requests on an existing TCP connection to the first pool member.
+5. **Respect F5 protocol-profile incompatibilities:**
+   - **Never combine `OneConnect` with a `WebSocket` profile (`K000151124`)** — breaks `AT3` traffic.
+   - **HTTP/2 Full Proxy** is incompatible with `OneConnect`, Hash/SSL persistence, and HA connection mirroring (`K95032535`) — validate client-side HTTP/2 vs. HTTP/1.1 server-side per virtual server before enabling.
+
+### SNAT architecture & high-throughput guardrails
+
+SNAT must be an explicit per-tier and per-application-class decision rather than an ad-hoc default:
+
+| Scenario / Use Case | SNAT Decision | Mandatory Companion Controls & F5 Basis |
+|---|---|---|
+| **One-arm or asymmetric L3 routing** (e.g., LTM→WAF or WAF→CFW→ELB where backend default gateway is not the F5) | **SNAT Pool REQUIRED** | `Auto Last Hop` (`K13876`) only solves L2 same-subnet return; routed L3 through stateful firewalls requires deterministic SNAT return symmetry (`K7820`). |
+| **Cross-site contingency (`X2A` remote WAF / `X2B` remote front-end)** | **SNAT Pool REQUIRED** | Forces deterministic return path across inter-site link through stateful firewalls (`K95573163`). |
+| **LTM `OneConnect` multiplexing in front of AWAF/ASM (`AT1`/`AT2`)** | **SNAT Pool + `XFF` REQUIRED** (or OneConnect `Source Mask = 255.255.255.255`) | Without SNAT or `/32` mask, AWAF sees Client A's source IP on Client B's multiplexed HTTP requests (`K9816`, `K85357500`), corrupting rate limits, DoS rules, and logs. |
+| **Overlapping partner/tenant IPs or private-cloud VPC NAT boundaries** | **SNAT Pool REQUIRED** | Translates non-routable extranet client IPs into routable tenant/tier egress space before CFW/ELB. |
+| **High-throughput / 4-tenant failover pools (any SNAT use)** | **Never rely on single-IP `SNAT Automap` — use a multi-IP SNAT Pool** | One SNAT IP caps at ~**65,535 concurrent connections per backend socket** (`K7820`, `K8246`, `K33355231`), divided across TMM cores (`K35043645`). Size multi-IP SNAT pools per tenant/tier, tune TCP idle timeouts, and alert on `01010201` port exhaustion (`K63275550`). |
+| **Client-IP visibility behind SNAT (`AT1`–`AT3` HTTP/WS vs. `AT4` TCP)** | **Insert `X-Forwarded-For` (`XFF`)** on LTM & preserve through WAF/ELB; **PROXY Protocol** for `AT4` where supported | Enable **`Trust X-Forwarded-For`** in AWAF policies (`K4816`) and configure ELB/app logs to read `XFF` (stripping untrusted external `XFF` headers at the edge). |
+| **Legacy `AT4` protocols needing raw client IP ACLs or consistent single SNAT IP (e.g., passive FTP)** | **Avoid SNAT (inline routed) or pin single/persistent SNAT IP** | Rotating SNAT Pool IPs can break multi-channel protocols such as passive FTP (`K15249`, `K21151342`). Validate per `AT4` application. |
+
 # 16. Implementation sequence
 
 ## Phase 0 - inventory current state
@@ -410,13 +447,14 @@ Confirm:
 - cross-site probing behavior;
 - monitor intervals/timeouts;
 - LTM `Action On Service Down` and VS `Immediate Action On Service Down` settings;
+- current persistence/sticky-session ownership across LTM/WAF/ELB, SNAT vs. inline routing, `OneConnect`/`FastL4`/`f5-tcp-wan`/`f5-tcp-lan` profiles, and `XFF` trust settings per `AT1`–`AT4` application;
 - application readiness endpoints;
 - independent synthetic monitoring;
 - **AWAF memory/CPU benchmark on `r2800`** (`4 vCPU / 12 GB` 2-tenant slice vs. `8 vCPU / 24 GB` full-box) and switch MC-LAG/LACP readiness (no STP on `r2800`).
 
 ## Phase 1 - define application health contracts
 
-Prioritize critical externally/internal published endpoints and shared dependencies.
+Prioritize critical externally/internal published endpoints and shared dependencies, plus per-application sticky-session ownership (`AT2`), WebSocket profile rules (`AT3`), and SNAT/`XFF` contracts.
 
 ## Phase 2 - implement Layer-7 published-endpoint health
 
@@ -432,15 +470,15 @@ Pilot B1 -> B2 where state/data/business semantics allow it.
 
 ## Phase 5 - `r2800` rebuild & cross-site WAF/front-end contingency
 
-Execute parallel `r2800` (`F5OS-A 1.8.0+` + BIG-IP 21.1.x+) rebuild with `platform-migrate validate` and `cloud-init`, and pilot X2A/X2B only after routing, NAT/SNAT, stateful firewall, capacity and ownership are agreed.
+Execute parallel `r2800` (`F5OS-A 1.8.0+` + BIG-IP 21.1.x+) rebuild with `platform-migrate validate` and `cloud-init`, apply standardized multi-layer TCP/OneConnect/CARP/SNAT-Pool/XFF profiles, and pilot X2A/X2B only after routing, NAT/SNAT, stateful firewall, capacity and ownership are agreed.
 
 ## Phase 6 - prove the 99.95% design
 
-Measure p50/p95/p99 fault-to-successful-business-transaction time for external, internal, stateful/WebSocket and dependency scenarios, including planned maintenance (4 changes/yr per major stack) plus a second failure.
+Measure p50/p95/p99 fault-to-successful-business-transaction time and peak throughput/SNAT-port utilization for external, internal, stateful/WebSocket (`AT1`–`AT4`), and dependency scenarios, including planned maintenance (4 changes/yr per major stack) plus a second failure.
 
 # 17. Acceptance gates
 
-Before calling the target health architecture ready:
+Before calling the target health and delivery architecture ready:
 
 1. external and internal endpoint health are modelled separately where their paths differ;
 2. every GTM steering signal has a documented **probe origin and traversed path**;
@@ -453,7 +491,8 @@ Before calling the target health architecture ready:
 9. internal delegated-name behavior and external DNS behavior are tested separately;
 10. App A/B/C/D dependency cascades are tested;
 11. independent synthetic monitoring measures the user/business outcome;
-12. planned maintenance (including `F5OS-A` host reboots on `r2800`), rollback and failback are tested within the combined managed + unmanaged 99.95% objective.
+12. multi-layer persistence (`CARP`/ELB cookie), `OneConnect` (excluded from `AT3` WebSockets), **SNAT Pool sizing + `XFF`/`Trust XFF`**, and peak throughput under `K + 2` (`N-2`) degraded capacity are load-tested and verified;
+13. planned maintenance (including `F5OS-A` host reboots on `r2800`), rollback and failback are tested within the combined managed + unmanaged 99.95% objective.
 
 # 18. F5 official documentation reference summary
 
@@ -463,6 +502,7 @@ Before calling the target health architecture ready:
 | **BIG-IP DNS Prober Pools & Monitors** | Avoid duplicate LTM+GTM VS monitors; configure `Specific Prober Pool`; validate reconnect fallback (`no route`) & non-`bigip` local probe MAC flapping | 17.5.x & 21.1.x | [MyF5 K5431](https://my.f5.com/manage/s/article/K5431), [K8170](https://my.f5.com/manage/s/article/K8170), [K08433560](https://my.f5.com/manage/s/article/K08433560), [K000163083](https://my.f5.com/manage/s/article/K000163083), [K000159606](https://my.f5.com/manage/s/article/K000159606), [K15408](https://my.f5.com/manage/s/article/K15408) |
 | **BIG-IP DNS Upgrade Order** | Upgrade BIG-IP DNS first, then update `big3d` on monitored LTMs via `big3d_install` | 17.5.x & 21.1.x | [MyF5 K25923322](https://my.f5.com/manage/s/article/K25923322), [K13703](https://my.f5.com/manage/s/article/K13703) |
 | **LTM False-Green & Graceful Drain** | Set VS `Immediate Action On Service Down = Reject/Drop` to stop TCP 3WHS false-greens; pool `Action On Service Down = Reject` for fast reconnect; `Receive Disable String` + `Disabled` vs `Forced Offline` | 17.5.x & 21.1.x | [MyF5 K40554304](https://my.f5.com/manage/s/article/K40554304), [K15095](https://my.f5.com/manage/s/article/K15095), [K12818](https://my.f5.com/manage/s/article/K12818), [K13310](https://my.f5.com/manage/s/article/K13310) |
+| **Persistence, OneConnect, SNAT & Throughput** | `OneConnect` required for per-request cookie persistence over Keep-Alive (`K7964`, `K000149855`); LTM→AWAF OneConnect needs SNAT+`XFF` or `/32` mask (`K9816`, `K85357500`); stateless `CARP` (`K11362`); `SNAT Pool` (>1 IP) avoids 65k port exhaustion (`K7820`, `K8246`, `K33355231`, `K35043645`) & passive FTP caveat (`K15249`); split-TCP `f5-tcp-wan`/`lan` (`K10281257`, `K37412295`); HTTP/2 full-proxy caveats (`K95032535`); `FastL4` (`K09948701`) | 17.5.x & 21.1.x | [MyF5 K7208](https://my.f5.com/manage/s/article/K7208), [K7964](https://my.f5.com/manage/s/article/K7964), [K83419154](https://my.f5.com/manage/s/article/K83419154), [K000149855](https://my.f5.com/manage/s/article/K000149855), [K9816](https://my.f5.com/manage/s/article/K9816), [K85357500](https://my.f5.com/manage/s/article/K85357500), [K11362](https://my.f5.com/manage/s/article/K11362), [K7820](https://my.f5.com/manage/s/article/K7820), [K8246](https://my.f5.com/manage/s/article/K8246), [K33355231](https://my.f5.com/manage/s/article/K33355231), [K15249](https://my.f5.com/manage/s/article/K15249), [K10281257](https://my.f5.com/manage/s/article/K10281257), [K37412295](https://my.f5.com/manage/s/article/K37412295), [K95032535](https://my.f5.com/manage/s/article/K95032535), [K09948701](https://my.f5.com/manage/s/article/K09948701) |
 | **AWAF Mirroring, Policies & WebSockets** | Mirroring needs licensed+provisioned LTM (max 2 devices; no 3rd failover/failback); WebSocket profile required & incompatible with OneConnect; Parent/Child policies; Live Update staging | 17.5.x & 21.1.x | [BIG-IP 21.1 ASM Mirroring Limitations](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-asm-implementations/connection-mirroring-with-asm/connection-mirroring-limitations.html), [Policy Settings](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-asm-implementations/changing-security-policy-settings.html), [MyF5 K84421441](https://my.f5.com/manage/s/article/K84421441), [K000151124](https://my.f5.com/manage/s/article/K000151124), [K82512024](https://my.f5.com/manage/s/article/K82512024) |
 | **Confirmed Rebuild: `r2800` / `F5OS-A 1.8.0+` / BIG-IP 21.1.x** | `r2800` max 2 tenants (`F5OS-A 1.8.0+`), `8` cores / `24 GB` tenant RAM (`4 vCPU / 12 GB` min/tenant), single 480 GB NVMe SSD (~447 GB, no RAID-1), no STP / 1 LAG per VLAN, `.tar.bundle` format, ≥ 88 GB disk for 21.1.x; 17.5.x EoTS Jan 2029; 21.1.x EoTS May 2029; BIG-IP Next 20.x EoTS Apr 2025; `cloud-init`; `platform-migrate validate`; experimental in-place upgrade in 21.1.x (full in 22.0.x); ACMEv2, OpenAPI 3.1, HTTP/3 WAF, MCP, PQC TLS, Multi-RPZ | 21.1.x / F5OS-A | [BIG-IP 21.1.0 New Features](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-release-notes/big-ip-new-features.html), [Upgrade 21.1](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-release-notes/big-ip-upgrade.html), [Cloud-Init](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-f5os-cloud-init-support-velos-rseries/cloud-init-support-velos-rseries.html), [F5OS-A 1.8.4 Tenant Mgmt](https://techdocs.f5.com/en-us/f5os-a-1-8-4/f5-rseries-systems-administration-configuration/title-tenant-management.html), [MyF5 K15643](https://my.f5.com/manage/s/article/K15643), [K000163422](https://my.f5.com/manage/s/article/K000163422), [K82540512](https://my.f5.com/manage/s/article/K82540512), [K45191957](https://my.f5.com/manage/s/article/K45191957), [K000152319](https://my.f5.com/manage/s/article/K000152319), [K1689](https://my.f5.com/manage/s/article/K1689), [K000158849](https://my.f5.com/manage/s/article/K000158849) |
 

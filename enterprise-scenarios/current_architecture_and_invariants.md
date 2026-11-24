@@ -358,6 +358,8 @@ Typical implications:
 - WebSocket: reconnect, re-authenticate, re-subscribe, sequence/gap recovery and replay;
 - non-web/L4: protocol-specific reconnect/re-resolution/replay behavior.
 
+**Current persistence, SNAT, and throughput-profile baseline (`unknown / validate`):** The exact deployed sticky-session ownership across LTM/WAF/ELB, SNAT vs. inline routing configuration, TCP optimization profiles (`f5-tcp-wan`/`f5-tcp-lan`), `OneConnect`, and `FastL4` settings per application class have not yet been audited across all four tenants and must be inventoried in Phase 0. Target-state end-to-end sticky-session alignment, SNAT rules, and high-throughput path optimizations are documented in [future_architecture_improvements.md](./future_architecture_improvements.md).
+
 # 11. Current availability requirement and reporting rule
 
 Use **99.95% total availability** as the end-to-end service-level target to assess.

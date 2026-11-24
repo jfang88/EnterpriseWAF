@@ -678,67 +678,76 @@ add_text(
 )
 footer(s, 11)
 
-# Slide 12 — Application Types (AT1-AT4) & End-to-End Recovery
+# Slide 12 — End-to-End Multi-Layer Path Consistency, Sticky Sessions, SNAT & Throughput (AT1-AT4)
 s = slide()
 title(
     s,
-    "Application type (AT1–AT4) determines real recovery time",
-    "Infrastructure can recover first while sessions, WebSockets, or business transactions remain broken (App Team responsibility).",
+    "End-to-end path consistency, sticky sessions, SNAT & throughput",
+    "Target multi-layer alignment (Network/FW → LTM → WAF → CFW/ELB → App): high throughput in steady state + clean recovery on failure.",
+    tsize=20.5,
 )
-cols = [
+at_rows = [
     (
-        "AT1: Stateless web",
-        [
-            "Safe automated client retry",
-            "Idempotency on write calls",
-            "External / shared state only",
-            "Fast LTM pool member withdrawal",
-        ],
+        "AT1:\nStateless\nWeb / API",
+        "5-tuple LACP LAG (no STP); f5-tcp-wan/lan + TLS 1.3 reuse; OneConnect + Least Conn (or stateless CARP); SNAT Pool + XFF if asymmetric/OneConnect",
+        "Stateless active pool; Trust XFF (K4816); server keep-alive + TLS cache to ELB; disable extra WAF caching/gzip to save r2800 CPU",
+        "Least Conn / Least Outstanding Req; no sticky cookie; keep-alive pool; fast H2 eject + graceful drain; CFW timeout > keep-alive",
+        "Stateless service; external/shared state only; idempotent writes; automated client retry with backoff/jitter",
     ),
     (
-        "AT2: Stateful web",
-        [
-            "Portable or replicated session state",
-            "Re-authentication & session rebuild",
-            "Transaction reconciliation",
-            "Confirm state parity before DR",
-        ],
+        "AT2:\nStateful\nWeb",
+        "f5-tcp-wan/lan + OneConnect (mandatory so Keep-Alive honors cookies, K7964); LTM→WAF stateless CARP (K11362); SNAT Pool + XFF (K9816)",
+        "Pass ELB/app sticky cookie untouched; Trust XFF; keep-alive + TLS reuse to ELB; Disabled / Receive Disable (K12818) drains sticky flows",
+        "Single app-node sticky owner: ELB/Ingress cookie routes ANY WAF node to exact right App Node; Slow Start + graceful drain",
+        "Externalized/replicated session store (Redis/DB) makes sticky a speed/locality optimization (not SPOF); graceful re-auth & reconcile",
     ),
     (
-        "AT3: WebSocket / real-time",
-        [
-            "Reconnect + backoff / jitter",
-            "Re-auth + resubscribe + replay",
-            "AWAF needs WebSocket profile; NO OneConnect (K000151124)",
-            "Mirroring max 2 devices & resets on failback (21.1 unchanged)",
-        ],
+        "AT3:\nWebSocket /\nReal-Time",
+        "FW/NAT idle timeouts > app ping; WebSocket profile (K84421441); NEVER enable OneConnect (K000151124); Action=Reject (K15095); SNAT Pool + XFF",
+        "WebSocket profile + AWAF policy (K000140381); Trust XFF; no mirroring on N>2 pools (2-device / no-failback limit unchanged in 21.1)",
+        "Pin established WS TCP stream to target node; ELB idle timeout > ping; fast reset on crash; cookie/CARP on Upgrade if needed",
+        "Client reconnect + exponential backoff/jitter + re-auth + resubscribe + sequence-gap replay (mandatory)",
     ),
     (
-        "AT4: Non-web / Layer-4",
-        [
-            "May bypass external WAF tier",
-            "Protocol-specific reconnect",
-            "DNS / service re-resolution",
-            "Safe transaction replay",
-        ],
+        "AT4:\nNon-Web /\nLayer-4",
+        "Perf L4 VS + FastL4 (K09948701, SW TMM on r2800); Source-IP/CARP; avoid SNAT if inline + IP ACLs/FTP (K15249), else SNAT Pool + PROXY Proto",
+        "Bypasses external WAF tier (where permitted by policy) to avoid L7 proxy overhead & non-HTTP protocol breakage",
+        "CFW stateful allow + L4 ELB (NLB/TCP passthrough); consistent 5-tuple / Source-IP hash; fast H2 target removal",
+        "Protocol-native reconnect, DNS/service re-resolution, and safe transaction replay",
     ),
 ]
-fills = [GREEN, RGBColor(225, 238, 252), PURPLE, RGBColor(224, 244, 242)]
-for i, (h, items) in enumerate(cols):
-    bullet_block(s, h, items, 0.5 + i * 3.16, 1.28, 2.86, 4.55, fills[i], MID, NAVY, 9.8)
+# y=1.12, headh=0.42, 4 rows * 1.09 = 4.36 => ends at y=5.90 (clean gap before banner at y=6.04!)
+simple_table(
+    s,
+    [
+        "App Class",
+        "Network, LTM & SNAT",
+        "WAF Pool (AWAF)",
+        "CFW & Cloud ELB",
+        "Application Tier (T6)",
+    ],
+    at_rows,
+    0.38,
+    1.12,
+    [1.40, 3.15, 2.65, 2.75, 2.62],
+    rowh=1.09,
+    fs=8.1,
+    headh=0.42,
+    aligns=[PP_ALIGN.CENTER, PP_ALIGN.LEFT, PP_ALIGN.LEFT, PP_ALIGN.LEFT, PP_ALIGN.LEFT],
+)
 add_text(
     s,
-    "GTM Layer-7 health answers “can this endpoint accept new traffic?”; Application recovery (T6) answers “has the user/business flow actually recovered?”",
-    0.5,
-    6.18,
-    12.33,
-    0.56,
-    10.4,
+    "SNAT & Throughput Rules: Use multi-IP SNAT Pools (never single-IP Automap — ~65k port cap/IP, K7820/K8246) for one-arm L3 asymmetry, X2A/X2B route-back & LTM→AWAF OneConnect (K9816; pair with XFF + AWAF Trust XFF, K4816). Avoid Source-IP stickiness for partner web behind NAT; never mix OneConnect with WebSocket (K000151124) or HTTP/2 full-proxy (K95032535).",
+    0.38,
+    6.04,
+    12.57,
+    0.78,
+    8.7,
     True,
     NAVY,
     PP_ALIGN.CENTER,
-    PALEGREEN,
-    RGBColor(92, 164, 82),
+    PALEYELLOW,
+    GOLD,
 )
 footer(s, 12)
 
@@ -808,7 +817,7 @@ title(
     "Start with F5/WAF & GTM validation we own directly, while aligning Network/Security, Cloud Platform, and App teams on contracts.",
 )
 phases = [
-    ("0", "Inventory monitors,\nNAT, probers &\nr2800 AWAF RAM"),
+    ("0", "Inventory monitors,\nSNAT, probers &\nr2800 AWAF RAM"),
     ("1", "Phase 1: WAF tier\ndesign + app L7\ncontracts"),
     ("2", "Implement ext +\nint L7 VIP health\n(F5 + NetSec)"),
     ("3", "Add Specific\nProber Pools &\nH6 synthetics"),
@@ -830,7 +839,7 @@ checks = [
     "inter-site link loss never withdraws a healthy local site",
     "GTM / prober / sync convergence time measured end-to-end",
     "App A / B / C / D cascade & XD1 fallback tested with App teams",
-    "AT3 WebSocket / stateful T6 & no-OneConnect verified",
+    "AT1–AT4 sticky sessions, SNAT Pool/XFF & no-OneConnect on WS",
     "managed maintenance + extra failure tested (GTM upgraded first)",
     "r2800 LACP LAG (no STP), HSL logs & platform-migrate validated",
 ]
@@ -916,7 +925,8 @@ left_terms = [
     ("VIP / VS", "Virtual IP / Virtual Server — published application endpoint"),
     ("DSC", "Device Service Clustering — F5 HA synchronization/failover group"),
     ("F5OS-A (r2800)", "F5 appliance hypervisor on r2800 pizza boxes (max 2 tenants on 1.8+)"),
-    ("STP / LACP LAG", "Spanning Tree Protocol (L2 loop prevention — unsupported on r2800; use LACP LAG)"),
+    ("STP / LACP LAG", "Spanning Tree Protocol (unsupported on r2800; use dual-homed LACP LAG)"),
+    ("SNAT / OneConnect", "Source NAT (multi-IP SNAT Pool avoids 65k port cap) • HTTP TCP reuse"),
     ("iQuery / big3d", "F5 protocol & agent sharing LTM/VS health metrics with GTM"),
     ("CFW / ELB / XFF", "Cloud FW / Cloud Load Balancer / X-Forwarded-For client IP header"),
 ]
@@ -929,6 +939,7 @@ right_terms = [
     ("W1 – W4", "Dedicated WAF topologies (active pool, DSC cluster, reserve, asymmetric)"),
     ("S1 / S2 / K+2", "Shared WAF topologies • K+2 active WAFs/site survives 2 simultaneous losses"),
     ("X2A / X2B / XD1", "Cross-site R2 patterns: remote WAF, remote front-end, App B fallback"),
+    ("CARP / FastL4", "Stateless consistent hash persistence • Low-overhead L4 forwarding"),
     ("AT1 – AT4 / SLO", "App types (stateless, stateful, WebSocket, L4) • Service Level Objective"),
 ]
 simple_table(
@@ -936,11 +947,11 @@ simple_table(
     ["Term / Code", "Plain-English definition"],
     left_terms,
     0.45,
-    1.18,
-    [1.80, 4.25],
-    rowh=0.52,
-    fs=8.5,
-    headh=0.42,
+    1.16,
+    [1.85, 4.20],
+    rowh=0.47,
+    fs=8.3,
+    headh=0.40,
     aligns=[PP_ALIGN.CENTER, PP_ALIGN.LEFT],
 )
 simple_table(
@@ -948,21 +959,21 @@ simple_table(
     ["Code / Layer", "Plain-English definition"],
     right_terms,
     6.75,
-    1.18,
+    1.16,
     [1.70, 4.43],
-    rowh=0.52,
-    fs=8.5,
-    headh=0.42,
+    rowh=0.47,
+    fs=8.3,
+    headh=0.40,
     aligns=[PP_ALIGN.CENTER, PP_ALIGN.LEFT],
 )
 add_text(
     s,
-    "Note: Reference codes (e.g., K14707, K12818, K08433560) refer to official MyF5 Knowledge Base articles summarized in the repository’s F5 documentation reference tables.",
+    "Note: Reference codes (e.g., K14707, K12818, K7964, K9816, K7820) refer to official MyF5 Knowledge Base articles summarized in the repository’s F5 documentation reference tables.",
     0.45,
     6.42,
     12.43,
     0.44,
-    9.4,
+    9.2,
     True,
     NAVY,
     PP_ALIGN.CENTER,
