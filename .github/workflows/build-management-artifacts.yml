@@ -67,6 +67,9 @@ jobs:
           pdftoppm -png -r 150 -f 7 -singlefile \
             management-artifacts/EnterpriseWAF_Management_Summary.pdf \
             management-artifacts/diagrams/GTM_Health_and_Convergence
+          pdftoppm -png -r 150 -f 9 -singlefile \
+            management-artifacts/EnterpriseWAF_Management_Summary.pdf \
+            management-artifacts/diagrams/EnterpriseWAF_Topology_Options
 
       - name: Commit generated artifacts
         run: |
@@ -79,7 +82,8 @@ jobs:
             management-artifacts/diagrams/EnterpriseWAF_End_to_End_Topology.png \
             management-artifacts/diagrams/EnterpriseWAF_Target_Health_Monitoring.png \
             management-artifacts/diagrams/EnterpriseWAF_Health_Check_Placement.png \
-            management-artifacts/diagrams/GTM_Health_and_Convergence.png
+            management-artifacts/diagrams/GTM_Health_and_Convergence.png \
+            management-artifacts/diagrams/EnterpriseWAF_Topology_Options.png
           if git diff --cached --quiet; then
             echo 'Management artifacts are already current.'
           else

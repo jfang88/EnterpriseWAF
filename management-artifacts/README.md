@@ -9,12 +9,14 @@ This directory contains the current, version-controlled management outputs deriv
 - [diagrams/EnterpriseWAF_Architecture_Planes.svg](./diagrams/EnterpriseWAF_Architecture_Planes.svg) — architecture planes / parallel-path model
 - [diagrams/EnterpriseWAF_End_to_End_Topology.svg](./diagrams/EnterpriseWAF_End_to_End_Topology.svg) — **current-state** editable topology
 - [diagrams/EnterpriseWAF_Target_Health_Monitoring.svg](./diagrams/EnterpriseWAF_Target_Health_Monitoring.svg) — **target-state** editable health-monitoring topology
-- [diagrams/EnterpriseWAF_Health_Check_Placement.svg](./diagrams/EnterpriseWAF_Health_Check_Placement.svg) — health decision-owner / probe-placement model
+- [diagrams/EnterpriseWAF_Health_Check_Placement.svg](./diagrams/EnterpriseWAF_Health_Check_Placement.svg) — health decision-owner / probe-placement model (H1–H6)
+- [diagrams/EnterpriseWAF_Topology_Options.svg](./diagrams/EnterpriseWAF_Topology_Options.svg) — visual topology diagrams for `W1`–`W4`, `S1`–`S2`, and F5OS rebuild option
 - `diagrams/EnterpriseWAF_Architecture_Planes.png` — generated architecture planes diagram
 - `diagrams/EnterpriseWAF_End_to_End_Topology.png` — generated current-state topology
 - `diagrams/EnterpriseWAF_Target_Health_Monitoring.png` — generated target-state health diagram
 - `diagrams/EnterpriseWAF_Health_Check_Placement.png` — generated health placement table
 - `diagrams/GTM_Health_and_Convergence.png` — generated GTM probing/convergence diagram
+- `diagrams/EnterpriseWAF_Topology_Options.png` — generated visual WAF topology options diagram
 
 Git history provides versioning. Do not create `_v2/_v3/_v4/...` copies on `main`.
 
@@ -32,8 +34,8 @@ The deck must keep current-state and target-state diagrams on different slides.
 
 # Reproducible generation
 
-- `source/build_management_deck.py` generates the base PowerPoint.
-- `source/replace_management_slides.py` inserts Slides 3, 4, 5, and 6 from the four authoritative SVG diagrams (`EnterpriseWAF_Architecture_Planes.svg`, `EnterpriseWAF_End_to_End_Topology.svg`, `EnterpriseWAF_Target_Health_Monitoring.svg`, and `EnterpriseWAF_Health_Check_Placement.svg`).
+- `source/build_management_deck.py` generates the base 16-slide PowerPoint.
+- `source/replace_management_slides.py` inserts Slides 3, 4, 5, 6, and 9 from the five authoritative SVG diagrams (`EnterpriseWAF_Architecture_Planes.svg`, `EnterpriseWAF_End_to_End_Topology.svg`, `EnterpriseWAF_Target_Health_Monitoring.svg`, `EnterpriseWAF_Health_Check_Placement.svg`, and `EnterpriseWAF_Topology_Options.svg`).
 - `.github/workflows/build-management-artifacts.yml` regenerates the PowerPoint, PDF and PNG diagrams when the architecture source changes on `main`.
 
 The automated generated-artifact commit uses the same stable filenames.
@@ -42,30 +44,24 @@ The automated generated-artifact commit uses the same stable filenames.
 
 Do **not** present the architecture as one linear L0-L7 stack. External and internal access are parallel paths that converge at the private-cloud service tier, while DNS/GTM and health/observability are control planes.
 
-Use this management structure:
+Use this management structure (16 slides):
 
-1. executive recommendation;
-2. **current state versus target state**;
-3. **architecture planes and parallel paths**:
-   - client/resolver plane;
-   - DNS/GTM site-selection control plane;
-   - external ingress path;
-   - internal ingress path;
-   - private-cloud delivery tier;
-   - application/dependency tier;
-   - cross-cutting health/observability/recovery plane;
-4. current-state end-to-end topology;
-5. target layered health-monitoring topology;
-6. health-check placement decision table;
-7. GTM probe-source, synchronization and convergence model;
-8. App A/B/C/D dependency cascade;
-9. WAF topology options;
-10. 99.95% / failure-recovery domains;
-11. cross-site contingency;
-12. application types;
-13. four-tenant cost/blast radius;
-14. implementation sequence and decision gates;
-15. T1-T9 timing appendix.
+1. executive summary — end-to-end application delivery (initial Phase 1 focus: WAF tier);
+2. **current state versus target state** (with team ownership boundaries);
+3. **architecture planes and parallel paths** (with H1–H6 health layers explained);
+4. current-state end-to-end application delivery topology (BIG-IP 17.5.x);
+5. target layered health-monitoring topology (H2, H3, H4, H6 explained);
+6. health-check placement decision table & team ownership (H1–H6);
+7. BIG-IP DNS (GTM) probe-source, synchronization and convergence model;
+8. App A/B/C/D dependency cascade vs. dependency-local recovery (XD1);
+9. **visual WAF topology options (`W1`–`W4`, `S1`–`S2`, and F5OS rebuild option)**;
+10. **99.95% total availability (managed + unmanaged outages) & recovery classes (`R0`–`R4`)**;
+11. cross-site contingency (`X2A`, `X2B`, `XD1`);
+12. application types (`AT1`–`AT4`);
+13. **four-tenant device counts (explicit LTM + WAF breakdown) vs. blast radius**;
+14. end-to-end implementation sequence and cross-team acceptance gates;
+15. Appendix A — recovery timing shorthand (`T1`–`T9`);
+16. **Appendix B — executive glossary of acronyms and shorthand codes**.
 
 # Health-check management rule
 

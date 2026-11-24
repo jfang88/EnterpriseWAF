@@ -177,23 +177,23 @@ If that operational maturity cannot be demonstrated, use **dedicated W1 with thr
 
 # 2. What 99.95% means here
 
-99.95% availability permits approximately:
+The **99.95% availability target covers BOTH managed (planned maintenance, firmware/OS upgrades, patching, certificate rotations, policy changes) AND unmanaged (unplanned hardware, software, network, or dependency failure) outages combined**. It permits approximately:
 
-- **4h 22m 48s per year**;
+- **4h 22m 48s per year** (managed + unmanaged combined);
 - **21m 54s per average month**;
 - **5m 2s per week**.
 
-This is an end-to-end service budget, not a device budget.
+This is an **end-to-end application-delivery service budget** across all teams (F5/ADC, Network/Security firewalls, Cloud Platform CFW/ELB, and Application teams), not a single-device budget — even though initial delivery execution focuses on the WAF tier.
 
-A topology that survives hardware failures but causes a user-visible outage during every firmware or policy change can still miss the target.
+A topology that survives unmanaged hardware failures but causes a user-visible outage during managed firmware or policy changes will still breach the 99.95% target.
 
 For a credible 99.95 design:
 
-1. **routine node maintenance should normally be no-outage or seconds-scale**;
-2. **single-node failures should stay R0/R1** — no impact or automatic local recovery;
-3. **whole WAF-tier/dependency failures should preferably use R2 cross-site component recovery** rather than moving the entire application;
-4. **R3 site failover should be reserved for genuine site/application failures**;
-5. **R4 manual recovery should be exceptional**.
+1. **managed maintenance (planned changes/upgrades) must normally be zero-outage or seconds-scale** (`R0`/`R1`);
+2. **single-node unmanaged failures must stay `R0`/`R1`** — zero user impact (`R0`) or automatic local recovery (`R1`);
+3. **whole WAF-tier or dependency failures should preferably use `R2` cross-site component/dependency recovery** (`X2A`/`X2B`/`XD1`) rather than moving the entire application;
+4. **`R3` automatic site/DNS failover should be reserved for genuine site/application failures**;
+5. **`R4` manual/warm-DR recovery should be exceptional**.
 
 # 3. Most important operational failure modes
 
@@ -317,13 +317,17 @@ This does not prevent W2 meeting 99.95, but it leaves **less error and maintenan
 
 # 7. Why W3 is not automatically the best compromise
 
-For four tenants, the illustrative counts are:
+For four tenants across two sites (**LTM + WAF devices only; excludes GTM clusters and firewalls**), the illustrative counts are:
 
-- dedicated W1 with 3 WAFs/tenant/site: **40 LTM+WAF device-units**;
-- W3 with 2 preferred WAFs/tenant + 2 shared reserves/site: **36 units**;
-- S1 tenant LTMs + 4 shared active WAFs/site: **24 units**.
+- dedicated W1 with 3 WAFs/tenant/site: **16 LTM + 24 WAF = 40 total LTM+WAF devices**;
+- W3 with 2 preferred WAFs/tenant + 2 shared reserves/site: **16 LTM + 20 WAF = 36 total LTM+WAF devices**;
+- dedicated W1 with 2 WAFs/tenant/site (or W2b HA cluster + LTM): **16 LTM + 16 WAF = 32 total LTM+WAF devices**;
+- S1 tenant LTMs + 4 shared active WAFs/site: **16 LTM + 8 WAF = 24 total LTM+WAF devices**;
+- S2 shared LTM + 4 shared active WAFs/site (out of current scope): **4 LTM + 8 WAF = 12 total LTM+WAF devices**.
 
-W3 saves only four device-units versus fully dedicated 3-WAF W1 in this example, while adding:
+See [EnterpriseWAF_Topology_Options.svg](../management-artifacts/diagrams/EnterpriseWAF_Topology_Options.svg) for side-by-side visual topology diagrams of every option (`W1`–`W4`, `S1`–`S2`, and the F5OS rebuild option).
+
+W3 saves only four WAF devices versus fully dedicated 3-WAF W1 in this example, while adding:
 
 - shared reserve admission/prioritisation;
 - cross-tenant reserve contention;

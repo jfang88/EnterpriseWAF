@@ -1,8 +1,8 @@
 # EnterpriseWAF
 
-Enterprise architecture analysis for resilient F5-based application delivery and WAF design.
+Enterprise architecture analysis for **end-to-end resilient F5-based application delivery**, with an **initial delivery focus on the WAF tier** (and its F5 LTM/GTM interfaces) while coordinating partner-owned tiers (edge/internal firewalls, private-cloud CFW/ELB, and application teams) through explicit health and recovery contracts.
 
-The current analysis focuses on a two-site, four-tenant extranet environment using F5 BIG-IP DNS/GTM, LTM and Advanced WAF/ASM, with external partner/customer access over private-network paths plus internal users and application dependencies.
+The current analysis covers a two-site, four-tenant extranet application-delivery environment using F5 BIG-IP DNS/GTM, LTM and Advanced WAF/ASM (currently **BIG-IP 17.5.x**, with a target rebuild onto newer devices/software), serving external partner/customer access over private-network paths plus internal users and application dependencies.
 
 # Start here
 
@@ -35,16 +35,16 @@ The current baseline includes:
 
 - two sites;
 - one BIG-IP DNS/GTM cluster per site with cross-site GTM synchronization;
-- two HA edge-firewall pairs per tenant/site, two devices per pair (2 x 2);
+- two HA edge-firewall pairs per tenant/site, two devices per pair (2 x 2) — *owned by Network/Security*;
 - GTM/DNS located inside the edge-firewall boundary;
 - external/customer DNS reaching edge GTM over private leased-line/VPN connectivity;
 - internal enterprise DNS delegating/forwarding selected names to the same edge GTM service;
-- existing tenant LTM HA boundaries, normally two LTMs per tenant/site;
+- existing tenant LTM HA boundaries, normally two LTMs per tenant/site — *F5/ADC tier*;
 - internal users/DNS/internal service VIPs outside private cloud;
-- a separate internal firewall between the enterprise internal network and private cloud;
-- private-cloud CFW -> ELB/service -> application delivery;
+- a separate internal firewall between the enterprise internal network and private cloud — *owned by Network/Security*;
+- private-cloud CFW -> ELB/service -> application delivery — *owned by Cloud Platform & Application teams*;
 - App A/B/C/D dependency chains;
-- a 99.95% availability target.
+- a **99.95% total availability target (`4h 22m 48s / year`) covering BOTH managed (planned maintenance/changes) and unmanaged (unplanned failure) outages combined**.
 
 The exact **current** GTM health-check implementation is not yet assumed to be known. The analysis must validate whether current checks are TCP/port or Layer-7, which external/internal VIPs are monitored, whether iQuery is used, and whether GTM probing is local-only or cross-site.
 
@@ -73,18 +73,19 @@ Version-controlled management outputs are under [management-artifacts/](./manage
 - [PowerPoint management summary](./management-artifacts/EnterpriseWAF_Management_Summary.pptx)
 - [PDF management summary](./management-artifacts/EnterpriseWAF_Management_Summary.pdf)
 - [End-to-end topology diagram](./management-artifacts/diagrams/EnterpriseWAF_End_to_End_Topology.svg)
+- [WAF topology options visual diagram](./management-artifacts/diagrams/EnterpriseWAF_Topology_Options.svg)
 
 Use stable filenames from `main`; Git history provides versioning.
 
 The management deck is structured to distinguish:
 
-1. current-state architecture;
-2. architecture-layer breakdown;
-3. target health-monitoring model;
+1. end-to-end application delivery scope (with initial focus on the WAF tier) and current vs. target separation;
+2. architecture planes and current-state end-to-end topology;
+3. target layered health-monitoring model and placement;
 4. application dependency/cascade risk;
-5. WAF topology options and recommendation;
-6. cross-site contingency;
-7. 99.95% and change-safety evidence.
+5. visual WAF topology options (`W1`–`W4`, `S1`–`S2`, and F5OS rebuild) and explicit LTM + WAF device counts;
+6. cross-site contingency and application-type recovery;
+7. 99.95% total availability (managed + unmanaged outages), recovery classes (`R0`–`R4`), timing (`T1`–`T9`), and executive glossary.
 
 # WAF topology shorthand
 

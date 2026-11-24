@@ -19,8 +19,8 @@
 <rect width="1600" height="900" fill="#f8fafc"/>
 
 <!-- Title & Legend -->
-<text x="48" y="48" class="t" font-size="32" font-weight="bold" fill="#073b64">Current-state end-to-end architecture (BIG-IP 17.5.x)</text>
-<text x="50" y="76" class="sub" font-size="16">DNS control plane is separate from application data; target health probes and X2A/X2B/XD1 are intentionally not shown.</text>
+<text x="48" y="48" class="t" font-size="30" font-weight="bold" fill="#073b64">End-to-end application delivery — current state (BIG-IP 17.5.x)</text>
+<text x="50" y="76" class="sub" font-size="15.5">DNS control plane is separate from application data; CFW = Cloud Firewall, ELB = Cloud Load Balancer; target probes &amp; cross-site paths not shown.</text>
 
 <rect x="1030" y="22" width="530" height="38" rx="9" fill="#ffffff" stroke="#d9e6ef" stroke-width="1.5"/>
 <line x1="1048" y1="41" x2="1084" y2="41" stroke="#073b64" stroke-width="2.8" marker-end="url(#arrow)"/>
@@ -237,6 +237,6 @@
 <text x="800" y="833" text-anchor="middle" class="sub" font-size="13">Do not draw target health-check probes or X2A/X2B/XD1 contingency paths as deployed current state until validated.</text>
 
 <!-- Consistent Deck Footer -->
-<text x="48" y="876" class="sub" font-size="13">EnterpriseWAF management summary</text>
+<text x="48" y="876" class="sub" font-size="13">End-to-end application delivery summary</text>
 <text x="1555" y="876" text-anchor="end" class="sub" font-size="13">Nov 2026  •  4</text>
 </svg>

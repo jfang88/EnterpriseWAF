@@ -1,8 +1,8 @@
 # EnterpriseWAF Future Architecture Improvements
 
-**Status:** Target-state / to-be architecture guidance  
+**Status:** Target-state / to-be end-to-end application-delivery guidance  
 **Current-state source:** [current_architecture_and_invariants.md](./current_architecture_and_invariants.md)  
-**Purpose:** Keep proposed target-state improvements (including target health monitoring and future hardware/BIG-IP rebuild) separate from the validated BIG-IP 17.5.x current-state baseline.
+**Purpose:** Keep proposed target-state improvements (layered end-to-end health monitoring, cross-site contingency, and future hardware/BIG-IP rebuild) separate from the validated BIG-IP 17.5.x current-state baseline. Execution starts with the **WAF tier** (and its F5 LTM/GTM interfaces) while aligning partner-owned tiers (Network/Security firewalls, Cloud Platform CFW/ELB, and Application teams) through explicit readiness and recovery contracts.
 
 # 1. Target decision
 
