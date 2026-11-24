@@ -18,8 +18,7 @@ Git history provides versioning. Do not create `_v2/_v3/_v4/...` copies on `main
 
 ## Current / stable
 
-- [enterprise_scenario_invariants.md](../enterprise-scenarios/enterprise_scenario_invariants.md)
-- [high_level_architecture.md](../enterprise-scenarios/high_level_architecture.md)
+- [current_architecture_and_invariants.md](../enterprise-scenarios/current_architecture_and_invariants.md)
 
 ## Future / target-state
 
