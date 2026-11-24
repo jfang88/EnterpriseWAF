@@ -66,16 +66,31 @@ Use the invariant and variable files above.
 
 Maintain [high_level_architecture.md](./high_level_architecture.md) as the canonical entity/relationship view.
 
-It must show explicit **security and ownership boundaries**: the enterprise internal network is outside the private cloud; a distinct internal firewall separates it from the private-cloud CFW; and GTM/LTM/network, EnterpriseWAF, and platform/application ownership must remain distinguishable.
+Ground every diagram and derived analysis in these stable enterprise facts from [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md):
+
+- each site has a **BIG-IP DNS/GTM cluster**;
+- the Site 1 and Site 2 GTM clusters synchronize the enterprise GTM/DNS configuration/global availability view;
+- each site has **two HA edge-firewall pairs, two devices per pair (2 x 2 edge-firewall devices)**;
+- the site GTM/DNS cluster is an **edge service inside the edge-firewall security boundary**;
+- external/customer DNS reaches the edge GTM across the private leased-line/VPN path and edge firewall;
+- internal enterprise DNS can use the **same edge GTM service** for selected delegated/forwarded internal names;
+- DNS/GTM is a control-plane resolution service and must not be drawn as an inline application-data hop before the private leased line;
+- internal users/desktops, internal enterprise DNS and internal LTM/service VIPs are **outside the private-cloud boundary**;
+- a separate **internal firewall** sits between the enterprise internal network and the private-cloud CFW;
+- internal firewall and CFW are distinct security/state/failure domains.
+
+Do not silently change these facts when comparing WAF topologies.
+
+It must show an explicit **architecture ownership boundary** separating GTM/LTM/network owner decisions, EnterpriseWAF decisions, and platform/application decisions.
 
 It must show:
 
 - external human/API consumers;
-- external/customer DNS and enterprise GTM;
-- internal users/systems and internal enterprise DNS **outside the private-cloud boundary**;
-- the distinct **internal firewall** separating the enterprise internal network from the private-cloud CFW;
+- external/customer DNS;
+- **site-local GTM/DNS clusters inside the edge-firewall boundary**, with cross-site synchronization;
+- internal users/systems and internal enterprise DNS using the same edge GTM service for selected names;
 - external/private-network ingress paths;
-- edge firewall/VIP;
+- **two HA edge-firewall pairs per site (2 x 2 devices) and application VIPs**;
 - LTM;
 - WAF runtime/enforcement platform;
 - **application-specific WAF policy as a separate logical concept**;
@@ -260,17 +275,26 @@ Analyse:
 
 - external users over private leased-line paths using the **external namespace**;
 - external systems/API clients using the external namespace;
-- internal users using **internal enterprise DNS**, with selected internal service names optionally delegated/forwarded to GTM;
-- internal applications resolving App B/App C/internal service endpoints through internal DNS and, where configured, GTM;
-- internal users that may bypass WAF and connect through internal LTM/service VIP -> **internal firewall -> private-cloud CFW** -> ELB/service endpoints for private-cloud applications;
+- internal users using **internal enterprise DNS**, with selected internal service names optionally delegated/forwarded to the **same edge GTM service** used for external resolution;
+- internal applications resolving App B/App C/internal service endpoints through internal DNS/service discovery and, where configured, edge GTM;
+- internal users that may bypass WAF and connect through **internal LTM/service VIP -> internal firewall -> CFW -> ELB/service** for private-cloud applications;
 - Application A -> Application B -> Application C and shared-dependency chains;
 - non-web services that bypass WAF.
 
 Treat **external namespace resolution** and **internal namespace resolution** as separate failure domains. Do not assume a DNS/GTM failure affects both unless the architecture actually shares that failure domain.
 
-## Mandatory platform-firewall layer
+## Mandatory internal-firewall and platform-firewall layers
 
-For private-cloud hosted applications, model the inline path as:
+The enterprise internal network and private cloud are separated by a distinct internal firewall. For internal users, model:
+
+```text
+internal user -> internal DNS -> [edge GTM for selected names] -> internal LTM/service VIP
+  -> internal firewall -> private-cloud CFW -> ELB/service -> application
+```
+
+Treat the internal firewall and CFW as separate health, routing, state, change and failure domains.
+
+For external/private-cloud hosted applications, model the application path as:
 
 ```text
 WAF/LTM
@@ -334,16 +358,28 @@ Cover at least:
 
 ## GTM analysis
 
+Ground the GTM analysis in the fixed cluster/placement model:
+
+- one GTM/DNS cluster per site;
+- site clusters synchronize the enterprise GTM/DNS view;
+- GTM is located inside the edge-firewall boundary;
+- the same GTM service is used by external/customer DNS and internal enterprise DNS for selected names;
+- **site-local GTM cluster health/probe perspective is distinct from cross-site health observation**.
+
+
+
 Compare at minimum:
 
 - external namespace GTM resolution;
 - internal namespace resolution through internal enterprise DNS;
 - selected internal-name delegation/conditional forwarding to GTM;
 - internal service-name GTM health/selection;
-- IP/port-only GTM health;
+- IP/port-only GTM health and the resulting **false-green risk** when WAF/LTM is reachable but CFW/ELB/application is not;
+- HTTP/application-layer health via WAF/LTM or an authoritative readiness signal;
+- application-team ownership of the health-check contract (URI/host, method, expected response, auth and dependency semantics);
 - full application-readiness health;
 - F5 DNS/LTM integration using BIG-IP monitor/iQuery;
-- local-only probing;
+- local-only probing and the additional convergence delay when the other GTM cluster must learn state indirectly;
 - distributed/cross-site probing.
 
 For active/passive applications, analyse health-gated Global Availability behavior.

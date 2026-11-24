@@ -10,95 +10,98 @@
 
 This document is the top-level architecture view for the EnterpriseWAF analysis.
 
-The main discussion is the existing/future **four-tenant extranet environment**. External partner/customer users reach applications over private leased-line/VPN style networks. Internal users and internal application dependencies use separate internal DNS and service paths.
+The primary discussion is the four-tenant extranet environment. External partner/customer users reach applications through private leased-line/VPN style connectivity. Internal desktops/users/systems use the enterprise internal network and internal DNS, which are **outside the private-cloud security boundary**.
 
-Use this document to answer:
+The key boundary rule is:
 
-- who consumes the applications;
-- which DNS namespace each consumer uses;
-- which network path each consumer follows;
-- where GTM, firewall, LTM, WAF, CFW and ELB sit;
-- where applications are hosted;
-- how App A -> B -> C/D dependencies are reached;
-- which layers are owned by this WAF work versus other infrastructure/application teams;
-- where cross-site recovery can occur;
-- where the WAF is shared infrastructure versus application-coupled security policy.
+> **Internal users, internal enterprise DNS and the internal LTM/service-VIP layer are outside the private cloud. A separate internal firewall separates the enterprise internal network from the private-cloud CFW.**
 
-It intentionally stays above the detailed W1/W2/W3/W4/S1/S2 implementation choices.
+For a private-cloud hosted service, the representative internal path is therefore:
+
+```text
+Internal user/system
+  -> internal enterprise DNS
+  -> optional internal GTM / service-name resolution
+  -> internal LTM / service VIP
+  -> internal firewall
+  -> private-cloud CFW
+  -> ELB / service
+  -> application
+```
+
+The internal firewall and the CFW are distinct security and failure domains. Do not collapse them into one firewall in diagrams or failure analysis.
 
 # 2. Current scope boundary: retain GTM/LTM, optimise WAF within it
 
-The current four-tenant extranet design already has GTM/LTM/network ownership outside the WAF work.
-
-For the **current target recommendation**:
+For the current target recommendation:
 
 > **Retain the existing GTM and tenant LTM service boundaries. Do not assume LTM/GTM consolidation as part of the WAF decision.**
 
-Consolidating or restructuring GTM/LTM remains a valid future target-state question, especially if applications converge onto a common private-cloud platform, but it requires participation from the teams that own:
+Consolidating or restructuring GTM/LTM remains a future joint architecture question requiring the teams that own GTM/BIG-IP DNS, LTM, edge firewall/routing and WAN/private-network connectivity.
 
-- GTM / BIG-IP DNS;
-- LTM;
-- edge firewall / routing;
-- WAN / leased-line / VPN connectivity.
-
-Those teams have not yet joined this design exercise, so the WAF analysis must not silently redesign their services.
-
-The WAF architecture can still progress independently by comparing:
+The EnterpriseWAF work can proceed by comparing:
 
 - dedicated tenant WAF capacity;
 - tenant LTMs feeding a shared active WAF pool;
-- shared reserve WAF models;
+- shared-reserve WAF models;
 - WAF HA clusters;
-- cross-site WAF contingency where upstream owners later validate the required routing/LTM behavior.
+- cross-site WAF contingency where upstream owners validate the required routing/LTM/firewall behavior.
 
 # 3. Architecture ownership and security boundaries
 
-The architecture has **two different firewall/security boundaries** that must not be collapsed in diagrams:
+The architecture has distinct **DNS/control-plane**, enterprise-network, application-delivery and private-cloud boundaries.
 
-1. the **enterprise internal firewall**, which separates desktops/internal networks from the private-cloud boundary; and
-2. the **private-cloud/platform firewall (CFW)**, which is inside the private-cloud delivery path immediately before the ELB/service tier.
+The enterprise BIG-IP DNS/GTM service is an **edge service behind the edge firewall**. It is reachable from both:
 
-Internal users, internal enterprise DNS and the internal LTM/service VIP are **outside** the private cloud.
+- external/customer DNS over the private leased-line/VPN/extranet path; and
+- internal enterprise DNS for selected delegated/forwarded names.
+
+It is not an inline hop in the HTTP/TCP application data path.
 
 ~~~mermaid
 flowchart LR
 
-  subgraph EXT[External / extranet infrastructure]
-    EDNS[External DNS / GTM]
-    NET[Leased line / VPN / routing]
-    EFW[Edge firewall / VIP / NAT]
-    TLTM[Tenant LTM HA]
-    EDNS --> NET --> EFW --> TLTM
+  subgraph EXTERNAL[External / customer environment]
+    EU[External users / API clients]
+    EDNS[External / customer DNS]
+    EU --> EDNS
   end
 
-  subgraph WAFS[EnterpriseWAF scope]
-    WR[WAF runtime / enforcement]
-    WP[Application-specific WAF policy]
-    TLTM --> WR --> WP
-  end
-
-  subgraph INT[Enterprise internal network - outside private cloud]
+  subgraph ENTERPRISE[Enterprise internal network - outside private cloud]
     IU[Internal users / desktops / systems]
     IDNS[Internal enterprise DNS]
-    IGTM[Optional internal GTM / service-name resolution]
     ILTM[Internal LTM / service VIP]
     IFW[Internal firewall]
-    IU --> IDNS --> IGTM --> ILTM --> IFW
+    IU --> IDNS --> ILTM --> IFW
   end
 
-  subgraph CLOUD[Private cloud]
-    CFW[Private-cloud / platform firewall - CFW]
+  subgraph EDGE[Enterprise edge zone - inside edge firewall]
+    NET[Private leased line / VPN]
+    EFW[Edge firewall / application VIP]
+    GTM[Edge BIG-IP DNS / GTM cluster]
+    TLTM[Tenant LTM HA service]
+    WAF[WAF runtime / enforcement]
+    POL[Application-specific WAF policy]
+    NET --> EFW
+    EFW --> TLTM --> WAF --> POL
+    EFW -. DNS query .-> GTM
+  end
+
+  subgraph PCLOUD[Private cloud boundary]
+    CFW[Platform / cloud firewall - CFW]
     ELB[ELB / service / ingress]
     APP[Applications A/B/C/D]
     STATE[State / DB / identity / event services]
     CFW --> ELB --> APP --> STATE
   end
 
-  WP --> CFW
+  EDNS -. delegated/query over private path .-> NET
+  IDNS -. selected internal names .-> GTM
+  POL --> CFW
   IFW --> CFW
 ~~~
 
-## 3.1 What this WAF work can decide
+## 3.1 EnterpriseWAF decisions
 
 This analysis can recommend:
 
@@ -107,354 +110,366 @@ This analysis can recommend:
 - application-policy isolation;
 - WAF health, capacity and failure behavior;
 - WAF maintenance/drain/canary/rollback model;
-- cross-site WAF contingency as a **candidate capability**;
-- application recovery requirements needed after WAF/path failure.
+- cross-site WAF contingency as a candidate capability;
+- application recovery requirements after WAF/path failure.
 
-## 3.2 What requires other owners
+## 3.2 Decisions requiring other owners
 
-The following cannot be committed unilaterally by the WAF work:
+The following require the relevant owning teams:
 
 - GTM redesign or consolidation;
 - LTM consolidation or service-boundary changes;
 - new cross-site LTM steering;
-- new inter-site routing/NAT/SNAT behavior;
-- firewall route/policy changes;
+- inter-site routing/NAT/SNAT changes;
+- edge-firewall or internal-firewall policy/routing changes;
 - DNS/GTM health-policy changes;
-- application-platform CFW/ELB changes.
+- private-cloud CFW/ELB changes.
 
-Therefore X2A/X2B and similar front-end cross-site patterns should be described as:
-
-> **Candidate target capabilities subject to GTM/LTM/network/firewall-owner validation.**
+X2A/X2B are therefore **candidate target capabilities subject to GTM/LTM/network/firewall-owner validation**.
 
 # 4. Core WAF principle: shared runtime, application-coupled policy
 
-The WAF has two distinct architectural identities.
+The WAF has two architectural identities.
 
-## 4.1 WAF runtime / enforcement capacity
+## 4.1 Shared WAF runtime / enforcement capacity
 
-The appliances or virtual WAF nodes can be operated as a **shared application-security platform** for the four-tenant extranet environment if the shared failure domain is acceptable.
+WAF appliances or virtual nodes can be operated as shared application-security capacity for the four-tenant extranet environment when the shared failure domain is acceptable.
 
-This layer behaves like infrastructure:
+## 4.2 Application-coupled WAF policy
 
-~~~text
-shared WAF nodes
-  WAF1 / WAF2 / WAF3 / ...
-~~~
-
-## 4.2 WAF application policy
-
-The policy enforced on that platform is **application-coupled**.
-
-Each application can have different:
-
-- URLs and routes;
-- HTTP methods;
-- API schemas;
-- authentication patterns;
-- WebSocket endpoints;
-- upload/body-size limits;
-- false-positive exceptions;
-- signatures;
-- bot/rate-limit controls;
-- release/change timing.
+The policy is tightly coupled to the protected application/API. Applications can differ in URLs, methods, API schemas, authentication flows, WebSocket endpoints, upload limits, false-positive exceptions, signatures, bot/rate controls and release timing.
 
 Therefore:
 
 > **Share WAF enforcement capacity where appropriate, but isolate policy, release, health and rollback by application.**
 
-Conceptually:
-
-~~~text
-                 shared WAF enforcement platform
-                /             |              \
-       App A policy      App B policy      App C policy
-            |                 |                 |
-          App A             App B             App C
-~~~
-
-A shared WAF pool must **not** imply one monolithic security policy or one global application-policy change blast radius.
-
 # 5. Layering model
 
-| Layer | Primary role | Typical coupling | Ownership in this study |
-|---|---|---|---|
-| External/internal DNS, GTM | endpoint selection / namespace control | low-medium | other team / joint |
-| Leased line / VPN / routing | reachability | low | other team |
-| Edge firewall / VIP / NAT | external network/security ingress | low-medium | other team |
-| LTM / service VIP | delivery, health, load balancing | medium | other team / retained |
-| **Internal firewall** | separates enterprise internal desktops/networks from the private-cloud boundary | medium | network/security |
-| **WAF enforcement platform** | shared application-security execution capacity | medium as infrastructure | **EnterpriseWAF** |
-| **WAF policy** | application/API-specific protection | **high application coupling** | **EnterpriseWAF + application/security** |
-| Platform/cloud firewall (CFW) | cloud security boundary | medium | platform/network |
-| ELB / Kubernetes ingress / VM LB | workload distribution | high platform/application coupling | platform/application |
-| Application | business service | complete | application |
-| State/data/dependencies | transaction/service continuity | complete | application/platform |
+| Layer | Primary role | Boundary / ownership |
+|---|---|---|
+| External/customer DNS | external resolver / delegation | customer/external |
+| Internal enterprise DNS | internal resolver / delegation | enterprise internal network |
+| **Edge BIG-IP DNS / GTM cluster** | endpoint selection for selected external and internal names; located inside edge-firewall boundary | joint DNS/GTM infrastructure |
+| Private leased line / VPN | external DNS/application reachability | network |
+| Edge firewall / external VIP | protects/reaches edge GTM and extranet application VIPs | network/security |
+| Tenant LTM | delivery, health and load balancing | retained infrastructure |
+| WAF runtime | application-security enforcement capacity | EnterpriseWAF |
+| WAF policy | application/API-specific protection | EnterpriseWAF + application/security |
+| **Internal users + internal DNS** | enterprise desktop/system network and name resolution | **outside private cloud** |
+| Internal LTM / service VIP | internal service delivery | enterprise/internal network |
+| **Internal firewall** | boundary between internal network and private cloud | network/security |
+| **Private-cloud CFW** | private-cloud security boundary | platform/network |
+| ELB / ingress / service | workload distribution | platform/application |
+| Applications / state / dependencies | business service and continuity | application/platform |
 
-# 6. Canonical end-to-end extranet topology
+# 6. Canonical end-to-end topology
 
-This is the primary high-level entity/relationship diagram. The **enterprise internal network is outside the private cloud** and crosses a distinct internal firewall before reaching the private-cloud CFW.
+The diagram deliberately separates **DNS resolution** from the subsequent application data connection.
 
 ~~~mermaid
-flowchart LR
+flowchart TB
 
   EU[External partner / customer users]
   ES[External systems / API clients]
   EDNS[External / customer DNS]
-  GTM[Enterprise BIG-IP DNS / GTM]
-  EXTNET[Private leased line / VPN]
-  EFW[Edge firewall / application VIP]
-  TLTM[Tenant LTM HA]
-  WAF[WAF enforcement tier]
 
-  subgraph INTNET[Enterprise internal network - outside private cloud]
-    IU[Internal users / desktops / systems]
-    IDNS[Internal enterprise DNS]
-    IGTM[Optional internal GTM / service-name resolution]
-    ILTM[Internal LTM / service VIP]
-    IFW[Internal firewall]
-    IU --> IDNS --> IGTM --> ILTM --> IFW
+  subgraph SITE1EDGE[Site 1 edge zone]
+    EXTNET1[Private leased line / VPN]
+    EFW1[2 x HA edge-firewall pairs / application VIPs]
+    GTM1[Site 1 BIG-IP DNS / GTM cluster]
+    T1LTM[Tenant LTM HA services]
+    WAF1[WAF runtime / enforcement]
+    POL1[Application-specific WAF policies]
+    EXTNET1 --> EFW1
+    EFW1 --> T1LTM --> WAF1 --> POL1
+    EFW1 -. DNS query .-> GTM1
   end
 
-  subgraph PCLOUD[Private cloud]
-    CFW[Private-cloud / platform firewall - CFW]
-    ELB[ELB / service tier]
-    A[Application A]
-    B[B service VIP / service discovery]
-    B1[App B - Site 1 preferred]
-    B2[App B - Site 2 fallback]
-    C[Application C / shared dependencies]
-    D[Application D]
-    STATE[Session / state / DB / identity / event services]
+  subgraph INTERNAL[Enterprise internal network - outside private cloud]
+    IU[Internal users / desktops / systems]
+    IDNS[Internal enterprise DNS]
+    ILTM[Internal LTM / service VIP]
+    IFW[Internal firewall]
+    IU --> IDNS --> ILTM --> IFW
+  end
 
-    CFW --> ELB --> A
-    ELB --> D
-    A --> B
-    D --> B
-    B --> B1
-    B --> B2
-    B1 --> C
-    B2 --> C
-    A --> STATE
-    B1 --> STATE
-    B2 --> STATE
-    C --> STATE
-    D --> STATE
+  subgraph PCLOUD1[Site 1 private cloud boundary]
+    CFW1[Private-cloud CFW]
+    ELB1[Private-cloud ELB / service tier]
+    A1[Application A]
+    D1[Application D]
+    BVIP1[B service VIP / service discovery]
+    B1[Application B - Site 1 preferred]
+    C1[Application C / shared dependencies]
+    STATE1[Session / state / DB / identity / event services]
+
+    CFW1 --> ELB1
+    ELB1 --> A1
+    ELB1 --> D1
+    A1 --> BVIP1
+    D1 --> BVIP1
+    BVIP1 --> B1
+    B1 --> C1
+    A1 --> STATE1
+    B1 --> STATE1
+    C1 --> STATE1
+    D1 --> STATE1
+  end
+
+  subgraph SITE2[Site 2 / DR]
+    EFW2[2 x HA edge-firewall pairs / application VIPs]
+    GTM2[Site 2 BIG-IP DNS / GTM cluster]
+    T2LTM[Tenant LTM HA services]
+    WAF2[WAF runtime / enforcement]
+    CFW2[Private-cloud CFW]
+    ELB2[ELB / service]
+    B2[Application B - XD1 fallback]
+    APP2[Other DR application instances]
+    EFW2 --> T2LTM --> WAF2 --> CFW2 --> ELB2 --> APP2
+    ELB2 --> B2
+    EFW2 -. DNS query .-> GTM2
   end
 
   EU --> EDNS
   ES --> EDNS
-  EDNS --> GTM --> EXTNET --> EFW --> TLTM --> WAF --> CFW
-  IFW --> CFW
+
+  EDNS -. DNS query over private path .-> EXTNET1
+  EU --> EXTNET1
+  ES --> EXTNET1
+
+  IDNS -. selected names use same edge GTM service .-> GTM1
+
+  POL1 --> CFW1
+  IFW --> CFW1
+
+  GTM1 <-. GTM/DNS synchronization .-> GTM2
+  BVIP1 -. XD1 remote dependency fallback .-> B2
 ~~~
 
 ## 6.1 How to read the diagram
 
-- external partner/customer traffic reaches the private cloud through edge firewall -> tenant LTM -> WAF -> **private-cloud CFW**;
-- internal users/desktops/systems and internal enterprise DNS remain in the **enterprise internal network outside the private cloud**;
-- internal access crosses **internal LTM/service VIP -> internal firewall -> private-cloud CFW -> ELB/service**;
-- the internal firewall and the CFW are separate products/security domains and separate failure/maintenance domains;
+- each site has a **GTM/DNS cluster**, and the site clusters synchronize the enterprise GTM/DNS view;
+- each site also has the same **2 x 2 edge-firewall arrangement**: two HA firewall pairs with two devices per pair;
+- the **same edge GTM service** can answer selected external and internal names;
+- the GTM sits **behind the edge firewall**, even though external/customer DNS can call it across the private network;
+- DNS resolution is control-plane traffic; after an answer is returned, the application data connection follows the selected VIP/path and does not traverse GTM;
+- the four tenant LTM HA services remain in place in the current target model;
 - the WAF may be dedicated per tenant or shared across tenant LTMs depending on W1/W2/W3/S1;
-- App A/B/C/D dependencies use internal service discovery/VIPs rather than being assumed to traverse the external WAF;
-- GTM/LTM consolidation is not assumed.
+- private-cloud applications sit behind **CFW and ELB/service tiers**;
+- **internal users, internal DNS, internal GTM where used, and internal LTM are outside the private-cloud boundary**;
+- internal traffic crosses a distinct **internal firewall** before reaching the private-cloud CFW;
+- external and internal flows may converge at the CFW/ELB/application tier, but they do not share the same ingress path;
+- application dependencies are modelled separately from external WAF ingress.
 
 # 7. External extranet-user path
 
-Representative path:
+DNS resolution and application traffic are separate.
 
-~~~text
-External partner/customer or API client
+### External DNS control path
+
+```text
+External user/system
   -> external/customer DNS
-  -> enterprise GTM / BIG-IP DNS
-  -> returned external/firewall application VIP
-  -> private leased line / VPN / extranet network path
+  -> private leased line / VPN / extranet path
   -> edge firewall
-  -> existing tenant LTM HA service
+  -> enterprise edge GTM / BIG-IP DNS cluster
+  -> DNS answer: selected external/firewall application VIP
+```
+
+### External application data path
+
+```text
+External partner/customer or API client
+  -> private leased line / VPN / extranet network
+  -> edge firewall / selected application VIP
+  -> tenant LTM HA service
   -> selected WAF topology
   -> application-specific WAF policy
-  -> platform/cloud firewall (CFW)
+  -> private-cloud CFW
   -> ELB/service
   -> application
-~~~
+```
 
-The WAF policy belongs logically to the protected application even where WAF compute is shared.
+The GTM is therefore **reachable through the edge firewall but not inline in the application session**.
 
 # 8. Internal-user path
 
-Representative internal flow:
+For selected internal service names, internal enterprise DNS uses the **same edge GTM/DNS service** as the external lookup path.
 
-~~~text
-Internal user/system
+```text
+Internal user / desktop / system
   -> internal enterprise DNS
-  -> optional delegation/conditional forward to GTM
-  -> internal LTM/service VIP
+  -> [optional delegation/conditional forward]
+  -> enterprise edge GTM / BIG-IP DNS cluster
+  -> DNS answer: internal LTM / service VIP
+  -> internal LTM / service VIP
   -> internal firewall
   -> private-cloud CFW
   -> ELB/service
   -> application
-~~~
+```
 
-Internal traffic does **not** automatically traverse the external/extranet WAF tier. Internal users remain outside the private-cloud boundary until they cross the **internal firewall**, after which they traverse the distinct **private-cloud CFW**.
+Important implications:
 
-# 9. Application-to-application dependency path
+- internal users and internal DNS are **outside the private-cloud boundary**;
+- the edge GTM/DNS service is shared as a resolution service, but the internal and external namespaces/answers remain logically distinct;
+- the internal firewall can fail independently of the CFW;
+- a WAF outage does not automatically make the application unavailable to internal users;
+- an internal-firewall outage can block internal users while the extranet path remains healthy;
+- a CFW outage can block both external and internal callers if both paths converge on that CFW.
 
-Dependencies must be modeled separately from north-south extranet ingress.
+# 9. GTM cluster and health-state model
 
-~~~text
-App A
-  -> internal DNS
-  -> B service VIP / health-aware service endpoint
+Each site has a BIG-IP DNS/GTM cluster. The Site 1 and Site 2 clusters synchronize the enterprise GTM/DNS configuration/global availability view, while the exact **probe source and health-monitor depth** are configuration choices.
+
+The architecture must distinguish these cases:
+
+| Health model | What GTM really knows | Main risk / effect |
+|---|---|---|
+| **Port/listener only** | WAF/LTM listener responds | can remain **false green** when CFW/ELB/application is broken |
+| **HTTP/L7 front-door check** | selected URL/response works through some or all of the path | stronger, but application teams must define a stable health contract |
+| **Authoritative application-readiness signal** | service is genuinely ready according to an agreed readiness boundary | strongest if it represents the right dependencies without over-checking |
+| **Site-local probes only** | local GTM cluster has direct local observation | remote cluster may learn state through GTM synchronization/timeout behavior; convergence can be longer |
+| **Cross-site/distributed probes** | both sites can directly observe alternate service health | potentially faster/clearer global state, but requires routing/security and careful failure-domain design |
+
+A simple WAF port check is insufficient evidence that the business service is healthy.
+
+If application-layer health is required, application teams must provide the health-check contract, including as applicable:
+
+- hostname/URI;
+- method;
+- expected status/body;
+- authentication behavior;
+- whether critical dependencies are included;
+- maintenance/drain semantics;
+- expected response time.
+
+The checked endpoint should represent the agreed **service readiness boundary**. A health check that is too shallow creates false green; a check that includes every non-critical downstream dependency can create false red.
+
+For timing, separate:
+
+```text
+local health detection
+  + GTM synchronization/global-state convergence
+  + GTM answer change
+  + residual DNS TTL/cache
+  + client retry/re-resolution
+  + application recovery (T6)
+```
+
+If GTM does not directly/cross-site observe the failed service, do not assume the remote cluster converges on the local monitor timeout alone.
+
+# 10. Application-to-application dependency path
+
+For applications hosted inside the private cloud, dependency traffic may remain inside the private-cloud/application-service domain rather than leaving through the internal-user firewall path.
+
+Representative pattern:
+
+```text
+App A / App D
+  -> B service VIP / service discovery
        |
-       +-- B1 Site 1 preferred
+       +-- App B @ Site 1 preferred
        |
-       +-- B2 Site 2 fallback
-  -> App B
-  -> App C
+       +-- App B @ Site 2 fallback (XD1)
+  -> App C / downstream dependencies
+```
 
-App D
-  -> same B service
-~~~
+If an application must resolve enterprise internal DNS, that DNS control-plane dependency remains outside the private-cloud boundary and must be modelled separately from the data path.
 
 The preferred design goal is:
 
 > **A B1 failure remains a B recovery event; it should not automatically become an A/C/D site-failover event.**
 
-This requires:
-
-- stable service abstraction;
-- bounded timeout/retry;
-- state/data compatibility;
-- downstream dependency readiness;
-- capacity for fallback traffic;
-- cross-site dependency routing where approved.
-
-# 10. App A/B/C/D cascading failure
+# 11. App A/B/C/D cascading failure
 
 Without dependency-local recovery:
 
-~~~text
-                         B1 fails
-                            |
-                +-----------+-----------+
-                |           |           |
-               A1          C1          D1
-          timeout/retry timeout/retry timeout/retry
-                \           |           /
-                 connection/thread pools
-                         fill
-                          |
-                  readiness may fail
-                          |
-                  GTM/site withdrawals
-                          |
-             multiple applications move
-                          |
-             Site 2 reconnect/login surge
-~~~
+```text
+B1 fails
+  -> A/C/D timeout and retry
+  -> connection/thread pools fill
+  -> readiness may fail
+  -> multiple GTM/site withdrawals
+  -> several applications move
+  -> Site 2 reconnect/login/dependency surge
+```
 
-With local-preferred / remote-fallback dependency routing:
+With XD1 local-preferred / remote-fallback dependency routing:
 
-~~~text
-A1 / C1 / D1
-      |
-  B service VIP
-    /       \
- B1         B2
-Site 1     Site 2
+```text
+A / C / D
+    |
+B service VIP
+  /       \
+B1        B2
+Site 1    Site 2
 preferred fallback
 
 B1 failure -> withdraw B1 -> retry B2
-            -> A/C/D remain in Site 1
-~~~
+           -> A/C/D remain in Site 1
+```
 
-Cross-site dependency reachability should therefore be designed **early as a candidate platform capability**, but its implementation requires the relevant network/LTM/firewall/application owners.
+Cross-site dependency reachability should be designed early as a candidate capability, but healthy Site 1 services must not depend on the inter-site path during normal operation.
 
-It must not become a mandatory steady-state dependency: healthy Site 1 services should continue if the inter-site path fails.
-
-# 11. Two-site extranet relationship
+# 12. Two-site relationship, GTM synchronization and contingency paths
 
 ~~~mermaid
 flowchart LR
 
-  GTM2[GTM / DNS]
-
   subgraph SITE1[Site 1]
-    FW1[Extranet firewall/VIPs]
-    L1[Four tenant LTM HA services]
-    W1[WAF capacity]
-    F1[CFW]
+    FW1[2 x HA edge-firewall pairs / VIPs]
+    G1[GTM/DNS cluster]
+    L1[Tenant LTM HA]
+    WAFS1[WAF capacity]
+    CFW1[Private-cloud CFW]
     E1[ELB/services]
     APP1[Apps A/B/C/D]
-    FW1 --> L1 --> W1 --> F1 --> E1 --> APP1
+    FW1 --> L1 --> WAFS1 --> CFW1 --> E1 --> APP1
+    FW1 -. DNS .-> G1
+    G1 -. local health signal .-> WAFS1
   end
 
   subgraph SITE2[Site 2]
-    FW2[Extranet firewall/VIPs]
-    L2[Four tenant LTM HA services]
-    W2[WAF capacity]
-    F2[CFW]
+    FW2[2 x HA edge-firewall pairs / VIPs]
+    G2[GTM/DNS cluster]
+    L2[Tenant LTM HA]
+    WAFS2[WAF capacity]
+    CFW2[Private-cloud CFW]
     E2[ELB/services]
     APP2[Apps / DR instances]
-    FW2 --> L2 --> W2 --> F2 --> E2 --> APP2
+    FW2 --> L2 --> WAFS2 --> CFW2 --> E2 --> APP2
+    FW2 -. DNS .-> G2
+    G2 -. local health signal .-> WAFS2
   end
 
-  GTM2 --> FW1
-  GTM2 --> FW2
+  G1 <-. GTM configuration/global-state synchronization .-> G2
 
-  L1 -. X2A candidate: remote WAF .-> W2
-  L2 -. X2B candidate: route back .-> APP1
+  L1 -. X2A candidate: remote WAF .-> WAFS2
+  WAFS2 -. X2B candidate: route back .-> CFW1
   APP1 -. XD1 candidate: remote dependency .-> APP2
 ~~~
 
 Interpretation:
 
-- Site 1 and Site 2 remain separate infrastructure failure domains;
-- each site retains the current extranet tenant LTM/GTM concept;
-- cross-site routing is contingency capability, not normal dependency;
-- X2A/X2B require GTM/LTM/network-owner validation;
+- Site 1 and Site 2 are separate infrastructure failure domains with **symmetric 2 x 2 edge-firewall HA structures**;
+- each site has a GTM/DNS cluster and the clusters synchronize the enterprise GTM/DNS view;
+- the exact health signal may stop at WAF/LTM or represent deeper application readiness; this must be declared;
+- cross-site GTM probing is **not assumed** simply because the clusters synchronize;
+- without cross-site health observation, remote convergence may include additional synchronization/timeout delay;
+- DNS TTL begins to matter **after** the GTM service has decided to return a different endpoint;
+- X2A/X2B require GTM/LTM/network/firewall-owner validation;
 - XD1 additionally requires application/state/dependency validation.
 
-# 12. Target-state question: should LTM/GTM eventually consolidate?
-
-This remains a valid future architecture question, especially if the four extranet tenants ultimately host applications on the same private-cloud platform.
-
-However, the current WAF analysis does **not** recommend changing those services because their owning teams have not participated.
-
-For now:
-
-~~~text
-Keep:
-  existing GTM model
-  existing four tenant LTM HA services
-
-Optimise within/behind them:
-  WAF node topology
-  WAF sharing model
-  application policy isolation
-  CFW/ELB readiness
-  application dependency resilience
-~~~
-
-Future joint review can ask:
-
-- are four tenant LTM pairs still required as independent failure/change domains?
-- can some VIP/service groups safely share an LTM platform?
-- should GTM health/monitoring be changed?
-- can X2A/X2B be supported safely?
-- what routing/NAT/firewall changes would be required?
-
-Until those owners participate, these remain **future optimisation opportunities**, not assumptions.
-
 # 13. Implications for W1/W2/W3/S1/S2
-
-The current four-tenant extranet boundary remains the comparison baseline.
 
 - **W1:** independent active WAF pool behind a tenant LTM.
 - **W2:** WAF HA cluster behind/with the existing tenant delivery path.
 - **W3:** tenant-preferred WAFs plus shared reserve.
-- **S1:** the existing four tenant LTM HA services feed a shared independent active WAF pool.
-- **S2:** shared LTM + shared WAF remains a comparison only; it is **not** the current target because LTM consolidation is outside scope.
+- **S1:** existing tenant LTM HA services feed a shared independent active WAF pool.
+- **S2:** shared LTM + shared WAF remains a future comparison; LTM consolidation is outside current scope.
 
-This makes S1 the natural shared-WAF comparison without redesigning LTM/GTM ownership boundaries.
+The internal-network firewall/CFW boundary is independent of the WAF topology choice and must remain explicit in every option.
 
 # 14. Architecture review questions
 
@@ -464,34 +479,35 @@ Before target-state approval, answer:
 2. Are application WAF policies independently versioned, canaried and rolled back?
 3. What is the maximum acceptable common WAF runtime blast radius?
 4. Can one tenant/application traffic surge exhaust another tenant?
-5. Are the internal firewall, CFW and ELB represented as separate health/failure domains in end-to-end readiness?
-6. Can App A/C/D use B2 safely when B1 fails?
-7. What cross-site routing capability is technically possible?
-8. Which cross-site capabilities require LTM/GTM/network/firewall-owner approval?
-9. Does Site 2 have capacity for the credible aggregate failover event?
-10. At a future joint architecture review, do the existing four LTM/GTM tenant boundaries still provide useful isolation?
+5. Are the **internal firewall and CFW monitored as separate failure domains**?
+6. Does end-to-end readiness test the correct path through CFW/ELB/application?
+7. Can App A/C/D use B2 safely when B1 fails?
+8. What cross-site routing capability is technically possible?
+9. Which cross-site capabilities require LTM/GTM/network/firewall-owner approval?
+10. Does Site 2 have capacity for the credible aggregate failover event?
+11. Does each GTM cluster probe only locally, or can it directly observe services in the other site?
+12. What does a "healthy" GTM/LTM/WAF monitor actually prove: port up, HTTP response, or business-service readiness?
+13. Which application team owns each application-layer health-check contract and its change lifecycle?
 
-# 15. Diagram and visualisation index
+# 15. Version-controlled diagrams and management artifacts
 
-The repository currently keeps most architecture visualisations **inside the Markdown documents**, using Mermaid and ASCII/text diagrams rather than separate PNG/SVG files.
+The Markdown/Mermaid diagrams remain the architecture source of truth. Management renderings are also stored in Git for traceability and review.
 
-Primary locations:
+Version-controlled artifacts are under:
 
-| Visualisation | Location |
-|---|---|
-| **Canonical end-to-end consumers/DNS/network/apps diagram** | this document — sections 6 and 11 |
-| W1/W2/W3/W4/S1/S2 topology diagrams | [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md) and [executive_recommendation.md](./executive_recommendation.md) |
-| App A/B/C/D cascade | this document section 10 and [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md) |
-| X2A/X2B/X2C/XD1 cross-site routing | [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md) |
-| LTM/WAF 2-vs-3 node diagrams | [appendix_ltm_waf_2_vs_3_nodes.md](./appendix_ltm_waf_2_vs_3_nodes.md) |
-| WebSocket state/reconnect diagrams | [../waf_websocket_resilience_cloud_patterns.md](../waf_websocket_resilience_cloud_patterns.md) |
-| Management visuals | generated PowerPoint/PDF deck; currently an artifact, not the Markdown source of truth |
+- [`../management-artifacts/`](../management-artifacts/)
+- [`../management-artifacts/diagrams/`](../management-artifacts/diagrams/)
 
-For architecture maintenance, the **Markdown/Mermaid diagrams are the source of truth**. Rendered slide diagrams should be regenerated from the current architecture rather than treated as independent design inputs.
+The current high-level topology diagram is:
+
+- [`../management-artifacts/diagrams/EnterpriseWAF_End_to_End_Topology.svg`](../management-artifacts/diagrams/EnterpriseWAF_End_to_End_Topology.svg)
+- `../management-artifacts/diagrams/EnterpriseWAF_End_to_End_Topology.png` — generated/rendered copy
+
+The current management deck is available as both PowerPoint and PDF in the same version-controlled artifact set. The deck, PDF and PNG diagrams are regenerated by the version-controlled build workflow from the management artifact source.
 
 # 16. Source-of-truth relationship
 
-Use this document for the **high-level entity/relationship, ownership-boundary and traffic-path picture**.
+Use this document for the high-level entity/relationship, security-boundary and traffic-path picture.
 
 Then use:
 

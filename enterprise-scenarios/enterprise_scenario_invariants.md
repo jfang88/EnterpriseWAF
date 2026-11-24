@@ -9,6 +9,27 @@ This file defines the enterprise facts that should remain stable while WAF topol
 
 All scenario analysis should reference this file rather than restating or silently changing the environment.
 
+## 1.1 Stable architecture grounding summary
+
+Use this table as the **non-changing grounding model for diagrams, slide decks and derived analyses**.
+
+| Area | Stable fact |
+|---|---|
+| **Sites** | Two sites: Site 1 and Site 2, separate infrastructure/routing failure domains |
+| **GTM / DNS** | One **BIG-IP DNS/GTM cluster per site**; the two site clusters synchronize the enterprise GTM/DNS configuration/global availability view |
+| **GTM placement** | GTM/DNS is an **edge service inside the edge-firewall security boundary**, not an inline hop before the private leased line |
+| **External DNS use** | External/customer DNS reaches the enterprise edge GTM over the private leased-line/VPN path through the edge firewall |
+| **Internal DNS use** | Internal enterprise DNS can delegate/forward selected names to the **same enterprise edge GTM service** |
+| **Edge firewalls** | Each site has **two HA edge-firewall pairs, two devices per pair (2 x 2 devices)** for the representative tenant |
+| **Tenant delivery** | Existing tenant GTM/LTM boundaries remain in the current baseline; LTM/GTM consolidation is not assumed |
+| **Internal network** | Internal users/desktops, internal DNS and internal LTM/service VIPs are **outside the private-cloud boundary** |
+| **Internal firewall** | A separate **internal firewall** separates the enterprise internal network from the private cloud |
+| **Private-cloud firewall** | CFW is a distinct private-cloud security/failure domain in front of ELB/service endpoints |
+| **WAF** | WAF topology/sharing is a design variable; WAF listener availability alone does not prove application readiness |
+| **Applications** | App A/B/C/D dependencies and state are first-class availability dependencies |
+| **Cross-site** | Cross-site WAF/front-end/dependency paths are contingency capabilities; healthy local operation must not depend on the inter-site link |
+| **Health semantics** | Monitor depth and cross-site probe model are design variables; port-up can be false green and application-layer checks require an agreed app-team health contract |
+
 ## 2. Enterprise scope
 
 The wider organisation may operate approximately **3 or 4 tenants / hosting environments**.
@@ -23,6 +44,7 @@ A tenant may have dedicated or logically isolated instances/contexts of:
 - BIG-IP Advanced WAF / ASM;
 - routing and leased-line termination;
 - application ELB/service endpoints;
+- a separate **internal firewall** between the enterprise internal network and the private-cloud boundary;
 - private-cloud/platform firewall contexts (**CFW**), positioned in front of private-cloud ELB/service endpoints;
 - application and dependency services.
 
@@ -38,9 +60,7 @@ For this analysis:
 - external partner/customer users primarily reach services over private leased-line / VPN style connectivity;
 - the existing GTM/LTM tenant boundaries remain part of the current baseline;
 - consolidation of GTM/LTM is **not** assumed by this WAF study and requires participation from the owning teams;
-- internal users and application-to-application dependencies remain in scope because they can experience different failure modes and may bypass the extranet WAF path;
-- the **enterprise internal network, internal users/desktops and internal enterprise DNS are outside the private-cloud boundary**;
-- a distinct **internal firewall** separates the enterprise internal network from the private-cloud CFW; the internal firewall and CFW are separate failure and maintenance domains.
+- internal users and application-to-application dependencies remain in scope because they can experience different failure modes and may bypass the extranet WAF path.
 
 The wider enterprise may contain other Internet or internal hosting environments, but they are not the primary topology being decided in this document set.
 
@@ -61,10 +81,14 @@ The two sites are separate infrastructure and routing failure domains.
 
 For a given tenant, assume the **same logical F5 GTM/LTM role exists in both sites** unless a scenario explicitly says otherwise. In other words:
 
-- BIG-IP DNS / GTM capability is available in both sites;
+- BIG-IP DNS / GTM is deployed as a **site-local cluster in each site**;
+- the Site 1 and Site 2 GTM clusters participate in the same enterprise GTM/DNS synchronization model and exchange the configuration/global availability information required for consistent wide-IP answers;
+- the GTM synchronization relationship does **not** mean the GTM devices synchronize LTM/WAF/CFW application configuration; those remain separate service/configuration domains;
 - BIG-IP LTM, where used for the selected topology, has the same logical role in both sites;
 - the default BIG-IP LTM deployment is **two LTMs per site in an HA/Sync-Failover pair**; a 3-device LTM group is an optional design study, not the baseline;
 - edge-firewall/VIP concepts are equivalent in both sites;
+- **each site has the same edge-firewall structure: two HA edge-firewall pairs per tenant/site, with two firewall devices in each HA pair (2 x 2 edge-firewall devices)**;
+- the site GTM/DNS cluster is located inside the corresponding edge-firewall security boundary;
 - W1-W3 normally use the same logical WAF topology in Site 1 and Site 2;
 - W4 is the intentional exception: Site 1 may have a WAF HA cluster plus an additional independently active/spare WAF, while Site 2 has only the WAF HA cluster;
 - application-side infrastructure may still differ in active/passive readiness, capacity, IP addressing or startup state.
@@ -86,6 +110,8 @@ For the representative tenant, per site:
 - loss of one line should therefore affect a subset of external users rather than automatically affecting the whole population;
 - the real affected percentage must be calculated from the actual population/routing allocation rather than assumed to be exactly 25%;
 - there are **2 HA edge-firewall pairs** per tenant per site;
+- each HA pair contains **2 firewall devices**, so the representative site has a **2 x 2 edge-firewall device arrangement**;
+- the same 2 x 2 edge-firewall arrangement exists in **Site 1 and Site 2**;
 - leased-line routes are distributed across the firewall/routing paths;
 - externally reachable application VIPs live on the edge firewall tier.
 
@@ -93,57 +119,72 @@ A leased-line failure is first an **external-user reachability failure**, not au
 
 The same affected user population may lose access to several applications hosted in the same tenant even while the applications themselves remain healthy.
 
-## 5. DNS / GTM access patterns and namespace separation
+## 5. DNS / GTM access patterns, placement and namespace separation
 
-The enterprise has **separate external and internal DNS namespaces / resolution paths**. They must be analysed independently.
+The enterprise has **separate external and internal DNS namespaces / resolution paths**, but both can use the **same edge BIG-IP DNS / GTM service** for selected enterprise application names.
 
-### External namespace
+The stable placement model is:
+
+- the enterprise GTM/BIG-IP DNS service is an **edge service located inside the edge-firewall security boundary**;
+- external/customer resolvers can reach that GTM service across the private leased-line/VPN/extranet path and edge firewall;
+- internal enterprise DNS can delegate or conditionally forward selected internal service names to the **same edge GTM service** from the internal network;
+- GTM/DNS is a **resolution/control plane**, not an inline application-data hop;
+- each site has a GTM cluster, and the site GTM clusters synchronize the enterprise GTM/DNS view as described in section 3.
+
+### External namespace / resolution path
 
 External users/systems may resolve externally published services using either of these supported patterns:
 
-1. external/customer resolvers query enterprise BIG-IP DNS / GTM directly; or
-2. external/customer corporate DNS forwards or delegates the relevant external zones to enterprise BIG-IP DNS / GTM.
+1. an external/customer resolver queries the enterprise edge GTM service directly over the private network path; or
+2. external/customer corporate DNS forwards or delegates the relevant zones to the enterprise edge GTM service.
 
-Representative flow:
+Representative DNS control path:
 
 ```text
 External user/system
   -> external/customer DNS resolver
-  -> enterprise GTM / BIG-IP DNS for published external endpoint
-  -> returned external/firewall application VIP
+  -> private leased line / VPN / extranet path
+  -> Site 1 or Site 2 edge-firewall HA path
+  -> enterprise edge GTM / BIG-IP DNS cluster in that site
+  -> DNS answer containing the selected external/firewall application VIP
 ```
 
-### Internal namespace
+The subsequent application data connection is a separate flow through the selected application VIP; the GTM is not inline in that HTTP/TCP session.
 
-Internal users/systems normally use **internal enterprise DNS**, not the external namespace.
+### Internal namespace / resolution path
 
-For selected internal service names, internal DNS may delegate or conditionally forward to BIG-IP DNS / GTM, which returns the appropriate internal application/service endpoint.
+Internal users/systems normally use **internal enterprise DNS**, not the external/customer namespace.
 
-Representative flow:
+Internal users, internal enterprise DNS and the internal LTM/service-VIP layer are **outside the private-cloud boundary**.
+
+For selected internal service names, internal DNS may delegate or conditionally forward to the **same edge GTM/BIG-IP DNS service** used for external resolution. GTM then returns the appropriate internal application/service endpoint.
+
+Representative private-cloud flow:
 
 ```text
 Internal user/system
   -> internal enterprise DNS
-  -> delegation / conditional forward for selected internal service name
-  -> BIG-IP DNS / GTM
+  -> [optional delegation / conditional forward]
+  -> same enterprise edge GTM / BIG-IP DNS service
   -> internal LTM / service VIP
   -> internal firewall
-  -> platform/cloud firewall (CFW) where the target is private-cloud hosted
+  -> private-cloud platform/cloud firewall (CFW)
   -> ELB/service endpoint
   -> application
 ```
 
-Applications may use the same internal resolution pattern for application-to-application calls.
+The **internal firewall and private-cloud CFW are separate security, routing, state and failure domains**. Do not collapse them into one firewall in topology or failure analysis.
 
-Representative dependency flow:
+Applications may use internal DNS for application-to-application calls, but an intra-private-cloud App A -> App B data path should not be assumed to traverse the internal-user firewall unless the actual routing does so.
+
+Representative dependency control/data flow:
 
 ```text
 Application A
-  -> internal DNS
-  -> GTM / BIG-IP DNS for internal service name
+  -> internal DNS or private-cloud service discovery
   -> B service VIP / internal endpoint
   -> Application B
-  -> optional further internal DNS/GTM resolution
+  -> optional further service discovery
   -> Application C
 ```
 
@@ -156,6 +197,22 @@ DNS/GTM is a **control/resolution plane**. It is not an inline HTTP application 
 A DNS answer is useful only when the requesting actor can actually reach the returned VIP/endpoint.
 
 External namespace availability and internal namespace availability must be reported separately.
+
+### GTM health-state interpretation
+
+The GTM/DNS service can only make a good site-selection decision when the health signal represents the **business service path**, not just a reachable listener.
+
+Stable analysis requirements:
+
+- each site GTM cluster may have its own monitor/probe perspective;
+- the site GTM clusters synchronize the enterprise GTM/DNS view, but **probe location and monitor scope must be declared**;
+- a simple TCP/port-up check can leave a site **false green** when the WAF listener is up but the CFW, ELB or application behind it is unusable;
+- if a WAF/LTM/GTM monitor performs an application-layer transaction, the application team must provide and maintain the health-check contract: URI/host, method, expected status/body, authentication behavior where applicable, dependency expectations and maintenance semantics;
+- health checks that are too deep can also create false negatives if they include non-critical dependencies, so the checked transaction must represent the agreed service-readiness boundary;
+- whether GTM probes/health observations are available **across sites** is an analysis variable, not assumed here;
+- where GTM health is only site-local and a remote GTM cluster must learn the state through synchronization/timeout mechanisms, convergence can be slower and must be measured rather than inferred from DNS TTL alone.
+
+This means **GTM cluster health, WAF/LTM path health, application readiness and DNS convergence are separate timing domains**.
 
 ## 6. External application path
 
@@ -176,9 +233,9 @@ The WAF topology is intentionally **not** fixed in this file.
 
 ## 7. Internal-user path
 
-Internal users may use a different path and may bypass the WAF layer.
+Internal users use a different path and may bypass the WAF layer.
 
-Typical internal path:
+Typical internal path to a private-cloud application:
 
 ```text
 Internal user
@@ -186,25 +243,35 @@ Internal user
   -> [optional delegation/conditional forward to GTM for selected internal endpoint]
   -> internal LTM/service VIP
   -> internal firewall
-  -> platform/cloud firewall (CFW) where the application is private-cloud hosted
+  -> private-cloud platform/cloud firewall (CFW)
   -> ELB/service endpoint
   -> application
 ```
 
-Typical internal application dependency path:
+Boundary rule:
+
+- internal users/desktops/systems, internal DNS and the internal LTM/service VIP are in the enterprise internal network;
+- the **internal firewall** separates that enterprise network from the private-cloud boundary;
+- the **CFW** is inside/at the private-cloud security boundary in front of ELB/service endpoints;
+- internal-firewall and CFW failures must be analysed separately.
+
+Typical private-cloud application dependency path:
 
 ```text
 App A
-  -> internal enterprise DNS
-  -> [optional GTM lookup for B internal service]
+  -> internal DNS or private-cloud service discovery
   -> B service VIP / endpoint
-  -> internal firewall where the call crosses from the enterprise internal network into the private cloud
-  -> platform/cloud firewall (CFW) where B is private-cloud hosted
-  -> B ELB/service endpoint
+  -> B ELB/service endpoint where applicable
   -> App B
 ```
 
+If the actual App A -> B route leaves the private cloud and re-enters through the internal firewall, model that explicitly; do not assume it by default.
+
 A WAF outage therefore does not automatically mean the application is unavailable to internal users.
+
+An internal-firewall outage can make private-cloud applications unavailable to internal users while the external/extranet path remains healthy.
+
+A CFW outage can affect both external and internal callers when both paths converge on that CFW.
 
 External and internal availability must be reported separately.
 
@@ -273,7 +340,7 @@ For ordinary VM/Kubernetes environments, Site 1 and Site 2 may have distinct IPs
 
 For some PaaS services, the upstream ELB/service address can remain stable while the workload moves between data centres.
 
-The CFW and ELB are separate failure domains. A CFW failure can make an otherwise healthy ELB/application unreachable to both external and internal callers that traverse that platform firewall. Analyse CFW HA/member failure, full CFW context/service failure, routing/NAT state and cross-site reachability separately from ELB/application failure.
+The internal firewall, CFW and ELB are separate failure domains. For internal desktop/user traffic, failure of the internal firewall can prevent reaching an otherwise healthy CFW/ELB/application. A CFW failure can make an otherwise healthy ELB/application unreachable to both external and internal callers that traverse that CFW. Analyse internal-firewall HA/path failure, CFW HA/member failure, full CFW context/service failure, routing/NAT state and cross-site reachability separately from ELB/application failure.
 
 ## 9. Application-to-application dependencies
 
@@ -297,6 +364,7 @@ The dependency may use:
 
 - a site-local/static endpoint;
 - internal enterprise DNS, with optional delegation/conditional forwarding to GTM for selected internal service names;
+- private-cloud service discovery;
 - a stable internal service VIP;
 - a local-preferred VIP with a remote lower-priority member.
 
@@ -350,7 +418,7 @@ Examples include:
 - proprietary L4 services;
 - internal system-to-system protocols.
 
-These may use edge firewall, LTM, CFW, ELB or direct service routing without traversing WAF, depending on hosting pattern.
+These may use edge firewall, LTM, internal firewall, CFW, ELB or direct service routing without traversing WAF, depending on hosting pattern.
 
 ## 11. F5 technology assumption
 
@@ -372,8 +440,9 @@ The following belong in the analysis-variable document, not here:
 - optional 3-device LTM DSC comparison beyond the default 2-LTM-per-site baseline;
 - shared reserve WAF design;
 - local-only versus cross-site WAF routing;
-- GTM IP/port versus full-application health checking;
-- local-only versus distributed/cross-site GTM probing;
+- exact GTM/WAF/LTM monitor depth: TCP/port, HTTP, or application-transaction health checking;
+- the exact application health-check contract for each protected service;
+- local-only versus distributed/cross-site GTM probing/health observation;
 - DNS load-balancing method;
 - monitor intervals/timeouts;
 - application-specific persistence;
@@ -399,9 +468,12 @@ Use these objectives for all options:
 13. Prefer dependency-local recovery (for example B1 -> B2) over moving healthy dependent applications (A/C/D) when the dependency and state model safely allow it.
 14. Treat external namespace and internal namespace as separate control-plane dependencies; failure of one must not automatically be reported as failure of the other.
 15. For App A/B/C dependencies, include internal DNS/GTM resolution behavior in the recovery path where the application resolves dependency endpoints dynamically.
-16. Treat the **internal firewall** between the enterprise internal network and private cloud as a separate failure and maintenance domain.
-17. Treat the platform/cloud firewall (CFW) in front of private-cloud ELB/service endpoints as a separate failure and maintenance domain from both the internal firewall and the ELB/application itself.
-
+16. Treat the **internal firewall** and **private-cloud CFW** as separate failure and maintenance domains.
+17. Treat the platform/cloud firewall (CFW) in front of private-cloud ELB/service endpoints as a separate failure and maintenance domain from the ELB/application itself.
+18. Model the enterprise edge GTM/DNS as **inside the edge-firewall boundary** and reachable from both external/customer DNS and internal enterprise DNS; do not draw it as an inline hop before the leased-line/firewall path.
+19. Do not equate "WAF listener/port is up" with "application is healthy." The selected GTM/LTM/WAF health signal must represent the agreed service-readiness boundary.
+20. Where application-layer health checks are required, treat the health-check contract as an application/infrastructure interface that must be owned and communicated by application teams.
+21. Treat GTM probe locality/cross-site observation and GTM synchronization convergence as explicit timing inputs; do not assume DNS TTL is the whole site-failover time.
 
 ## 14. Maintainability and availability analysis objectives
 
