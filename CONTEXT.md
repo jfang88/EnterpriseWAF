@@ -10,14 +10,13 @@ Detailed evidence and analysis remain under `enterprise-scenarios/`.
 
 Use these documents in this order:
 
-1. `enterprise-scenarios/enterprise_scenario_invariants.md` — authoritative current-state facts and stable invariants
-2. `enterprise-scenarios/high_level_architecture.md` — canonical current-state topology and layer model
-3. `enterprise-scenarios/future_architecture_improvements.md` — future/to-be architecture and target health-monitoring model
-4. `enterprise-scenarios/executive_recommendation.md` — executive recommendation
-5. `enterprise-scenarios/common_failure_matrix.md` — failure analysis
-6. `enterprise-scenarios/cross_site_routing_and_dependency_recovery.md` — cross-site and dependency recovery
-7. `enterprise-scenarios/analysis_variables_and_f5_assumptions.md` — assumptions and implementation variables
-8. `waf_websocket_resilience_cloud_patterns.md` — WebSocket resilience patterns
+1. `enterprise-scenarios/current_architecture_and_invariants.md` — authoritative current-state facts, topology, stable invariants and layer model
+2. `enterprise-scenarios/future_architecture_improvements.md` — future/to-be architecture and target health-monitoring model
+3. `enterprise-scenarios/executive_recommendation.md` — executive recommendation
+4. `enterprise-scenarios/common_failure_matrix.md` — failure analysis
+5. `enterprise-scenarios/cross_site_routing_and_dependency_recovery.md` — cross-site and dependency recovery
+6. `enterprise-scenarios/analysis_variables_and_f5_assumptions.md` — assumptions and implementation variables
+7. `waf_websocket_resilience_cloud_patterns.md` — WebSocket resilience patterns
 
 The repository `README.md` contains the complete document map.
 
@@ -379,4 +378,4 @@ Use this file as durable root-level project grounding.
 
 Use the detailed Markdown under `enterprise-scenarios/` as the authoritative evidence and source of truth for architecture decisions.
 
-When new current-state facts are validated, update the authoritative invariant/current-state documents first, then update this root context, diagrams and management artifacts as required.
+When new current-state facts are validated, update `enterprise-scenarios/current_architecture_and_invariants.md` first, then update this root context, diagrams and management artifacts as required.
