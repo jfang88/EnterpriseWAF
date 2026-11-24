@@ -68,8 +68,8 @@ The detailed timing definitions live in [analysis_variables_and_f5_assumptions.m
 |---|---|---|---|
 | **T1** | BIG-IP HA peer/device failover | approximately **3+ seconds peer-loss detection**, plus traffic-group/network convergence | LTM/WAF/GTM HA peer or traffic-group ownership change |
 | **T2** | LTM pool-member / WAF-member health detection | commonly **up to ~16s** with 5s interval / 16s timeout defaults | failed independent WAF, backend or service member behind a stable LTM VIP |
-| **T3** | Direct BIG-IP DNS/GTM health monitor | common HTTP/HTTPS/TCP defaults around **30s interval / 120s timeout** | GTM directly decides an endpoint/site is unavailable |
-| **T4** | DNS/site failover convergence | health decision + GTM answer change + residual DNS TTL/cache + retry/re-resolution; GTM A-record pool TTL default is **30s** | whenever recovery changes the returned site/VIP |
+| **T3** | BIG-IP DNS/GTM health observation | direct monitor timing is configuration-specific; common HTTP/HTTPS/TCP defaults can be around **30s interval / 120s timeout** | site GTM directly observes an endpoint/path failure |
+| **T4** | GTM global-state + DNS/site-selection convergence | health observation -> GTM synchronization/global-state convergence where required -> answer change -> residual DNS TTL/cache -> retry/re-resolution; GTM A-record pool TTL default is **30s** | whenever recovery changes the returned site/VIP |
 | **T5** | Warm/cold/manual recovery | **minutes or longer; no fixed product value** | operator action, passive-site startup, routing repair, config/policy rollback |
 | **T6** | Application recovery | **application-specific** | retry, reconnect, re-auth, session/state restore, resubscribe, replay/reconciliation |
 | **T7** | Failback | controlled restoration; F5 auto-failback delay is configurable and commonly modelled around **60s when enabled** | return to preferred device/site after recovery |
@@ -81,7 +81,7 @@ The detailed timing definitions live in [analysis_variables_and_f5_assumptions.m
 Examples:
 
 - **~16s + T6** = LTM detects/withdraws the failed member, then the application/client still has to recover.
-- **T4 + T6** = site/VIP changes through DNS/GTM, then the application/client reconnects/restores state.
+- **T4 + T6** = after health is known, the GTM/global state and DNS answer converge, then the application/client reconnects/restores state. If the remote GTM does not directly observe the failure, T4 must include the measured GTM synchronization/learning delay.
 - **T5 + T4 + T6** = manual/passive-site preparation first, then DNS/site convergence, then application recovery.
 - **~46s + T6** = illustrative fast-health site move: ~16s local health + up to 30s residual DNS TTL, plus application recovery.
 - **up to ~150s + T6** = default-style direct GTM health timeout (~120s) + up to 30s residual DNS TTL, plus application recovery.
@@ -107,13 +107,25 @@ The 99.95% target is most credible when normal changes are effectively no-outage
 
 # 2. Common stack
 
-For a private-cloud web application, analyse failures from top to bottom:
+For a private-cloud web application, separate **DNS/control-plane resolution** from the application data path.
+
+External DNS control path:
 
 ~~~text
 External user/system
-  -> external DNS / GTM
-  -> leased line / VPN
-  -> edge firewall / external VIP
+  -> external/customer DNS
+  -> private leased line / VPN
+  -> Site 1 or Site 2 edge-firewall HA path
+  -> site GTM/DNS cluster inside the edge boundary
+  -> DNS answer: selected application VIP
+~~~
+
+External application data path:
+
+~~~text
+External user/system
+  -> private leased line / VPN
+  -> edge firewall / selected external VIP
   -> LTM HA pair where present
   -> WAF tier
   -> platform/cloud firewall (CFW)
@@ -123,20 +135,26 @@ External user/system
   -> App B / App C dependencies
 ~~~
 
-Internal users/applications may enter lower in the stack:
+Each site has **two HA edge-firewall pairs, two devices per pair (2 x 2)** and a site GTM/DNS cluster. The two GTM clusters synchronize the enterprise GTM/DNS view.
+
+Internal users enter through a **separate enterprise-internal path**. Internal users, internal DNS and the internal LTM/service-VIP layer are outside the private cloud. Selected internal names can use the **same edge GTM service** as the external DNS path:
 
 ~~~text
-Internal user / App A
+Internal user/system
   -> internal enterprise DNS
-  -> optional internal GTM
+  -> [optional delegation/conditional forward to edge GTM]
   -> internal service/LTM VIP
   -> internal firewall
-  -> CFW where private-cloud hosted
+  -> private-cloud CFW
   -> ELB/service
-  -> App B / App C
+  -> application
 ~~~
 
-Non-web applications may bypass WAF but still depend on DNS, LTM, CFW, ELB, backend and application recovery.
+The **internal firewall and CFW are separate failure domains**. A WAF outage may leave the internal path healthy; an internal-firewall outage may block internal users while the external path remains healthy; a CFW outage can affect both paths if they converge on the same CFW.
+
+Application-to-application dependencies are a separate data path. Do not assume an App A -> B call traverses the internal-user firewall unless the real routing does so.
+
+Non-web applications may bypass WAF but still depend on DNS, LTM, internal firewall where applicable, CFW, ELB, backend and application recovery.
 
 # 3. WAF topology options
 
@@ -286,13 +304,26 @@ For stateless HTTP, W1 may be operationally simpler: a failed WAF is withdrawn a
 
 For stateful and WebSocket applications, the application design can dominate the RTO after any WAF/LTM/CFW/backend/site event.
 
+## GTM health-check caveat
+
+A site can remain **false green** if GTM health stops at a reachable WAF/LTM listener while the CFW, ELB or application behind it is broken.
+
+For each protected service, declare whether GTM/global availability is based on:
+
+- TCP/port availability;
+- HTTP/L7 transaction health through WAF/LTM;
+- an authoritative application-readiness signal.
+
+Where application-layer checks are used, the application team must own the health-check contract (URI/host, method, expected response, authentication and dependency semantics).
+
+Also declare whether each site GTM cluster probes only local services or can directly observe the other site. **GTM synchronization does not by itself prove cross-site probing.** If the remote cluster learns failure indirectly, add the measured synchronization/learning delay before residual DNS TTL.
+
 # 7. Failure scenarios up and down the stack
 
 | Layer/failure | External users | Internal users / App A->B | Preferred local recovery | Cross-site recovery if local recovery exhausted | Cascade risk |
 |---|---|---|---|---|---|
 | **External DNS/GTM** | new resolution affected | usually unaffected if internal namespace independent | redundant DNS/GTM | alternate authoritative path | external-only outage if namespaces separated |
 | **Internal DNS/GTM** | external may remain healthy | internal users/apps can fail | redundant internal DNS/GTM | remote internal endpoint if designed | many apps can fail dependencies together |
-| **Internal firewall** | external/extranet path may remain healthy | internal users can lose private-cloud reachability | firewall HA / alternate internal path | alternate site only if internal routing is designed | internal-only outage can be mistaken for app failure |
 | **Leased line/VPN** | subset of external population affected | usually no impact | alternate circuit/routing | alternate site only if required | user-population blast radius |
 | **Edge firewall member** | transient/no impact if HA succeeds | depends on path | firewall HA | alternate ingress/site | NAT/state loss can reset connections |
 | **Whole edge firewall pair/path** | external ingress unavailable | internal may remain healthy | alternate local edge path | GTM/site | external outage while app stays healthy |
@@ -300,8 +331,9 @@ For stateful and WebSocket applications, the application design can dominate the
 | **Both LTMs** | local front-end unavailable | dependency VIPs on same pair fail | none within pair | X2B/site | all downstream WAF capacity becomes inaccessible |
 | **One WAF** | transient failed requests/sockets | usually no internal impact if bypassed | peer/pool member | not required | low |
 | **Two/all WAFs** | external application unavailable locally | internal app may remain healthy | W1 N-2/W3 reserve/W4 extra where available | X2A or site move | WAF fault can become application DR without X2A |
-| **One CFW** | target seconds-scale HA | internal App A->B through CFW also affected | CFW peer | normally not needed | state/NAT loss can reset many sessions |
-| **Whole CFW** | app unreachable despite healthy WAF/ELB | internal dependencies behind same CFW fail | alternate CFW | site/app path | multi-application platform blast radius |
+| **Internal firewall member/path** | external path can remain healthy | internal users can lose private-cloud access; App A->B impact depends on actual dependency routing | internal-firewall HA / alternate internal path | alternate site/internal endpoint if designed | internal-user-only outage can be mistaken for app outage |
+| **One CFW** | target seconds-scale HA | internal callers through the internal firewall converge on the same CFW | CFW peer | normally not needed | state/NAT loss can reset many sessions |
+| **Whole CFW** | app unreachable despite healthy WAF/ELB | internal users and dependencies behind the same CFW also fail | alternate CFW | site/app path | multi-application platform blast radius |
 | **ELB member/backend** | brief retry | same for dependent callers | healthy backend member | normally not needed | low if stateless/capacity sufficient |
 | **Whole ELB/service** | app unavailable | dependent apps fail | redundant ELB/service | site/app recovery | dependency cascade |
 | **App readiness false-green** | errors/hangs | dependencies error/hang | app readiness must withdraw service | site if alternate app ready | potentially unbounded |
@@ -318,7 +350,7 @@ This section uses **device-unit count**, not vendor price.
 - one physical/virtual LTM appliance = 1 LTM device-unit;
 - one physical/virtual WAF appliance = 1 WAF device-unit;
 - counts cover **two sites**;
-- GTM, edge firewall, CFW, ELB, platform and application cost are excluded because their sharing/dedication model may differ;
+- GTM, edge firewall, internal firewall, CFW, ELB, platform and application cost are excluded because their sharing/dedication model may differ;
 - licensing, throughput tier, support and virtual contexts can materially change actual cost.
 
 ## 8.2 Four fully dedicated tenants
