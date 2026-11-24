@@ -24,23 +24,29 @@ The two lenses are related but not identical. A topology can survive hardware fa
 
 # 2. Availability objective
 
-Evaluate **99.95% availability** at:
+Evaluate **99.95% total availability** at:
 
 1. component/service tier;
 2. tenant application-delivery path;
 3. end-to-end application service.
 
-If planned maintenance counts against the availability target, 99.95% allows approximately:
+The **99.95% target explicitly includes BOTH managed outages (planned maintenance, patching, upgrades, certificate rotations, policy changes) AND unmanaged outages (unplanned hardware/SSD, software, network, or dependency failures) combined**:
 
-| Period | Maximum unavailable time at 99.95% |
+| Period | Maximum unavailable time at 99.95% (managed + unmanaged) |
 |---|---:|
-| Year | 4h 22m 48s |
+| Year | 4h 22m 48s (`262.8 min`) |
 | Average month | 21m 54s |
 | Week | 5m 2s |
 
-Component availability is not the same as end-to-end availability.
+### End-to-end 4 changes/year per major tech stack check
 
-For illustration, five independent serial components each operating at 99.95% would yield only about **99.75%** end-to-end availability before accounting for redundancy, failover, common-mode failures or application recovery.
+Across the 9 major end-to-end tech stacks (Edge FW, GTM, Tenant LTM HA, WAF, Internal FW, Cloud FW `CFW`, Cloud `ELB`/Platform, Application tier `A/B/C/D`, and Database/State), **4 planned updates/year per stack = ~36 managed change waves/year per active site** (plus `F5OS-A` host upgrades on `r2800` pizza boxes):
+
+- **If every stack supports rolling drain or clean HA failover:** ~36 planned waves/year consume only **~4–12 min/year** (~2%–5% of the `262.8 min` budget), leaving **~250 min/year** for unmanaged failures — **99.95% is achievable**.
+- **If Apps (`A/B/C/D`), DB, or `CFW` require 15–30 min offline restarts:** just 2–3 stacks × 4 changes/year consume **180–240+ min/year**, breaching 99.95% before a single unmanaged failure occurs — regardless of WAF topology.
+- **`K + 2` (`N-2`) active-pool sizing rule:** In `S1` (or any active WAF pool), **`N` is the number of WAF nodes per site, not the number of tenants**. With `K` = minimum WAFs required for 100% peak aggregate load, deploy **`K + 2` active pool members** (not idle hot spares) so 1 planned drain + 1 simultaneous unplanned `r2800` single-SSD/hardware failure leaves `K` active nodes carrying 100% of peak load with `0 sec` planned WAF outage.
+
+Component availability is not the same as end-to-end availability. For illustration, five independent serial components each operating at 99.95% would yield only about **99.75%** end-to-end availability before accounting for redundancy, failover, common-mode failures or application recovery.
 
 Therefore the relevant question is not whether each F5 appliance is 99.95% available. The relevant question is whether the **redundant service path** remains available while failures and planned changes occur.
 

@@ -208,7 +208,7 @@ bullet_block(
     [
         "99.95% availability (managed + unmanaged outages) requires end-to-end resilience across DNS, firewalls, LTM, WAF, private cloud, and apps.",
         "Phase 1 execution focuses on the F5 WAF tier (and LTM/GTM interfaces); firewalls, Cloud FW/ELB, and apps are owned by partner teams.",
-        "Keep tenant Local Traffic Manager (LTM) boundaries; evaluate S1 shared WAF on 17.5.x and hardware-isolated F5OS tenants on rebuild.",
+        "Keep tenant Local Traffic Manager (LTM) boundaries; evaluate S1 full-box (24 GB) vs. r2800 2-tenant F5OS WAFs (12 GB each) on rebuild.",
     ],
     0.55,
     1.85,
@@ -255,7 +255,7 @@ bullet_block(
 )
 add_text(
     s,
-    "Key decision: validate current BIG-IP 17.5.x GTM health first, deliver Phase 1 WAF resilience + layered L7 health, and align partner teams end-to-end ahead of the rSeries/VELOS F5OS rebuild (Glossary on Slide 16).",
+    "Key decision: validate current BIG-IP 17.5.x GTM health first, deliver Phase 1 WAF resilience + layered L7 health, and benchmark AWAF on the confirmed r2800 standard (no blade chassis; Glossary on Slide 16).",
     0.55,
     5.50,
     12.22,
@@ -274,7 +274,7 @@ s = slide()
 title(
     s,
     "Separate current state from target state (and team boundaries)",
-    "Management should clearly see what exists today (BIG-IP 17.5.x) versus what is proposed for the end-to-end target and hardware rebuild.",
+    "Management should clearly see what exists today (BIG-IP 17.5.x) versus what is proposed for the end-to-end target and r2800 rebuild.",
 )
 bullet_block(
     s,
@@ -298,14 +298,14 @@ bullet_block(
 )
 bullet_block(
     s,
-    "TARGET / to-be improvement & rebuild (21.1.x+ / F5OS)",
+    "TARGET / to-be improvement & r2800 rebuild (21.1.x+)",
     [
         "GTM Layer-7 health of external VIPs + NAT Translation & Specific Prober Pools",
         "GTM or authoritative internal LTM / iQuery Layer-7 health of internal VIPs",
         "App-team readiness contracts + Receive Disable graceful drain (K12818)",
         "Dependency-local App B1 → B2 recovery (XD1) where state/data allow",
-        "Hardware rebuild to rSeries/VELOS F5OS (21.1.x+; drops iSeries/VIPRION/vCMP)",
-        "F5OS per-tenant isolation, cloud-init, ACMEv2 & H6 independent synthetic SLO checks",
+        "Confirmed hardware rebuild: rSeries r2800 pizza boxes ONLY (F5OS-A 1.8.0+; max 2 tenants/box; no blade chassis)",
+        "Single 480 GB SSD (no RAID-1) + no STP → K+2 spread, remote HSL logs, LACP LAGs & cloud-init",
     ],
     6.86,
     1.22,
@@ -318,7 +318,7 @@ bullet_block(
 )
 add_text(
     s,
-    "Rule: target-state health probes, F5OS rebuild features, and cross-site paths (X2A/X2B/XD1) must not appear on the current-state diagram until deployed and validated.",
+    "Rule: target-state health probes, r2800 F5OS-A rebuild features, and cross-site paths (X2A/X2B/XD1) must not appear on the current-state diagram until deployed and validated.",
     0.55,
     6.20,
     12.23,
@@ -507,7 +507,7 @@ s = slide()
 title(
     s,
     "99.95% total availability (managed + unmanaged outages)",
-    "Budget covers BOTH planned maintenance and unplanned failures combined; routine failures must stay local (R0/R1).",
+    "Target benchmark (active WAF pool + layered L7 + X2A/XD1); at 4 changes/yr per stack (~36 waves/yr), every tier must roll cleanly.",
 )
 # Left panel: 99.95% Total Budget + inline Recovery Class Key (R0-R4)
 add_text(s, "99.95% TOTAL budget", 0.45, 1.18, 3.35, 0.38, 12.5, True, WHITE, PP_ALIGN.CENTER, NAVY, NAVY)
@@ -583,7 +583,7 @@ simple_table(
 )
 add_text(
     s,
-    "Management test: because managed maintenance shares the same 4h 22m 48s/year budget, planned changes must be rolling R0/R1 with redundancy left for one extra failure (in-place upgrade is still experimental in 21.1.x).",
+    "Management test: at 4 updates/yr per stack, rolling R0/R1 changes use ~4–12 min/yr — but offline App/DB restarts can burn 180+ min/yr before 1 failure (K+2 active WAFs protect r2800 single-SSD & host reboots).",
     0.45,
     6.18,
     12.40,
@@ -755,7 +755,7 @@ rows = [
     ("W4a — asymmetric (3 WAF S1 / 2 WAF S2 per tenant)", "16", "20", "36", "Low (weaker Site 2 DR)"),
     ("W1 (2 WAF/tenant) or W2b (2-node WAF cluster + LTM)", "16", "16", "32", "Low (tight maintenance)"),
     ("S1 — tenant LTMs + 4 shared active WAFs/site", "16", "8", "24", "High at WAF tier"),
-    ("Rebuild: F5OS per-tenant WAFs on rSeries/VELOS*", "16 (or tenants)", "F5OS tenants*", "Fewer physical hosts", "Low OS/policy; host-spread"),
+    ("Rebuild: r2800 2-tenant F5OS WAFs (4c/12G each)*", "8* (2/box)", "12* (2/box)", "20 r2800s*", "Low OS/policy; 2 tenants/box"),
     ("S2 — shared LTM + shared WAF (out of current scope)", "4", "8", "12", "Very high (all tenants)"),
 ]
 # y=1.18, headh=0.46, 7 rows * 0.54 = 3.78 => ends at y=5.42 (clean gap before note & callout!)
@@ -773,12 +773,12 @@ simple_table(
 )
 add_text(
     s,
-    "*Basis: 4 tenants × 2 sites; standard tenant LTM baseline = 2 LTMs/tenant/site (16 LTMs total). On rSeries (r4000–r12000; not r2000) or VELOS, F5OS tenants isolate OS, policy, and upgrades per tenant on fewer physical hosts (spread each tenant’s WAFs across physical hosts).",
+    "*Confirmed r2800 standard (F5OS-A 1.8.0+; no blade chassis): max 2 tenants/r2800 (4 vCPU/12 GB each) halves W1-3 WAF boxes (24→12) & LTM boxes (16→8). If AWAF needs >12 GB RAM, use S1 full-box (8 vCPU/24 GB; K+2 active boxes/site). Single 480 GB SSD (no RAID-1) & no STP.",
     0.45,
-    5.54,
+    5.50,
     12.45,
-    0.48,
-    8.6,
+    0.54,
+    8.4,
     False,
     SLATE,
     PP_ALIGN.LEFT,
@@ -808,12 +808,12 @@ title(
     "Start with F5/WAF & GTM validation we own directly, while aligning Network/Security, Cloud Platform, and App teams on contracts.",
 )
 phases = [
-    ("0", "Inventory current\nmonitors, NAT &\nprobers (F5)"),
+    ("0", "Inventory monitors,\nNAT, probers &\nr2800 AWAF RAM"),
     ("1", "Phase 1: WAF tier\ndesign + app L7\ncontracts"),
     ("2", "Implement ext +\nint L7 VIP health\n(F5 + NetSec)"),
     ("3", "Add Specific\nProber Pools &\nH6 synthetics"),
     ("4", "Pilot App B1→B2\nXD1 recovery\n(App + Cloud)"),
-    ("5", "Plan rSeries/VELOS\n21.1.x+ rebuild &\nX2A/X2B"),
+    ("5", "Execute r2800\n21.1.x+ rebuild &\nX2A/X2B"),
     ("6", "Fault-inject &\nprove 99.95%\n(mgmt + unmgmt)"),
 ]
 for i, (n, t) in enumerate(phases):
@@ -832,7 +832,7 @@ checks = [
     "App A / B / C / D cascade & XD1 fallback tested with App teams",
     "AT3 WebSocket / stateful T6 & no-OneConnect verified",
     "managed maintenance + extra failure tested (GTM upgraded first)",
-    "platform-migrate validate & rollback/failback tested for rebuild",
+    "r2800 LACP LAG (no STP), HSL logs & platform-migrate validated",
 ]
 add_text(s, "Cross-team acceptance gates before claiming 99.95% readiness", 0.55, 2.95, 7.5, 0.38, 12.5, True, NAVY, radius=False)
 for i, ch in enumerate(checks):
@@ -915,10 +915,10 @@ left_terms = [
     ("WAF / AWAF", "Web Application Firewall / F5 Advanced WAF (formerly ASM)"),
     ("VIP / VS", "Virtual IP / Virtual Server — published application endpoint"),
     ("DSC", "Device Service Clustering — F5 HA synchronization/failover group"),
-    ("F5OS", "F5 hardware hypervisor on rSeries / VELOS hosting isolated tenants"),
+    ("F5OS-A (r2800)", "F5 appliance hypervisor on r2800 pizza boxes (max 2 tenants on 1.8+)"),
+    ("STP / LACP LAG", "Spanning Tree Protocol (L2 loop prevention — unsupported on r2800; use LACP LAG)"),
     ("iQuery / big3d", "F5 protocol & agent sharing LTM/VS health metrics with GTM"),
-    ("CFW / ELB", "Private-Cloud Firewall / Enterprise (Cloud) Load Balancer"),
-    ("SNAT / XFF", "Source NAT Pool (symmetric return) / X-Forwarded-For client IP header"),
+    ("CFW / ELB / XFF", "Cloud FW / Cloud Load Balancer / X-Forwarded-For client IP header"),
 ]
 right_terms = [
     ("H1 / H2", "Health layers: H1 = Device HA failover • H2 = Local LTM/ELB pool member"),
@@ -927,7 +927,7 @@ right_terms = [
     ("R0 / R1", "Recovery classes: R0 = Zero user impact • R1 = Auto local recovery (secs)"),
     ("R2 / R3 / R4", "R2 = Cross-site component • R3 = Auto site/DNS failover • R4 = Manual DR"),
     ("W1 – W4", "Dedicated WAF topologies (active pool, DSC cluster, reserve, asymmetric)"),
-    ("S1 / S2", "Shared WAF topologies (S1 = tenant LTMs + shared WAF; S2 = both shared)"),
+    ("S1 / S2 / K+2", "Shared WAF topologies • K+2 active WAFs/site survives 2 simultaneous losses"),
     ("X2A / X2B / XD1", "Cross-site R2 patterns: remote WAF, remote front-end, App B fallback"),
     ("AT1 – AT4 / SLO", "App types (stateless, stateful, WebSocket, L4) • Service Level Objective"),
 ]

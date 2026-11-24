@@ -2,7 +2,7 @@
 
 Enterprise architecture analysis for **end-to-end resilient F5-based application delivery**, with an **initial delivery focus on the WAF tier** (and its F5 LTM/GTM interfaces) while coordinating partner-owned tiers (edge/internal firewalls, private-cloud CFW/ELB, and application teams) through explicit health and recovery contracts.
 
-The current analysis covers a two-site, four-tenant extranet application-delivery environment using F5 BIG-IP DNS/GTM, LTM and Advanced WAF/ASM (currently **BIG-IP 17.5.x**, with a target rebuild onto newer devices/software), serving external partner/customer access over private-network paths plus internal users and application dependencies.
+The current analysis covers a two-site, four-tenant extranet application-delivery environment using F5 BIG-IP DNS/GTM, LTM and Advanced WAF/ASM (currently **BIG-IP 17.5.x**, with a confirmed target hardware rebuild standard of **F5 rSeries `r2800` pizza boxes only** running `F5OS-A 1.8.0+` + BIG-IP 21.1.x+, no blade chassis), serving external partner/customer access over private-network paths plus internal users and application dependencies.
 
 # Start here
 
