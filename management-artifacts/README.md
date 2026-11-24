@@ -2,31 +2,44 @@
 
 This directory contains the **current, version-controlled management outputs** derived from the authoritative EnterpriseWAF Markdown analysis.
 
-## Authoritative current artifacts
+## Stable filenames
 
-Use only these stable filenames from `main`:
+Use these names from `main`:
 
-- [EnterpriseWAF_Management_Summary.pptx](./EnterpriseWAF_Management_Summary.pptx) — editable PowerPoint management deck.
-- [EnterpriseWAF_Management_Summary.pdf](./EnterpriseWAF_Management_Summary.pdf) — PDF export of the same management deck.
-- [diagrams/EnterpriseWAF_End_to_End_Topology.svg](./diagrams/EnterpriseWAF_End_to_End_Topology.svg) — version-controlled end-to-end topology diagram.
+- [EnterpriseWAF_Management_Summary.pptx](./EnterpriseWAF_Management_Summary.pptx) — editable management deck.
+- [EnterpriseWAF_Management_Summary.pdf](./EnterpriseWAF_Management_Summary.pdf) — PDF export.
+- [diagrams/EnterpriseWAF_End_to_End_Topology.svg](./diagrams/EnterpriseWAF_End_to_End_Topology.svg) — editable/versionable topology source.
+- `diagrams/EnterpriseWAF_End_to_End_Topology.png` — rendered topology generated from the deck.
+- `diagrams/GTM_Health_and_Convergence.png` — rendered GTM health/convergence view.
 
-The source-of-truth architecture remains [high_level_architecture.md](../enterprise-scenarios/high_level_architecture.md). The binary deck/PDF are review artifacts generated from the current architecture.
+Git history provides versioning. Do **not** add `_v2/_v3/_v4/_v5` copies to `main`.
 
-## Versioning rule
+## Reproducible generation
 
-Do **not** add `_v2`, `_v3`, `_v4`, `_v5` copies to `main`.
+- `source/build_management_deck.py` generates the PowerPoint.
+- `.github/workflows/build-management-artifacts.yml` regenerates the PowerPoint, PDF and PNG diagrams when the architecture source changes on `main`.
 
-Git history provides versioning. Replace the stable files in a normal pull request when the management pack changes.
+The generated binary commit is automated; the Markdown baseline remains authoritative.
 
-Old generated files, Base64 fragments, and experimental artifact branches are **non-authoritative** and should not be linked from management documentation.
+## Architecture grounding
 
-## Current boundary model
+The management artifacts must remain consistent with:
 
-The current management pack and topology must show:
+- [enterprise_scenario_invariants.md](../enterprise-scenarios/enterprise_scenario_invariants.md)
+- [high_level_architecture.md](../enterprise-scenarios/high_level_architecture.md)
+- [executive_recommendation.md](../enterprise-scenarios/executive_recommendation.md)
+- [deployment_options_resilience_summary.md](../enterprise-scenarios/deployment_options_resilience_summary.md)
 
-- internal users/desktops/systems outside the private-cloud boundary;
-- internal enterprise DNS outside the private-cloud boundary;
-- optional internal GTM/service-name resolution and internal LTM/service VIP in the enterprise internal network;
-- a separate **internal firewall** between the enterprise internal network and the private-cloud CFW;
-- private-cloud **CFW**, ELB/service and hosted App A/B/C/D inside the private cloud;
-- X2A/X2B/XD1 as contingency paths, not normal dependencies.
+Stable visual facts include:
+
+- two sites, each with a BIG-IP DNS/GTM cluster;
+- the site GTM clusters synchronize the enterprise GTM/DNS configuration/global-availability view;
+- each site has **two HA edge-firewall pairs, two devices per pair (2 x 2)**;
+- GTM/DNS sits inside the edge-firewall boundary;
+- external/customer DNS and internal enterprise DNS can use the same edge GTM service for selected names;
+- internal users/DNS/internal LTM are outside the private cloud;
+- a distinct internal firewall sits before the private-cloud CFW;
+- WAF listener/port-up does not by itself prove application health;
+- application-layer health checks require an application-team-owned health contract;
+- GTM synchronization does not automatically mean cross-site probing;
+- X2A/X2B/XD1 are contingency paths, not healthy-state dependencies.
