@@ -48,7 +48,10 @@ jobs:
           pdftoppm -png -r 150 -f 4 -singlefile \
             management-artifacts/EnterpriseWAF_Management_Summary.pdf \
             management-artifacts/diagrams/EnterpriseWAF_End_to_End_Topology
-          pdftoppm -png -r 150 -f 13 -singlefile \
+          pdftoppm -png -r 150 -f 5 -singlefile \
+            management-artifacts/EnterpriseWAF_Management_Summary.pdf \
+            management-artifacts/diagrams/EnterpriseWAF_Target_Health_Monitoring
+          pdftoppm -png -r 150 -f 7 -singlefile \
             management-artifacts/EnterpriseWAF_Management_Summary.pdf \
             management-artifacts/diagrams/GTM_Health_and_Convergence
 
@@ -60,6 +63,7 @@ jobs:
             management-artifacts/EnterpriseWAF_Management_Summary.pptx \
             management-artifacts/EnterpriseWAF_Management_Summary.pdf \
             management-artifacts/diagrams/EnterpriseWAF_End_to_End_Topology.png \
+            management-artifacts/diagrams/EnterpriseWAF_Target_Health_Monitoring.png \
             management-artifacts/diagrams/GTM_Health_and_Convergence.png
           if git diff --cached --quiet; then
             echo 'Management artifacts are already current.'

@@ -1,210 +1,136 @@
 # Enterprise Scenario Analysis — Document Index
 
-This folder contains the current authoritative EnterpriseWAF scenario-analysis set.
+This folder contains the current authoritative EnterpriseWAF architecture and resilience analysis.
 
-If you only want the current architecture and conclusions, start with:
+# Start here
 
-1. **[High-level EnterpriseWAF architecture](./high_level_architecture.md)** — canonical consumers/DNS/network/application relationship view
-2. **[Executive architecture and 99.95% recommendation](./executive_recommendation.md)** — final recommendation and ranked options
-3. **[Deployment options, resilience and four-tenant cost summary](./deployment_options_resilience_summary.md)** — detailed architecture/topology comparison
-4. **[End-to-end service impact and recoverability](./end_to_end_service_impact_analysis.md)** — primary user/service failure story
-5. [Maintainability / change-management analysis](./maintainability_change_management_analysis.md)
-6. [Cross-site routing and dependency recovery](./cross_site_routing_and_dependency_recovery.md)
-7. [Common technical failure matrix](./common_failure_matrix.md) — component-level supporting detail
+1. **[Current state and stable invariants](./enterprise_scenario_invariants.md)** — what exists today / non-changing grounding facts
+2. **[High-level current-state architecture](./high_level_architecture.md)** — current layers, DNS control plane and traffic paths
+3. **[Future architecture improvements](./future_architecture_improvements.md)** — target health-check model, cross-site/dependency improvements and implementation sequence
+4. **[Executive architecture and 99.95% recommendation](./executive_recommendation.md)** — ranked WAF/topology decision
+5. **[Deployment options, resilience and four-tenant cost summary](./deployment_options_resilience_summary.md)** — detailed W1-W4/S1-S2 comparison
+6. **[End-to-end service impact and recoverability](./end_to_end_service_impact_analysis.md)** — user/application failure story
+7. [Maintainability / change-management analysis](./maintainability_change_management_analysis.md)
+8. [Cross-site routing and dependency recovery](./cross_site_routing_and_dependency_recovery.md)
+9. [Common technical failure matrix](./common_failure_matrix.md)
 
-## Document map
+# Current state versus future state
 
-| File | Type | Purpose | Change frequency |
-|---|---|---|---|
-| [high_level_architecture.md](./high_level_architecture.md) | **Canonical architecture overview** | Four-tenant extranet consumers/DNS/network paths, retained LTM/GTM boundaries, ownership model, WAF/CFW/ELB, cloud hosting, App A/B/C/D dependencies and WAF platform-vs-policy distinction | Update when the target logical architecture changes |
-| [executive_recommendation.md](./executive_recommendation.md) | **Executive decision summary** | Final recommendation, 99.95 potential, ranked options and approval gates | Update when conclusions materially change |
-| [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md) | **Primary architecture summary** | W1-W4, dedicated/shared four-tenant cost, N-1/N-2/tier failure tolerance, cross-site comparison and application-type resilience | Regenerate when topology/capacity/tenancy assumptions change |
-| [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md) | **Invariant input** | Stable enterprise context, application types, sites, tenant model, design objectives and 99.95 maintainability objective | Rare |
-| [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md) | **Variable input** | W1–W4 topologies, GTM health models, cross-site patterns, F5 timing assumptions, maintenance/change strategies | As designs change |
-| [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md) | **Primary derived output — Lens 1** | External/internal user impact, App A/B/C dependency impact, outage timing, recoverability and cross-site/local-only result | Regenerate when inputs change |
-| [common_failure_matrix.md](./common_failure_matrix.md) | **Technical appendix — Lens 1** | Component-level failure scenarios, F5 recovery paths/timing drivers and topology details supporting the service-impact analysis | Regenerate when inputs change |
-| [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md) | **Derived output — Lens 2** | Monitoring, firmware, WAF/LTM/GTM changes, blue-green/canary, draining, rollback and 99.95 maintainability assessment | Regenerate when inputs change |
-| [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md) | **Derived supporting study** | Cross-site WAF/LTM route-back and App A -> App B dependency recovery | Update when cross-site model changes |
-| [enterprise_scenario_analysis_prompt.md](./enterprise_scenario_analysis_prompt.md) | **Regeneration/orchestration prompt** | Instructions for consistently rebuilding both analysis lenses from the invariant + variable inputs | Update when analysis scope changes |
-| [appendix_ltm_waf_2_vs_3_nodes.md](./appendix_ltm_waf_2_vs_3_nodes.md) | **Supporting appendix** | Explains 2 vs 3 LTM/WAF nodes, DSC active/standby vs active-active traffic groups, and independent load-balanced WAF pools | Update when node-count/HA design changes |
+The documentation is deliberately split so diagrams do not accidentally present target improvements as if they already exist.
 
-## The key rule
+```text
+CURRENT / STABLE
+enterprise_scenario_invariants.md
+        |
+        v
+high_level_architecture.md
 
-Do not put every new fact into every document.
+FUTURE / TO-BE
+future_architecture_improvements.md
+        |
+        +--> target health monitoring
+        +--> GTM L7 endpoint health
+        +--> prober diversity / cross-site visibility
+        +--> dependency-local recovery
+        +--> cross-site contingency
+```
+
+# Document map
+
+| File | Type | Purpose |
+|---|---|---|
+| [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md) | **Authoritative current state** | Stable facts, current topology/boundaries, current known unknowns, 99.95 requirement |
+| [high_level_architecture.md](./high_level_architecture.md) | **Current-state diagram** | Current DNS control plane, external/internal data paths, layer breakdown, App A/B/C/D relationships |
+| [future_architecture_improvements.md](./future_architecture_improvements.md) | **Target / to-be architecture** | Layered health-check target, GTM external/internal VIP L7 health, app health contracts, cross-site/dependency improvements |
+| [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md) | **Changeable technical inputs** | W1-W4/S1-S2, F5 timing, routing and product assumptions |
+| [executive_recommendation.md](./executive_recommendation.md) | **Executive decision** | Final WAF/topology recommendation and 99.95 potential |
+| [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md) | **Topology comparison** | N-1/N-2, four-tenant cost, cross-site comparison, application-type resilience |
+| [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md) | **Service-impact analysis** | External/internal/dependency outage and recovery outcome |
+| [common_failure_matrix.md](./common_failure_matrix.md) | **Technical appendix** | Component failure scenarios and timing drivers |
+| [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md) | **Change-safety lens** | Upgrades, WAF changes, rollback and 99.95 maintainability |
+| [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md) | **Supporting target study** | X2A/X2B/X2C/XD1 recovery patterns |
+| [enterprise_scenario_analysis_prompt.md](./enterprise_scenario_analysis_prompt.md) | **Regeneration prompt** | Rules for keeping current-state and future-state outputs consistent |
+
+# Key documentation rule
 
 Use this decision:
 
-    Is it a real, stable property of the enterprise?
-            |
-           yes
-            v
-    enterprise_scenario_invariants.md
+```text
+Is it true of the real environment today?
+  -> current-state / invariant file
 
-            no
-            |
-            v
-    Is it a topology / F5 / routing / health / maintenance choice?
-            |
-           yes
-            v
-    analysis_variables_and_f5_assumptions.md
+Is it desired but not yet proven/deployed?
+  -> future_architecture_improvements.md
 
-            |
-            v
-    Is it a conclusion produced from those inputs?
-            |
-           yes
-            v
-    derived analysis document
+Is it a selectable topology / product configuration?
+  -> analysis_variables_and_f5_assumptions.md
 
-This prevents the baseline from drifting every time a new topology or scenario is considered.
+Is it a conclusion from those inputs?
+  -> derived analysis document
+```
 
-## Current enterprise context
+# Current architecture facts
 
-The primary topology decision is the four-tenant **extranet** environment. Existing GTM/LTM tenant boundaries are retained in the current WAF target; consolidation is a future joint question for the owning teams.
-
-The baseline currently models:
+The current baseline includes:
 
 - two sites;
-- approximately 3–4 tenants/hosting environments in the wider estate;
-- one representative tenant for most worked examples;
-- equivalent GTM/LTM roles per site;
-- W1–W3 with equivalent WAF topology in both sites;
-- W4 as the deliberate asymmetric exception;
-- edge-firewall-owned external application VIPs;
-- private leased-line external-user ingress;
-- separate external and internal DNS namespaces;
-- internal users/applications using internal enterprise DNS, with selected internal service names optionally delegated/forwarded to GTM;
-- internal users potentially bypassing WAF;
-- internal users/desktops, internal DNS and internal service/LTM VIPs outside the private-cloud boundary;
-- a distinct **internal firewall** between the enterprise internal network and private-cloud CFW;
-- a distinct platform/cloud firewall (CFW) layer in front of private-cloud ELB/service endpoints;
-- on-prem, VM, Kubernetes and PaaS application hosting;
-- App A -> App B -> App C and shared-dependency chains.
+- one BIG-IP DNS/GTM cluster per site, with cross-site GTM synchronization;
+- two HA edge-firewall pairs per tenant/site, two devices per pair (2 x 2);
+- GTM/DNS inside the edge-firewall boundary;
+- external/customer DNS reaching edge GTM over the private leased-line/VPN path;
+- internal enterprise DNS delegating/forwarding selected names to the same edge GTM service;
+- two-LTM HA pair as the default tenant/site LTM model;
+- internal users/DNS/internal LTM outside private cloud;
+- a distinct internal firewall before the private-cloud CFW;
+- CFW and ELB/service inside the private-cloud delivery path;
+- App A/B/C/D dependency chains;
+- a 99.95% service-availability target.
 
-## Application types
+The exact current GTM health-check implementation is **not yet treated as known**. Port-vs-L7, external/internal VIP checks, iQuery integration, prober distribution and app readiness contracts must be validated.
 
-Every relevant scenario must distinguish:
+# Target health-check direction
 
-- **A1 — stateless web**
-- **A2 — stateful web**
-- **A3 — WebSocket/socket/long-lived**
-- **A4 — non-web/L4 bypassing WAF**
+The target described in [future_architecture_improvements.md](./future_architecture_improvements.md) is layered:
 
-Infrastructure recovery is not considered complete until the application-type-specific recovery is also satisfied.
+- local LTM/ELB member health for fast local recovery;
+- GTM Layer-7 health of the **external VIP** for external DNS/site steering;
+- GTM or authoritative LTM/iQuery Layer-7 health of the **internal VIP** for delegated internal names;
+- app-team-owned readiness contracts;
+- dependency-local health/recovery for App B and other shared services;
+- independent user-like synthetic monitoring for the 99.95 SLO.
 
-Examples:
+# WAF topology shorthand
 
-- stateless web may only need request retry;
-- stateful web may need session/state recovery;
-- WebSocket may need reconnect, re-authentication, re-subscription and replay;
-- non-web protocols need protocol-specific reconnect/recovery.
+| ID | Meaning |
+|---|---|
+| **W1** | tenant LTM -> independent active WAF pool |
+| **W2** | WAF HA/DSC cluster, with/without ingress LTM |
+| **W3** | tenant-preferred WAFs + shared reserve |
+| **W4** | asymmetric Site 1 cluster + extra WAF; Site 2 cluster only |
+| **S1** | tenant-specific LTM pairs -> shared independent active WAF pool |
+| **S2** | shared LTM -> shared independent active WAF pool; future consolidation comparison |
 
-## Current topology set
+# Analysis sequence
 
-### W1 — scalable independent WAF pool
+1. Read the current-state baseline.
+2. Read the current-state high-level architecture.
+3. Read the future-improvement target where to-be behavior is being assessed.
+4. Read the changeable F5/topology assumptions.
+5. Regenerate/review the executive, deployment, service-impact and maintainability analyses.
+6. Keep current-state diagrams visually distinct from target-state diagrams.
 
-Per site:
+# Management artifacts
 
-    Firewall VIP
-        |
-    LTM HA pair
-        |
-    WAF1 WAF2 ... WAFn
-        |
-    application
+Current version-controlled management outputs are under [`../management-artifacts/`](../management-artifacts/).
 
-### W2 — WAF HA cluster
+The PowerPoint/PDF should explicitly separate:
 
-With or without ingress LTM:
+- current-state architecture;
+- target health-monitoring architecture;
+- topology decision;
+- failure/recovery and application dependency story;
+- 99.95/change-safety evidence required.
 
-    Firewall VIP
-        |
-    [LTM HA pair]
-        |
-    WAF HA cluster
-        |
-    application
+# Archive
 
-### W3 — tenant WAFs + shared reserve
-
-The **baseline is two LTMs per site** in a 2-device Sync-Failover pair (**W3-L2**). A 3-device Sync-Failover group (**W3-L3**) is an optional comparison only when additional maintenance/second-failure headroom is being evaluated.
-
-    Tenant LTM DSC service
-        |
-    preferred WAFs
-        |
-    shared reserve WAF capacity
-
-### W4 — asymmetric cluster + extra Site 1 WAF
-
-    Site 1                         Site 2
-    [LTM HA pair]                  [LTM HA pair]
-         |                              |
-    WAF HA cluster                 WAF HA cluster
-         |
-    extra active/spare WAF
-
-The brackets indicate variants with/without an ingress LTM where relevant.
-
-### S1 — tenant LTMs + shared active WAF pool
-
-    Tenant 1 LTM pair --\
-    Tenant 2 LTM pair ---\
-    Tenant 3 LTM pair ----> shared independent active WAF pool
-    Tenant 4 LTM pair ---/
-
-S1 is a **tenancy/sharing pattern**, not a replacement definition for W1. It applies the independent-active-pool idea across several tenant LTM boundaries.
-
-### S2 — shared LTM + shared active WAF pool
-
-    Tenants 1..4
-         |
-    shared LTM pair
-         |
-    shared independent active WAF pool
-
-S2 has the largest shared ingress failure/change domain among the active-pool options.
-
-## Analysis sequence
-
-When re-running the work:
-
-1. Read [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md).
-2. Read [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md).
-3. Use [enterprise_scenario_analysis_prompt.md](./enterprise_scenario_analysis_prompt.md).
-4. Regenerate/review [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md).
-5. Regenerate/review [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md).
-6. Regenerate/review [common_failure_matrix.md](./common_failure_matrix.md) as the technical supporting matrix.
-7. Regenerate/review [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md).
-8. Update [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md) if cross-site assumptions changed.
-9. Use the [archive](../archive/README.md) only for historical traceability; do not promote archived assumptions implicitly.
-
-## Output locations
-
-For quick access:
-
-- **High-level architecture:** [high_level_architecture.md](./high_level_architecture.md)
-- **Executive recommendation:** [executive_recommendation.md](./executive_recommendation.md)
-- **Architecture/topology summary:** [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md)
-- **Primary failure/resilience result:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)
-  - **Timing summary:** see sections 4.2–4.4 for validated LTM/GTM/DNS recovery windows, CFW recovery effects, and cache/connection behavior
-- **Technical failure matrix:** [common_failure_matrix.md](./common_failure_matrix.md)
-- **Maintainability result:** [maintainability_change_management_analysis.md](./maintainability_change_management_analysis.md)
-- **Cross-site result:** [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md)
-- **Baseline:** [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)
-- **Changeable assumptions:** [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)
-- **Regeneration prompt:** [enterprise_scenario_analysis_prompt.md](./enterprise_scenario_analysis_prompt.md)
-- **2 vs 3 LTM/WAF appendix:** [appendix_ltm_waf_2_vs_3_nodes.md](./appendix_ltm_waf_2_vs_3_nodes.md)
-
-## Archive and specialist references
-
-Historical versions and working notes are under [`../archive/`](../archive/README.md). They are retained for traceability, not as inputs to the current analysis.
-
-The root-level [WebSocket resilience document](../waf_websocket_resilience_cloud_patterns.md) remains a current specialist reference for application reconnect/replay/SSE behavior. Current W1-W4 topology, DNS namespace and F5 timing assumptions in this folder take precedence.
-
-### Branch rule
-
-Do not create separate long-lived branches for these documents.
-
-Use one coherent working branch/PR, merge it into `main`, then delete the working branch.
+Historical documents are under [`../archive/`](../archive/README.md) and are retained for traceability only.
