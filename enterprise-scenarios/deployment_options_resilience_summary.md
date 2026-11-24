@@ -1,7 +1,7 @@
 # Deployment Options, Resilience and Four-Tenant Cost Summary
 
 **Status:** Primary architecture comparison summary  
-**Baseline:** [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)  
+**Baseline:** [current_architecture_and_invariants.md](./current_architecture_and_invariants.md)  
 **Detailed service impact:** [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md)  
 **Technical failures:** [common_failure_matrix.md](./common_failure_matrix.md)  
 **Cross-site detail:** [cross_site_routing_and_dependency_recovery.md](./cross_site_routing_and_dependency_recovery.md)
@@ -22,7 +22,7 @@ For the current WAF target:
 
 This document therefore does **not** recommend LTM/GTM consolidation as part of the current WAF decision.
 
-See [high_level_architecture.md](./high_level_architecture.md) for the end-to-end topology and ownership-boundary diagram.
+See [current_architecture_and_invariants.md](./current_architecture_and_invariants.md) for the authoritative current-state baseline, end-to-end topology and ownership-boundary diagram.
 
 This document answers four architecture questions together:
 

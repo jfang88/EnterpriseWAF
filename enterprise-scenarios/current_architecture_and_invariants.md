@@ -1,13 +1,13 @@
-# EnterpriseWAF Current State and Stable Invariants
+# EnterpriseWAF Current Architecture and Stable Invariants
 
-**Status:** Authoritative current-state baseline  
+**Status:** Authoritative current-state architecture, topology and stable-invariant baseline  
 **Change policy:** Change this file only when the real enterprise environment, ownership boundary, business requirement or supported application scope changes. Do not place target-state improvements or preferred design choices here.
 
 **Future / target-state improvements:** [future_architecture_improvements.md](./future_architecture_improvements.md)
 
 # 1. Purpose
 
-This file is the single grounding source for **what exists today or is treated as a stable enterprise fact**.
+This file is the single grounding source for **what exists today, how the current architecture is laid out, and what is treated as a stable enterprise fact**.
 
 Use it to ground:
 
@@ -43,7 +43,22 @@ Where the exact current implementation has not yet been confirmed, this file say
 | **Availability requirement** | Evaluate the service against a **99.95% availability target**, including planned maintenance where applicable |
 | **Cross-site routing** | Cross-site WAF/front-end/dependency routing is **not assumed to exist today** unless separately confirmed |
 
-# 3. Site and edge architecture
+# 3. Architecture layer breakdown
+
+| Layer | Current role | Current boundary |
+|---|---|---|
+| **L0 - users / resolvers** | external users/API clients, external/customer DNS, internal users, internal enterprise DNS | outside application-delivery/private-cloud stack |
+| **L1 - global DNS / site selection** | Site 1 and Site 2 BIG-IP DNS/GTM clusters; selected external/internal names | edge service behind edge firewall |
+| **L2 - site edge / ingress** | private leased line/VPN, 2 x 2 edge firewalls, external application VIPs | site edge/security |
+| **L3 - local delivery/security** | tenant LTM HA service and WAF tier | tenant application-delivery path |
+| **L4 - internal access boundary** | internal LTM/service VIP and internal firewall | enterprise internal network -> private cloud |
+| **L5 - private-cloud delivery** | CFW and ELB/service | private-cloud boundary |
+| **L6 - business application** | App A/B/C/D, sessions, state, DB, identity, event services | application/platform |
+| **L7 - application dependencies** | App A/D -> B -> C and other shared services | application/service architecture |
+
+Health/observability is **cross-cutting** and is not itself one inline layer.
+
+# 4. Site and edge architecture
 
 For a representative tenant, each site has the same core edge structure unless a design option explicitly says otherwise:
 
@@ -63,15 +78,15 @@ The two sites remain separate failure domains.
 
 The GTM synchronization relationship does **not** mean GTM synchronizes LTM/WAF/CFW/application configuration. Those remain separate service and configuration domains.
 
-# 4. DNS / GTM current state
+# 5. DNS / GTM current state
 
-## 4.1 Control-plane rule
+## 5.1 Control-plane rule
 
 BIG-IP DNS/GTM is a **DNS control-plane / endpoint-selection service**. It is not an inline hop in the HTTP/TCP application session.
 
 DNS resolution and subsequent application traffic must therefore be drawn as separate flows.
 
-## 4.2 External DNS resolution
+## 5.2 External DNS resolution
 
 Representative control path:
 
@@ -86,7 +101,7 @@ External user/system
 
 The application connection then uses the returned VIP and does **not** pass through GTM as an inline proxy.
 
-## 4.3 Internal DNS resolution
+## 5.3 Internal DNS resolution
 
 Internal users and systems use internal enterprise DNS.
 
@@ -106,7 +121,7 @@ The application data path then follows the internal service path described in se
 
 Internal and external DNS namespaces/answers are logically distinct even where the same GTM platform participates in both.
 
-# 5. Current GTM health-check state: known facts and items to validate
+# 6. Current GTM health-check state: known facts and items to validate
 
 The **architecture and placement of GTM are known**, but the exact current health-monitoring implementation has not yet been fully validated in this analysis.
 
@@ -144,9 +159,80 @@ That is a **false-green health state**.
 
 The target health-check design is therefore treated as a **future improvement** and is documented separately in [future_architecture_improvements.md](./future_architecture_improvements.md).
 
-# 6. Current application data paths
+# 7. Canonical current-state topology
 
-## 6.1 External application path
+```mermaid
+flowchart LR
+
+  subgraph EXT[External / customer environment]
+    EU[External users / API clients]
+    EDNS[External / customer DNS]
+    EU --> EDNS
+  end
+
+  subgraph INT[Enterprise internal network - outside private cloud]
+    IU[Internal users / systems]
+    IDNS[Internal enterprise DNS]
+    ILTM[Internal LTM / service VIP]
+    IFW[Internal firewall]
+    IU --> IDNS --> ILTM --> IFW
+  end
+
+  subgraph S1E[Site 1 edge / delivery]
+    NET1[Private leased line / VPN]
+    FW1[2 x HA edge-firewall pairs]
+    GTM1[Site 1 GTM/DNS cluster]
+    LTM1[Tenant LTM HA service]
+    WAF1[WAF tier]
+    NET1 --> FW1
+    FW1 --> LTM1 --> WAF1
+    FW1 -. DNS query .-> GTM1
+  end
+
+  subgraph S1C[Site 1 private cloud]
+    CFW1[CFW]
+    ELB1[ELB / service]
+    A1[App A]
+    D1[App D]
+    B1[App B]
+    C1[App C / shared dependencies]
+    CFW1 --> ELB1
+    ELB1 --> A1
+    ELB1 --> D1
+    A1 --> B1 --> C1
+    D1 --> B1
+  end
+
+  subgraph S2E[Site 2 edge / delivery]
+    FW2[2 x HA edge-firewall pairs]
+    GTM2[Site 2 GTM/DNS cluster]
+    LTM2[Tenant LTM HA service]
+    WAF2[WAF tier]
+    FW2 --> LTM2 --> WAF2
+    FW2 -. DNS query .-> GTM2
+  end
+
+  subgraph S2C[Site 2 private cloud / DR]
+    CFW2[CFW]
+    ELB2[ELB / service]
+    APP2[DR application instances]
+    CFW2 --> ELB2 --> APP2
+  end
+
+  EDNS -. DNS over private path .-> NET1
+  EU --> NET1
+  IDNS -. selected delegated names .-> GTM1
+
+  WAF1 --> CFW1
+  IFW --> CFW1
+  WAF2 --> CFW2
+
+  GTM1 <-. GTM/DNS synchronization .-> GTM2
+```
+
+# 8. Current application data paths
+
+## 8.1 External application path
 
 ```text
 External partner/customer or API client
@@ -161,7 +247,7 @@ External partner/customer or API client
 
 A WAF topology comparison may change how traffic is handled between LTM and CFW, but it must not silently change the surrounding stable layers.
 
-## 6.2 Internal user path
+## 8.2 Internal user path
 
 Internal users may bypass the external WAF tier.
 
@@ -183,7 +269,7 @@ Boundary rules:
 - an internal-firewall failure can block internal users while the external path remains healthy;
 - a CFW failure can affect both external and internal callers when both paths converge on the same private-cloud CFW.
 
-# 7. Application hosting and dependency paths
+# 9. Application hosting and dependency paths
 
 Applications can be hosted using one or more of these patterns:
 
@@ -223,7 +309,7 @@ WAF/LTM
   -> Site 1 or Site 2 workload
 ```
 
-## 7.1 App A / B / C / D dependencies
+## 9.1 App A / B / C / D dependencies
 
 Application-to-application calls must be analysed separately from north-south WAF ingress.
 
@@ -245,7 +331,7 @@ The dependency can use:
 
 The current existence of an automatic **B1 -> B2 cross-site fallback** is not assumed unless confirmed.
 
-# 8. Application classes in scope
+# 10. Application classes in scope
 
 Every relevant failure scenario must distinguish:
 
@@ -263,7 +349,7 @@ Typical implications:
 - WebSocket: reconnect, re-authenticate, re-subscribe, sequence/gap recovery and replay;
 - non-web/L4: protocol-specific reconnect/re-resolution/replay behavior.
 
-# 9. Current availability requirement and reporting rule
+# 11. Current availability requirement and reporting rule
 
 Use **99.95% availability** as the service-level target to assess.
 
@@ -286,7 +372,7 @@ The preferred service RTO measure is:
 
 not simply "device green" or "WAF recovered".
 
-# 10. Current ownership / scope constraints
+# 12. Current ownership / scope constraints
 
 The current WAF study does **not** assume:
 
@@ -299,7 +385,7 @@ The current WAF study does **not** assume:
 
 Those are target-state design choices requiring the relevant GTM/LTM/network/firewall/platform/application owners.
 
-# 11. What belongs outside this current-state file
+# 13. What belongs outside this current-state file
 
 The following are **future / target-state improvements**, not stable current facts:
 
@@ -322,3 +408,25 @@ Topology and F5 implementation choices remain in:
 - [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)
 
 Derived resilience conclusions remain in the executive, deployment, failure and maintainability documents.
+
+
+# 14. Current-state diagram rules
+
+Current-state diagrams must:
+
+- keep DNS/GTM control-plane flows separate from application data paths;
+- show external and internal DNS/VIP paths separately where they differ;
+- retain the distinct internal firewall and private-cloud CFW boundaries;
+- preserve Site 1 and Site 2 as separate failure domains;
+- show application dependencies where they materially affect availability;
+- avoid drawing target-state capabilities as deployed facts.
+
+Do **not** silently show the following as current state unless validated:
+
+- GTM Layer-7 checks of every external/internal VIP;
+- direct cross-site GTM probing;
+- X2A/X2B remote-WAF/front-end routing;
+- automatic B1 -> B2 dependency fallback;
+- a preferred shared-WAF target topology.
+
+Those belong in [future_architecture_improvements.md](./future_architecture_improvements.md) and the relevant option-analysis documents.

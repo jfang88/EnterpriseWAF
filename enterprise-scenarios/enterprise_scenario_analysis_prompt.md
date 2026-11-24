@@ -10,10 +10,9 @@ Regenerate EnterpriseWAF analysis without confusing **current state** with **fut
 
 Read first:
 
-- [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)
-- [high_level_architecture.md](./high_level_architecture.md)
+- [current_architecture_and_invariants.md](./current_architecture_and_invariants.md)
 
-Treat these as the authoritative description of the environment **today**.
+Treat this as the authoritative description of the environment **today**.
 
 Do not add a target feature to the current-state diagram unless it has been validated as deployed.
 

@@ -1,7 +1,7 @@
 # Enterprise WAF Analysis Variables and F5 Recovery Assumptions
 
 **Status:** Changeable analysis inputs  
-**Baseline:** [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)  
+**Baseline:** [current_architecture_and_invariants.md](./current_architecture_and_invariants.md)  
 **F5 documentation reviewed:** 23 November 2026
 
 This file contains architecture choices and tunable assumptions. Change this file when comparing a new design; do not alter the invariant file unless the real enterprise context changes.
@@ -374,7 +374,7 @@ If applications later converge onto a common private-cloud platform, LTM/GTM con
 
 This is a scope/ownership constraint, not a statement that the existing LTM/GTM design is permanently optimal.
 
-See [high_level_architecture.md](./high_level_architecture.md).
+See [current_architecture_and_invariants.md](./current_architecture_and_invariants.md) for the authoritative current-state architecture and invariants.
 
 # 2. Cross-site dataplane variables
 
@@ -1080,7 +1080,7 @@ An earlier design document used a business rule that the service/trading operati
 
 This is **not currently treated as an invariant** because it has not been reconfirmed in the current baseline.
 
-If the requirement still applies, promote it into `enterprise_scenario_invariants.md` and analyse every external access failure domain against it.
+If the requirement still applies, promote it into `current_architecture_and_invariants.md` and analyse every external access failure domain against it.
 
 Important consequence:
 

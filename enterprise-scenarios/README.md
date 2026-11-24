@@ -4,15 +4,14 @@ This folder contains the current authoritative EnterpriseWAF architecture and re
 
 # Start here
 
-1. **[Current state and stable invariants](./enterprise_scenario_invariants.md)** — what exists today / non-changing grounding facts
-2. **[High-level current-state architecture](./high_level_architecture.md)** — current layers, DNS control plane and traffic paths
-3. **[Future architecture improvements](./future_architecture_improvements.md)** — target health-check model, cross-site/dependency improvements and implementation sequence
-4. **[Executive architecture and 99.95% recommendation](./executive_recommendation.md)** — ranked WAF/topology decision
-5. **[Deployment options, resilience and four-tenant cost summary](./deployment_options_resilience_summary.md)** — detailed W1-W4/S1-S2 comparison
-6. **[End-to-end service impact and recoverability](./end_to_end_service_impact_analysis.md)** — user/application failure story
-7. [Maintainability / change-management analysis](./maintainability_change_management_analysis.md)
-8. [Cross-site routing and dependency recovery](./cross_site_routing_and_dependency_recovery.md)
-9. [Common technical failure matrix](./common_failure_matrix.md)
+1. **[Current architecture and stable invariants](./current_architecture_and_invariants.md)** — authoritative current-state facts, topology, layers, DNS control plane and traffic paths
+2. **[Future architecture improvements](./future_architecture_improvements.md)** — target health-check model, cross-site/dependency improvements and implementation sequence
+3. **[Executive architecture and 99.95% recommendation](./executive_recommendation.md)** — ranked WAF/topology decision
+4. **[Deployment options, resilience and four-tenant cost summary](./deployment_options_resilience_summary.md)** — detailed W1-W4/S1-S2 comparison
+5. **[End-to-end service impact and recoverability](./end_to_end_service_impact_analysis.md)** — user/application failure story
+6. [Maintainability / change-management analysis](./maintainability_change_management_analysis.md)
+7. [Cross-site routing and dependency recovery](./cross_site_routing_and_dependency_recovery.md)
+8. [Common technical failure matrix](./common_failure_matrix.md)
 
 # Current state versus future state
 
@@ -20,10 +19,7 @@ The documentation is deliberately split so diagrams do not accidentally present 
 
 ```text
 CURRENT / STABLE
-enterprise_scenario_invariants.md
-        |
-        v
-high_level_architecture.md
+current_architecture_and_invariants.md
 
 FUTURE / TO-BE
 future_architecture_improvements.md
@@ -39,8 +35,7 @@ future_architecture_improvements.md
 
 | File | Type | Purpose |
 |---|---|---|
-| [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md) | **Authoritative current state** | Stable facts, current topology/boundaries, current known unknowns, 99.95 requirement |
-| [high_level_architecture.md](./high_level_architecture.md) | **Current-state diagram** | Current DNS control plane, external/internal data paths, layer breakdown, App A/B/C/D relationships |
+| [current_architecture_and_invariants.md](./current_architecture_and_invariants.md) | **Authoritative current state** | Stable facts, topology/boundaries, DNS control plane, external/internal data paths, layer breakdown, diagrams, known unknowns and 99.95 requirement |
 | [future_architecture_improvements.md](./future_architecture_improvements.md) | **Target / to-be architecture** | Layered health-check target, GTM external/internal VIP L7 health, app health contracts, cross-site/dependency improvements |
 | [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md) | **Changeable technical inputs** | W1-W4/S1-S2, F5 timing, routing and product assumptions |
 | [executive_recommendation.md](./executive_recommendation.md) | **Executive decision** | Final WAF/topology recommendation and 99.95 potential |
@@ -112,12 +107,11 @@ The target described in [future_architecture_improvements.md](./future_architect
 
 # Analysis sequence
 
-1. Read the current-state baseline.
-2. Read the current-state high-level architecture.
-3. Read the future-improvement target where to-be behavior is being assessed.
-4. Read the changeable F5/topology assumptions.
-5. Regenerate/review the executive, deployment, service-impact and maintainability analyses.
-6. Keep current-state diagrams visually distinct from target-state diagrams.
+1. Read the combined current architecture and invariant baseline.
+2. Read the future-improvement target where to-be behavior is being assessed.
+3. Read the changeable F5/topology assumptions.
+4. Regenerate/review the executive, deployment, service-impact and maintainability analyses.
+5. Keep current-state diagrams visually distinct from target-state diagrams.
 
 # Management artifacts
 

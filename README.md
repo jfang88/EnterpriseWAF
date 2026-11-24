@@ -8,11 +8,10 @@ The current analysis focuses on a two-site, four-tenant extranet environment usi
 
 Use these documents in this order:
 
-1. [Current state and stable invariants](./enterprise-scenarios/enterprise_scenario_invariants.md)
-2. [High-level current-state architecture](./enterprise-scenarios/high_level_architecture.md)
-3. [Future architecture improvements / target health model](./enterprise-scenarios/future_architecture_improvements.md)
-4. [Executive architecture and 99.95% recommendation](./enterprise-scenarios/executive_recommendation.md)
-5. [Deployment options, resilience and four-tenant cost summary](./enterprise-scenarios/deployment_options_resilience_summary.md)
+1. [Current architecture and stable invariants](./enterprise-scenarios/current_architecture_and_invariants.md)
+2. [Future architecture improvements / target health model](./enterprise-scenarios/future_architecture_improvements.md)
+3. [Executive architecture and 99.95% recommendation](./enterprise-scenarios/executive_recommendation.md)
+4. [Deployment options, resilience and four-tenant cost summary](./enterprise-scenarios/deployment_options_resilience_summary.md)
 
 The complete document map is in [enterprise-scenarios/README.md](./enterprise-scenarios/README.md).
 
@@ -22,9 +21,7 @@ The repository deliberately separates what exists today from what is proposed.
 
 ```text
 CURRENT / STABLE
-enterprise_scenario_invariants.md
-        |
-high_level_architecture.md
+current_architecture_and_invariants.md
 
 FUTURE / TO-BE
 future_architecture_improvements.md
