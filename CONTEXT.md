@@ -43,18 +43,18 @@ Authoritative for:
 
 ## Essential project orientation
 
-The project analyses a two-site, multi-tenant F5-based application-delivery environment (currently **BIG-IP 17.5.x**, with a target rebuild onto newer devices/software) involving:
+The project analyses a two-site, multi-tenant **end-to-end application-delivery environment** (currently **BIG-IP 17.5.x**, with a target rebuild onto newer devices/software), with an **initial delivery focus on the WAF tier** (and its F5 LTM/GTM interfaces) because firewalls, private-cloud CFW/ELB, and applications are owned by partner teams. The end-to-end path includes:
 
 - BIG-IP DNS/GTM for DNS/site selection;
-- edge firewalls;
+- edge firewalls (*Network/Security owned*);
 - tenant LTM services;
-- WAF capacity;
+- WAF capacity (*initial Phase 1 execution focus*);
 - internal enterprise DNS and internal service paths;
-- a separate internal firewall and private-cloud firewall;
-- ELB/service layers;
-- VM, Kubernetes, PaaS and on-premises application hosting;
+- a separate internal firewall (*Network/Security owned*) and private-cloud firewall (CFW) (*Cloud Platform owned*);
+- ELB/service layers (*Cloud Platform owned*);
+- VM, Kubernetes, PaaS and on-premises application hosting (*Application teams*);
 - App A/B/C/D dependency chains;
-- a 99.95% availability objective.
+- a **99.95% total availability objective (`4h 22m 48s / year`) covering BOTH managed (planned maintenance/changes) and unmanaged (unplanned failure) outages combined**.
 
 External and internal users may use different DNS paths and different VIPs.
 

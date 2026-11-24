@@ -114,19 +114,19 @@ def arrow(s, x1, y1, x2, y2, color=NAVY, width=2, dash=False, both=False):
     return ln
 
 
-def title(s, t, st=None, tsize=23):
+def title(s, t, st=None, tsize=22):
     add_text(s, t, 0.45, 0.16, 12.45, 0.46, tsize, True, NAVY, radius=False)
     if st:
-        add_text(s, st, 0.47, 0.66, 12.35, 0.30, 10.5, False, SLATE, radius=False)
+        add_text(s, st, 0.47, 0.66, 12.35, 0.30, 10.3, False, SLATE, radius=False)
 
 
 def footer(s, n):
-    add_text(s, "EnterpriseWAF management summary", 0.48, 7.18, 3.6, 0.18, 8.0, False, SLATE, radius=False)
+    add_text(s, "End-to-end application delivery summary", 0.48, 7.18, 4.2, 0.18, 8.0, False, SLATE, radius=False)
     add_text(s, f"Nov 2026  •  {n}", 11.55, 7.18, 1.25, 0.18, 8.0, False, SLATE, PP_ALIGN.RIGHT, radius=False)
 
 
-def bullet_block(s, heading, items, x, y, w, h, fill=LIGHT, line=MID, headfill=NAVY, fs=10.8):
-    add_text(s, heading, x, y, w, 0.42, 13, True, WHITE, PP_ALIGN.CENTER, headfill, headfill)
+def bullet_block(s, heading, items, x, y, w, h, fill=LIGHT, line=MID, headfill=NAVY, fs=10.5):
+    add_text(s, heading, x, y, w, 0.42, 12.5, True, WHITE, PP_ALIGN.CENTER, headfill, headfill)
     sh = s.shapes.add_shape(
         MSO_SHAPE.ROUNDED_RECTANGLE,
         Inches(x),
@@ -145,19 +145,19 @@ def bullet_block(s, heading, items, x, y, w, h, fill=LIGHT, line=MID, headfill=N
     tf.word_wrap = True
     tf.vertical_anchor = MSO_ANCHOR.TOP
     tf.margin_left = tf.margin_right = Inches(0.18)
-    tf.margin_top = Inches(0.18)
-    tf.margin_bottom = Inches(0.12)
+    tf.margin_top = Inches(0.16)
+    tf.margin_bottom = Inches(0.10)
     for idx, item in enumerate(items):
         p = tf.paragraphs[0] if idx == 0 else tf.add_paragraph()
         p.text = "• " + item
         p.alignment = PP_ALIGN.LEFT
-        p.space_after = Pt(8)
+        p.space_after = Pt(7)
         p.font.name = FONT
         p.font.size = Pt(fs)
         p.font.color.rgb = DARK
 
 
-def simple_table(s, headers, rows, x, y, colw, rowh=0.46, fs=9.2, headh=None):
+def simple_table(s, headers, rows, x, y, colw, rowh=0.46, fs=9.2, headh=None, aligns=None):
     hh = headh if headh is not None else rowh
     xx = x
     for i, h in enumerate(headers):
@@ -168,85 +168,99 @@ def simple_table(s, headers, rows, x, y, colw, rowh=0.46, fs=9.2, headh=None):
         xx = x
         f = LIGHT if r % 2 == 0 else WHITE
         for i, v in enumerate(row):
-            add_text(s, str(v), xx, yy, colw[i], rowh, fs, False, DARK, PP_ALIGN.CENTER, f, MID)
+            al = aligns[i] if aligns else PP_ALIGN.CENTER
+            add_text(s, str(v), xx, yy, colw[i], rowh, fs, False, DARK, al, f, MID)
             xx += colw[i]
         yy += rowh
 
 
-# Slide 1 — Executive Summary
+# Slide 1 — Executive Summary (End-to-End Application Delivery; Initial Focus: WAF Tier)
 s = slide()
-add_text(s, "EnterpriseWAF", 0.5, 0.44, 12.3, 0.62, 30, True, WHITE, PP_ALIGN.LEFT, NAVY, NAVY)
 add_text(
     s,
-    "Management summary — current state (BIG-IP 17.5.x), target health model, rebuild & 99.95%",
+    "Resilient End-to-End Application Delivery",
+    0.5,
+    0.42,
+    12.3,
+    0.62,
+    28,
+    True,
+    WHITE,
+    PP_ALIGN.LEFT,
+    NAVY,
+    NAVY,
+)
+add_text(
+    s,
+    "Management summary — full end-to-end delivery (initial Phase 1 focus: WAF tier) • BIG-IP 17.5.x → 21.1.x+ rebuild • 99.95% availability",
     0.52,
-    1.18,
-    12.25,
-    0.45,
-    17,
+    1.14,
+    12.30,
+    0.42,
+    13.0,
     False,
     NAVY,
     radius=False,
 )
 bullet_block(
     s,
-    "Primary architecture recommendation",
+    "End-to-end scope & Phase 1 WAF focus",
     [
-        "Retain tenant-specific LTM failure domains.",
-        "Evaluate S1 shared active WAF pool on current hardware; on rSeries/VELOS F5OS rebuild, evaluate hardware-isolated per-tenant WAF tenants.",
-        "Keep dedicated W1 (3 WAFs/tenant) as highest-isolation fallback.",
+        "99.95% availability (managed + unmanaged outages) requires end-to-end resilience across DNS, firewalls, LTM, WAF, private cloud, and apps.",
+        "Phase 1 execution focuses on the F5 WAF tier (and LTM/GTM interfaces); firewalls, Cloud FW/ELB, and apps are owned by partner teams.",
+        "Keep tenant Local Traffic Manager (LTM) boundaries; evaluate S1 shared WAF on 17.5.x and hardware-isolated F5OS tenants on rebuild.",
     ],
-    0.6,
-    1.95,
-    3.85,
-    3.15,
+    0.55,
+    1.85,
+    3.92,
+    3.32,
     GREEN,
     MID,
     NAVY,
-    10.4,
+    9.9,
 )
 bullet_block(
     s,
-    "Health-monitoring recommendation",
+    "Target layered health monitoring",
     [
-        "Use layered health (H1–H6), not one monitor.",
-        "GTM owns site/DNS health at external + internal VIPs using L7 readiness and Specific Prober Pools.",
-        "LTM/ELB owns fast local member withdrawal (Action On Service Down = Reject; VS Reject on all-down).",
+        "Use 6 coordinated health layers (H1–H6), not one monitor.",
+        "BIG-IP DNS (GTM) owns global site choice using Layer-7 checks of external & internal Virtual IPs (VIPs) with Specific Prober Pools.",
+        "LTM & Cloud Load Balancer (ELB) withdraw failed nodes locally (Action On Service Down = Reject; VS Reject on all-down).",
     ],
-    4.74,
-    1.95,
-    3.85,
-    3.15,
+    4.70,
+    1.85,
+    3.92,
+    3.32,
     CYAN,
     MID,
     NAVY,
-    10.4,
+    9.9,
 )
 bullet_block(
     s,
-    "Management risk to close",
+    "Key management risks to close",
     [
-        "Current GTM monitor depth, NAT Translation mappings (K14707), and prober model remain unknown/validate.",
-        "Port-up / default VS TCP 3WHS (K40554304) can be false green.",
-        "App teams must own L7 readiness & Receive Disable drain contracts.",
+        "Current BIG-IP 17.5.x GTM monitor depth, firewall NAT Translation mappings (K14707), and prober behavior remain unknown / to validate.",
+        "Port-up / default TCP handshake checks (K40554304) can show false green while the application is broken.",
+        "Partner teams must agree on Layer-7 readiness, graceful drain, and shared-dependency (App B) recovery contracts.",
     ],
-    8.88,
-    1.95,
-    3.85,
-    3.15,
+    8.85,
+    1.85,
+    3.92,
+    3.32,
     PALEYELLOW,
     ORANGE,
     NAVY,
-    10.4,
+    9.9,
 )
 add_text(
     s,
-    "Key decision: validate the current BIG-IP 17.5.x GTM health model first, then implement layered L7 health and evaluate F5OS tenant isolation during the hardware rebuild.",
-    0.6,
-    5.55,
-    12.13,
-    0.72,
-    13,
+    "Key decision: validate current BIG-IP 17.5.x GTM health first, deliver Phase 1 WAF resilience + layered L7 health, and align partner teams end-to-end ahead of the rSeries/VELOS F5OS rebuild (Glossary on Slide 16).",
+    0.55,
+    5.50,
+    12.22,
+    0.76,
+    12.0,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -255,61 +269,61 @@ add_text(
 )
 footer(s, 1)
 
-# Slide 2 — Separate Current State from Target State
+# Slide 2 — Separate Current State from Target State (+ Team Ownership)
 s = slide()
 title(
     s,
-    "Separate current state from target state",
-    "Management should clearly see what exists today (BIG-IP 17.5.x) versus what is proposed for the target rebuild.",
+    "Separate current state from target state (and team boundaries)",
+    "Management should clearly see what exists today (BIG-IP 17.5.x) versus what is proposed for the end-to-end target and hardware rebuild.",
 )
 bullet_block(
     s,
     "CURRENT / validated baseline (BIG-IP 17.5.x)",
     [
-        "2 sites; one BIG-IP DNS/GTM cluster per site inside edge firewall",
-        "2 × HA edge-firewall pairs/site (2 devices/pair); external VIPs on FW",
-        "Same edge GTM used for selected external + delegated internal names",
-        "Internal users, internal DNS & internal LTM outside private cloud",
-        "Separate internal firewall then private-cloud CFW → ELB → apps",
-        "BIG-IP 17.5.x (EoTS Jan 2029); current GTM monitor depth/probers: validate",
+        "2 sites; one BIG-IP DNS (GTM) cluster per site inside the edge firewall",
+        "Network/Security team: 2 × HA edge-firewall pairs/site (external VIPs) + separate internal firewall",
+        "F5/ADC team: tenant LTM HA pairs (2/tenant/site) + WAF tier (Phase 1 focus) + edge GTM",
+        "Cloud Platform team: private-cloud Cloud Firewall (CFW) → Cloud Load Balancer (ELB)",
+        "App teams: App A / B / C / D dependencies (mostly active/passive)",
+        "BIG-IP 17.5.x (EoTS Jan 2029); current GTM monitor depth & probers: validate",
     ],
-    0.6,
-    1.25,
-    5.85,
-    4.65,
+    0.55,
+    1.22,
+    5.92,
+    4.72,
     LIGHT,
     MID,
     NAVY,
-    11.0,
+    10.3,
 )
 bullet_block(
     s,
     "TARGET / to-be improvement & rebuild (21.1.x+ / F5OS)",
     [
-        "GTM L7 health of external VIPs + NAT Translation & Specific Prober Pools",
-        "GTM or authoritative internal LTM/iQuery L7 health of internal VIPs",
-        "App-team readiness contracts + Receive Disable drain (K12818)",
-        "Dependency-local B1 → B2 recovery (XD1) where state/data allow",
-        "Hardware rebuild to rSeries/VELOS F5OS (21.1.x+; 21.x drops iSeries/VIPRION/vCMP)",
-        "F5OS hardware-isolated tenants, cloud-init, ACMEv2 & independent SLO synthetics",
+        "GTM Layer-7 health of external VIPs + NAT Translation & Specific Prober Pools",
+        "GTM or authoritative internal LTM / iQuery Layer-7 health of internal VIPs",
+        "App-team readiness contracts + Receive Disable graceful drain (K12818)",
+        "Dependency-local App B1 → B2 recovery (XD1) where state/data allow",
+        "Hardware rebuild to rSeries/VELOS F5OS (21.1.x+; drops iSeries/VIPRION/vCMP)",
+        "F5OS per-tenant isolation, cloud-init, ACMEv2 & H6 independent synthetic SLO checks",
     ],
-    6.88,
-    1.25,
-    5.85,
-    4.65,
+    6.86,
+    1.22,
+    5.92,
+    4.72,
     PALEGREEN,
     RGBColor(92, 164, 82),
     TEAL,
-    11.0,
+    10.3,
 )
 add_text(
     s,
-    "Rule: target-state health arrows, F5OS rebuild features, and X2A/X2B/XD1 must not appear on the current-state diagram until deployed and validated.",
-    0.6,
+    "Rule: target-state health probes, F5OS rebuild features, and cross-site paths (X2A/X2B/XD1) must not appear on the current-state diagram until deployed and validated.",
+    0.55,
     6.20,
-    12.13,
+    12.23,
     0.56,
-    11.0,
+    10.6,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -318,7 +332,7 @@ add_text(
 )
 footer(s, 2)
 
-# Slides 3, 4, 5, 6 — Populated by replace_management_slides.py from the 4 authoritative SVGs
+# Slides 3, 4, 5, 6 — Populated by replace_management_slides.py from authoritative SVGs
 for _placeholder_title in (
     "Slide 3 placeholder — replaced by EnterpriseWAF_Architecture_Planes.svg",
     "Slide 4 placeholder — replaced by EnterpriseWAF_End_to_End_Topology.svg",
@@ -332,8 +346,8 @@ for _placeholder_title in (
 s = slide()
 title(
     s,
-    "GTM probing and convergence must be explicit",
-    "Synchronization shares global state, but does not automatically mean every GTM directly probes every remote endpoint.",
+    "BIG-IP DNS (GTM) probing and convergence must be explicit",
+    "Cluster synchronization shares global state, but does not automatically mean every GTM directly probes every remote endpoint.",
 )
 box(s, "Site 1\nGTM cluster", 0.65, 1.38, 2.05, 0.76, GREEN, NAVY, 12)
 box(s, "Site 2\nGTM cluster", 10.63, 1.38, 2.05, 0.76, GREEN, NAVY, 12)
@@ -355,13 +369,12 @@ add_text(
 steps = [
     ("1", "Path fails"),
     ("2", "Local detector\nsees failure"),
-    ("3", "GTM gets\nauthoritative state"),
+    ("3", "GTM gets\nhealth state"),
     ("4", "GTM global state\nconverges"),
     ("5", "DNS answer\nchanges"),
-    ("6", "TTL / cache +\nre-resolution"),
-    ("7", "T6 app\nrecovery"),
+    ("6", "DNS TTL cache\n+ re-lookup"),
+    ("7", "App recovery\n(T6)"),
 ]
-# 7 steps across x=0.45..12.88: each box w=1.48, gap=0.35 (room for crisp 0.27" arrow!)
 for i, (n, t) in enumerate(steps):
     x = 0.45 + i * 1.82
     add_text(s, n, x + 0.56, 2.52, 0.36, 0.34, 10.5, True, WHITE, PP_ALIGN.CENTER, NAVY2, NAVY2)
@@ -373,37 +386,37 @@ bullet_block(
     s,
     "If probes are site-local only",
     [
-        "Remote GTM learns failure through synchronization/timeout behavior",
-        "Measure that state-learning delay before DNS TTL",
-        "Do not assume 30s DNS TTL equals total failover time",
-        "Upgrade BIG-IP DNS first + big3d_install on LTMs (K25923322)",
+        "Remote GTM learns failure through synchronization / timeout behavior",
+        "Measure that state-learning delay before DNS Time-to-Live (TTL)",
+        "Do not assume 30s DNS TTL equals total user failover time",
+        "Upgrade BIG-IP DNS before LTM + push big3d health agent (K25923322)",
     ],
     0.65,
     4.18,
     5.8,
-    2.45,
+    2.48,
     PALEYELLOW,
     ORANGE,
     NAVY,
-    10.0,
+    9.9,
 )
 bullet_block(
     s,
     "Target prober rule (official F5 guardrails)",
     [
         "Configure Specific Prober Pools per zone (K08433560; avoid K000163083 fallback)",
-        "External FW NAT VIPs require Address + Translation (auto-discovery off, K14707)",
-        "Avoid duplicate monitors on both LTM VS & GTM VS (K5431)",
-        "Loss of inter-site link alone must never withdraw healthy local service",
+        "External FW NAT VIPs need Address + Translation (auto-discovery off, K14707)",
+        "Avoid duplicate monitors on both LTM & GTM Virtual Servers (K5431)",
+        "Loss of inter-site link alone must never withdraw a healthy local site",
     ],
     6.88,
     4.18,
     5.8,
-    2.45,
+    2.48,
     PALEGREEN,
     RGBColor(92, 164, 82),
     NAVY,
-    10.0,
+    9.9,
 )
 footer(s, 7)
 
@@ -412,9 +425,9 @@ s = slide()
 title(
     s,
     "Shared dependency failure can create a multi-application outage",
-    "Health design must avoid turning one App B failure into A / C / D site withdrawals.",
+    "End-to-end health design must avoid turning one shared App B failure into App A / C / D site withdrawals (App & Cloud team alignment).",
 )
-add_text(s, "Current / no dependency-local fallback", 0.6, 1.25, 5.9, 0.42, 13.5, True, RED, PP_ALIGN.CENTER, PALERED, RED)
+add_text(s, "Current / no dependency-local fallback", 0.6, 1.25, 5.9, 0.42, 13.0, True, RED, PP_ALIGN.CENTER, PALERED, RED)
 box(s, "App B local\nFAILS", 2.35, 1.95, 2.35, 0.7, PALERED, RED, 11)
 arrow(s, 3.52, 2.65, 1.52, 3.28, RED)
 arrow(s, 3.52, 2.65, 3.52, 3.28, RED)
@@ -428,29 +441,29 @@ add_text(
     4.42,
     5.55,
     0.88,
-    10.6,
+    10.4,
     True,
     RED,
     PP_ALIGN.CENTER,
     PALERED,
     RED,
 )
-add_text(s, "Target: dependency-local recovery", 6.8, 1.25, 5.9, 0.42, 13.5, True, TEAL, PP_ALIGN.CENTER, PALEGREEN, TEAL)
+add_text(s, "Target: dependency-local recovery (XD1)", 6.8, 1.25, 5.9, 0.42, 13.0, True, TEAL, PP_ALIGN.CENTER, PALEGREEN, TEAL)
 box(s, "App A / D stay local", 7.05, 2.0, 2.15, 0.65, GREEN, NAVY, 11)
-box(s, "B service VIP / discovery", 9.65, 2.0, 2.45, 0.65, CYAN, NAVY, 10)
+box(s, "App B service VIP /\ndiscovery (H5)", 9.65, 2.0, 2.45, 0.65, CYAN, NAVY, 9.8)
 arrow(s, 9.22, 2.32, 9.62, 2.32)
-box(s, "B1 Site 1\npreferred", 7.75, 3.3, 1.75, 0.68, GREEN, NAVY, 10)
-box(s, "B2 Site 2\nfallback", 10.2, 3.3, 1.75, 0.68, GREEN, NAVY, 10)
+box(s, "App B1 (Site 1)\npreferred", 7.75, 3.3, 1.75, 0.68, GREEN, NAVY, 9.8)
+box(s, "App B2 (Site 2)\nfallback", 10.2, 3.3, 1.75, 0.68, GREEN, NAVY, 9.8)
 arrow(s, 10.88, 2.65, 8.62, 3.28)
 arrow(s, 10.88, 2.65, 11.08, 3.28, TEAL, dash=True)
 add_text(
     s,
-    "B1 failure → withdraw B1 (LTM Reject, K15095) → bounded retry to B2 → A / D remain in Site 1",
+    "B1 failure → withdraw B1 (LTM Reject, K15095) → bounded retry to B2 → App A / D stay in Site 1",
     7.05,
     4.42,
     5.45,
     0.88,
-    10.5,
+    10.3,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -459,12 +472,12 @@ add_text(
 )
 add_text(
     s,
-    "Health contract caution: App A should not become globally unhealthy merely because an optional B/C feature is degraded.",
+    "Health contract caution: App A should not report globally unhealthy merely because an optional App B / C feature is degraded.",
     0.85,
     6.08,
     11.63,
     0.54,
-    10.5,
+    10.4,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -473,72 +486,109 @@ add_text(
 )
 footer(s, 8)
 
-# Slide 9 — WAF Topology Options
+# Slide 9 — Populated by replace_management_slides.py from EnterpriseWAF_Topology_Options.svg (visual diagrams for W1-W4, S1-S2, F5OS!)
 s = slide()
-title(
-    s,
-    "WAF topology options remain a separate decision",
-    "Health-monitoring target applies regardless of WAF topology; F5OS rebuild reframes S1 vs. Dedicated W1.",
-)
-cards = [
-    ("W1", "Tenant LTM → independent active WAF pool", "Best dedicated maintenance headroom; F5OS tenants on rSeries/VELOS can lower hardware footprint"),
-    ("W2", "WAF HA / DSC cluster", "Simple HA; pair boundary; AWAF mirroring requires licensed+provisioned LTM (max 2 devices)"),
-    ("W3", "Preferred WAFs + shared reserve (parallel)", "Dedicated normal path + lower-priority shared spare; reserve contention must be governed"),
-    ("W4", "Site 1 cluster + parallel extra WAF", "Stronger Site 1 headroom, but asymmetric DR capacity in Site 2"),
-    ("S1", "Tenant LTMs → shared active WAF pool", "Preferred 17.5.x cost/resilience candidate; use Parent/Child policies + Route Domains"),
-    ("S2", "Shared LTM + shared WAF pool", "Future consolidation only; largest common-mode blast radius across tenants"),
-]
-for i, (k, d, r) in enumerate(cards):
-    x = 0.55 + (i % 3) * 4.18
-    y = 1.25 + (i // 3) * 2.45
-    add_text(s, k, x, y, 3.88, 0.42, 15.5, True, NAVY, PP_ALIGN.LEFT, GREEN if k in ("W1", "S1") else LIGHT, NAVY)
-    add_text(s, d, x, y + 0.48, 3.88, 0.72, 10.3, True, DARK, PP_ALIGN.LEFT, WHITE, MID)
-    add_text(s, r, x, y + 1.26, 3.88, 0.82, 8.9, False, SLATE, PP_ALIGN.LEFT, WHITE, MID)
 add_text(
     s,
-    "Recommendation: validate S1 on current 17.5.x hardware; for the rSeries/VELOS F5OS rebuild, evaluate dedicated per-tenant F5OS WAF tenants spread across physical hosts.",
-    0.55,
-    6.28,
-    12.24,
-    0.58,
-    10.4,
-    True,
-    NAVY,
+    "Slide 9 placeholder — replaced by EnterpriseWAF_Topology_Options.svg",
+    1.0,
+    3.2,
+    11.3,
+    0.6,
+    14,
+    False,
+    SLATE,
     PP_ALIGN.CENTER,
-    PALEGREEN,
-    RGBColor(92, 164, 82),
+    radius=False,
 )
-footer(s, 9)
 
-# Slide 10 — 99.95% Availability & Recovery Domains (fixed table clearance!)
+# Slide 10 — 99.95% Availability (Managed + Unmanaged Outages) & Recovery Classes (R0-R4 Explained!)
 s = slide()
 title(
     s,
-    "99.95% availability depends on recovery domain",
-    "Routine failures should remain local; GTM/site failover is for endpoint/site failure, not every member failure.",
+    "99.95% total availability (managed + unmanaged outages)",
+    "Budget covers BOTH planned maintenance and unplanned failures combined; routine failures must stay local (R0/R1).",
 )
-add_text(s, "99.95% budget", 0.55, 1.28, 2.25, 0.42, 14, True, WHITE, PP_ALIGN.CENTER, NAVY, NAVY)
-add_text(s, "4h 22m 48s\nper year", 0.55, 1.76, 2.25, 1.05, 19, True, WHITE, PP_ALIGN.CENTER, NAVY2, NAVY2)
-add_text(s, "21m 54s / month\n~5m 2s / week", 0.55, 2.88, 2.25, 0.72, 10.5, True, NAVY, PP_ALIGN.CENTER, LIGHT, MID)
-rows = [
-    ("1 backend / Pod / VM", "local ELB / LTM", "R0 / R1"),
-    ("1 WAF node", "local LTM WAF pool (Action=Reject)", "R0 / R1"),
-    ("1 LTM peer", "HA peer (3s default + convergence)", "R1"),
-    ("whole external endpoint path", "GTM external L7", "R3 or X2"),
-    ("whole internal endpoint path", "GTM / internal L7", "internal endpoint move"),
-    ("App B local", "service VIP / discovery", "XD1 target"),
-    ("whole site", "GTM + DR", "R3"),
-]
-# y=1.28, headh=0.50, 7 rows * 0.56 = 3.92 => ends at y=5.70 (0.52" clean gap before banner at y=6.22!)
-simple_table(s, ["Failure", "Best recovery domain", "Target class"], rows, 3.05, 1.28, [3.95, 3.75, 2.05], rowh=0.56, fs=9.2, headh=0.50)
+# Left panel: 99.95% Total Budget + inline Recovery Class Key (R0-R4)
+add_text(s, "99.95% TOTAL budget", 0.45, 1.18, 3.35, 0.38, 12.5, True, WHITE, PP_ALIGN.CENTER, NAVY, NAVY)
 add_text(
     s,
-    "Management test: planned maintenance should usually be no-outage or seconds-scale, with enough redundancy left for one additional credible failure (in-place upgrade remains experimental in 21.1.x).",
-    0.55,
-    6.20,
-    12.25,
+    "4h 22m 48s / year\n(21m 54s/mo • ~5m 2s/wk)",
+    0.45,
+    1.60,
+    3.35,
+    0.78,
+    12.0,
+    True,
+    WHITE,
+    PP_ALIGN.CENTER,
+    NAVY2,
+    NAVY2,
+)
+add_text(
+    s,
+    "Includes BOTH managed (planned changes/patching) & unmanaged (unplanned) outages combined",
+    0.45,
+    2.44,
+    3.35,
+    0.66,
+    8.9,
+    True,
+    RED,
+    PP_ALIGN.CENTER,
+    PALERED,
+    RED,
+)
+bullet_block(
+    s,
+    "Recovery classes (R0–R4)",
+    [
+        "R0 — Zero user impact (hidden by HA/pool)",
+        "R1 — Auto local recovery (seconds-scale)",
+        "R2 — Auto cross-site component / dependency (X2A / X2B / XD1)",
+        "R3 — Auto site / DNS failover (TTL + app)",
+        "R4 — Manual / warm-DR recovery (minutes+)",
+    ],
+    0.45,
+    3.22,
+    3.35,
+    2.78,
+    LIGHT,
+    MID,
+    TEAL,
+    8.5,
+)
+
+rows = [
+    ("Planned node maintenance", "Rolling drain (Receive Disable, K12818)", "R0 / R1 (no outage)"),
+    ("1 backend / Pod / VM", "Local Cloud ELB / LTM pool (H2)", "R0 / R1 (local auto)"),
+    ("1 WAF node", "Local LTM WAF pool (Action=Reject)", "R0 / R1 (local auto)"),
+    ("1 LTM HA peer", "HA peer failover (~3s + convergence)", "R1 (local auto)"),
+    ("Whole local WAF tier", "Cross-site WAF borrow (X2A) or GTM", "R2 (X2A) or R3"),
+    ("Whole external / internal path", "BIG-IP DNS (GTM) L7 steering (H3/H4)", "R3 (site/VIP move)"),
+    ("Shared App B local failure", "App B service VIP fallback (H5 / XD1)", "R2 (XD1 local stay)"),
+    ("Whole site failure", "BIG-IP DNS (GTM) + Site 2 DR", "R3 (or R4 if manual)"),
+]
+# y=1.18, headh=0.44, 8 rows * 0.54 = 4.32 => ends at y=5.94 (clean gap before banner at y=6.18!)
+simple_table(
+    s,
+    ["Outage / failure event", "Best recovery domain & tier", "Target recovery class"],
+    rows,
+    4.00,
+    1.18,
+    [2.95, 3.65, 2.25],
+    rowh=0.54,
+    fs=8.8,
+    headh=0.44,
+)
+add_text(
+    s,
+    "Management test: because managed maintenance shares the same 4h 22m 48s/year budget, planned changes must be rolling R0/R1 with redundancy left for one extra failure (in-place upgrade is still experimental in 21.1.x).",
+    0.45,
+    6.18,
+    12.40,
     0.62,
-    10.4,
+    9.8,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -547,23 +597,23 @@ add_text(
 )
 footer(s, 10)
 
-# Slide 11 — Cross-Site Capability (fixed single-line title + top-aligned bullets!)
+# Slide 11 — Cross-Site Contingency Capability (Target R2 Patterns)
 s = slide()
 title(
     s,
-    "Cross-site capability: target contingency, not dependency",
-    "Design early where it materially reduces failure-domain escalation; require SNAT Pool + XFF trust for route-back.",
-    tsize=22,
+    "Cross-site capability (R2): target contingency, not dependency",
+    "Design early where it avoids full site failover; requires Source NAT (SNAT) Pool + X-Forwarded-For (XFF) trust for route-back.",
+    tsize=21.5,
 )
 bullet_block(
     s,
-    "X2A remote WAF",
+    "X2A — Remote WAF borrow",
     [
-        "Local LTM survives; borrows Site 2 WAF",
-        "Routes back to healthy local CFW / app",
-        "Avoids DNS TTL & application DR move",
-        "Requires SNAT Pool + HTTP XFF + AWAF Trust XFF (K4816)",
-        "Cannot bypass a failed local CFW",
+        "Local LTM survives; borrows Site 2 WAF pool",
+        "Routes traffic back to healthy local Cloud FW / app",
+        "Avoids DNS TTL delay & full application DR move",
+        "Requires SNAT Pool + HTTP X-Forwarded-For (XFF) + AWAF Trust XFF (K4816)",
+        "Cannot bypass a failed local Cloud Firewall (CFW)",
     ],
     0.55,
     1.28,
@@ -572,16 +622,16 @@ bullet_block(
     PALEGREEN,
     MID,
     TEAL,
-    10.4,
+    10.0,
 )
 bullet_block(
     s,
-    "X2B remote front-end",
+    "X2B — Remote front-end route-back",
     [
-        "Local edge / LTM / WAF tier lost",
-        "Remote edge / LTM / WAF serves client",
-        "Routes back across inter-site link to healthy Site 1 CFW / app",
-        "Still incurs GTM / DNS TTL convergence",
+        "Local edge FW / LTM / WAF tier lost",
+        "Site 2 edge / LTM / WAF receives external client",
+        "Routes back over inter-site link to healthy Site 1 Cloud FW / app",
+        "Still incurs GTM / DNS Time-to-Live (TTL) convergence",
         "Degraded split-site state; validate firewall symmetry",
     ],
     4.76,
@@ -591,16 +641,16 @@ bullet_block(
     LIGHT,
     MID,
     TEAL,
-    10.4,
+    10.0,
 )
 bullet_block(
     s,
-    "XD1 dependency fallback",
+    "XD1 — Dependency fallback (App B)",
     [
-        "App A / D remain in Site 1",
-        "B service VIP prefers local B1",
-        "B2 in Site 2 acts as lower-priority fallback",
-        "Prevents shared-B cascade across apps",
+        "App A and App D remain running in Site 1",
+        "App B service VIP prefers local Site 1 (B1)",
+        "Site 2 (B2) acts as lower-priority fallback",
+        "Prevents shared App B cascade across multiple apps",
         "Requires bounded timeouts, retry budget & compatible state",
     ],
     8.98,
@@ -610,16 +660,16 @@ bullet_block(
     GREEN,
     MID,
     TEAL,
-    10.4,
+    10.0,
 )
 add_text(
     s,
-    "Invariant: healthy local service must not depend on the inter-site link. Test network partition while both sites are otherwise healthy.",
+    "Invariant: healthy local service must never depend on the inter-site link. Always test inter-site network partition while both sites are healthy.",
     0.55,
     6.18,
     12.23,
     0.56,
-    10.8,
+    10.5,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -628,45 +678,45 @@ add_text(
 )
 footer(s, 11)
 
-# Slide 12 — Application Types (top-aligned bullets, clean spacing!)
+# Slide 12 — Application Types (AT1-AT4) & End-to-End Recovery
 s = slide()
 title(
     s,
-    "Application type determines the real recovery time",
-    "Infrastructure can recover first while sessions, sockets or transactions remain broken.",
+    "Application type (AT1–AT4) determines real recovery time",
+    "Infrastructure can recover first while sessions, WebSockets, or business transactions remain broken (App Team responsibility).",
 )
 cols = [
     (
-        "AT1 Stateless web",
+        "AT1: Stateless web",
         [
-            "Safe automated retry",
-            "Idempotency on writes",
+            "Safe automated client retry",
+            "Idempotency on write calls",
             "External / shared state only",
-            "Fast LTM member withdrawal",
+            "Fast LTM pool member withdrawal",
         ],
     ),
     (
-        "AT2 Stateful web",
+        "AT2: Stateful web",
         [
-            "Portable / replicated session state",
-            "Re-authentication & reconstruction",
+            "Portable or replicated session state",
+            "Re-authentication & session rebuild",
             "Transaction reconciliation",
             "Confirm state parity before DR",
         ],
     ),
     (
-        "AT3 WebSocket",
+        "AT3: WebSocket / real-time",
         [
             "Reconnect + backoff / jitter",
             "Re-auth + resubscribe + replay",
-            "AWAF needs WS profile; NO OneConnect (K000151124)",
+            "AWAF needs WebSocket profile; NO OneConnect (K000151124)",
             "Mirroring max 2 devices & resets on failback (21.1 unchanged)",
         ],
     ),
     (
-        "AT4 Non-web / L4",
+        "AT4: Non-web / Layer-4",
         [
-            "May bypass external WAF",
+            "May bypass external WAF tier",
             "Protocol-specific reconnect",
             "DNS / service re-resolution",
             "Safe transaction replay",
@@ -675,15 +725,15 @@ cols = [
 ]
 fills = [GREEN, RGBColor(225, 238, 252), PURPLE, RGBColor(224, 244, 242)]
 for i, (h, items) in enumerate(cols):
-    bullet_block(s, h, items, 0.5 + i * 3.16, 1.28, 2.86, 4.55, fills[i], MID, NAVY, 10.0)
+    bullet_block(s, h, items, 0.5 + i * 3.16, 1.28, 2.86, 4.55, fills[i], MID, NAVY, 9.8)
 add_text(
     s,
-    "GTM L7 health answers “can this endpoint accept new traffic?”; application recovery T6 answers “has the user/business flow actually recovered?”",
+    "GTM Layer-7 health answers “can this endpoint accept new traffic?”; Application recovery (T6) answers “has the user/business flow actually recovered?”",
     0.5,
     6.18,
     12.33,
     0.56,
-    10.5,
+    10.4,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -692,41 +742,43 @@ add_text(
 )
 footer(s, 12)
 
-# Slide 13 — Four-Tenant Cost vs Blast Radius (fixed table-vs-callout overlap!)
+# Slide 13 — Four-Tenant Device Counts (EXPLICIT LTM vs WAF Breakdown!)
 s = slide()
 title(
     s,
-    "Four-tenant infrastructure efficiency vs blast radius",
-    "Illustrative LTM + WAF device units across two sites — not vendor pricing (see F5OS note for target rebuild).",
+    "Four-tenant device counts (LTM + WAF) vs blast radius",
+    "Explicit 2-site breakdown across 4 tenants (LTM + WAF devices only; excludes GTM clusters & firewalls) — not vendor pricing.",
 )
 rows = [
-    ("Dedicated W1 — 3 WAF/tenant (physical/VE)", "40", "Low"),
-    ("W3 — 2 preferred + shared reserve", "36", "Medium"),
-    ("Dedicated W1 — 2 WAF/tenant", "32", "Low"),
-    ("S1 — tenant LTMs + shared active WAF pool", "24", "High at WAF tier"),
-    ("Rebuild option: F5OS per-tenant WAFs on shared rSeries/VELOS*", "Fewer hosts", "Low OS/policy; host-spread required"),
-    ("S2 — shared LTM + shared WAF pool (out of current scope)", "12", "Very high"),
+    ("W1 (3 WAF/tenant/site) — dedicated active pool", "16", "24", "40", "Low (per-tenant)"),
+    ("W3 — 2 preferred/tenant + 2 shared reserve/site", "16", "20", "36", "Medium (shared reserve)"),
+    ("W4a — asymmetric (3 WAF S1 / 2 WAF S2 per tenant)", "16", "20", "36", "Low (weaker Site 2 DR)"),
+    ("W1 (2 WAF/tenant) or W2b (2-node WAF cluster + LTM)", "16", "16", "32", "Low (tight maintenance)"),
+    ("S1 — tenant LTMs + 4 shared active WAFs/site", "16", "8", "24", "High at WAF tier"),
+    ("Rebuild: F5OS per-tenant WAFs on rSeries/VELOS*", "16 (or tenants)", "F5OS tenants*", "Fewer physical hosts", "Low OS/policy; host-spread"),
+    ("S2 — shared LTM + shared WAF (out of current scope)", "4", "8", "12", "Very high (all tenants)"),
 ]
-# y=1.25, headh=0.52, 6 rows * 0.62 = 3.72 => ends at y=5.49 (0.68" clean gap before banner at y=6.17!)
+# y=1.18, headh=0.46, 7 rows * 0.54 = 3.78 => ends at y=5.42 (clean gap before note & callout!)
 simple_table(
     s,
-    ["Architecture", "Device units", "Cross-tenant blast radius"],
+    ["Topology option (see Slide 9 diagrams)", "LTM devices\n(2 sites)", "WAF devices\n(2 sites)", "Total LTM+WAF\n(2 sites)", "Cross-tenant\nblast radius"],
     rows,
-    0.55,
-    1.25,
-    [6.15, 2.05, 4.05],
-    rowh=0.62,
-    fs=9.6,
-    headh=0.52,
+    0.45,
+    1.18,
+    [4.75, 1.50, 1.60, 1.85, 2.75],
+    rowh=0.54,
+    fs=8.9,
+    headh=0.50,
+    aligns=[PP_ALIGN.LEFT, PP_ALIGN.CENTER, PP_ALIGN.CENTER, PP_ALIGN.CENTER, PP_ALIGN.CENTER],
 )
 add_text(
     s,
-    "*On rSeries (r4000–r12000; not r2000) or VELOS, F5OS tenants isolate OS, policy and upgrades per tenant while consolidating hardware — spread each tenant’s WAFs across physical hosts.",
-    0.55,
-    5.62,
-    12.25,
-    0.42,
-    9.0,
+    "*Basis: 4 tenants × 2 sites; standard tenant LTM baseline = 2 LTMs/tenant/site (16 LTMs total). On rSeries (r4000–r12000; not r2000) or VELOS, F5OS tenants isolate OS, policy, and upgrades per tenant on fewer physical hosts (spread each tenant’s WAFs across physical hosts).",
+    0.45,
+    5.54,
+    12.45,
+    0.48,
+    8.6,
     False,
     SLATE,
     PP_ALIGN.LEFT,
@@ -734,12 +786,12 @@ add_text(
 )
 add_text(
     s,
-    "Health design does not remove shared-platform risk: a bad shared WAF policy/configuration or exhausted shared capacity can still affect several tenants at once.",
-    0.55,
+    "Health design does not eliminate shared-platform blast radius: a bad shared WAF policy/config or capacity surge in S1/S2 can still impact multiple tenants simultaneously.",
+    0.45,
     6.16,
-    12.25,
+    12.45,
     0.58,
-    10.4,
+    10.2,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -748,54 +800,54 @@ add_text(
 )
 footer(s, 13)
 
-# Slide 14 — Target Implementation Sequence & Decision Gates (clean arrow spacing!)
+# Slide 14 — End-to-End Implementation Sequence & Cross-Team Gates
 s = slide()
 title(
     s,
-    "Target implementation sequence and decision gates",
-    "Inventory first; then health contracts; then Layer-7 steering; then rebuild / cross-site contingency.",
+    "End-to-end implementation sequence (Phase 1: WAF & F5 tier)",
+    "Start with F5/WAF & GTM validation we own directly, while aligning Network/Security, Cloud Platform, and App teams on contracts.",
 )
 phases = [
-    ("0", "Inventory current\nmonitors, NAT &\nprobers"),
-    ("1", "Define app\nreadiness & drain\ncontracts"),
-    ("2", "Implement ext +\nint L7 endpoint\nhealth"),
-    ("3", "Add Specific\nProber Pools &\nvisibility"),
-    ("4", "Pilot B1 → B2\ndependency\nrecovery"),
+    ("0", "Inventory current\nmonitors, NAT &\nprobers (F5)"),
+    ("1", "Phase 1: WAF tier\ndesign + app L7\ncontracts"),
+    ("2", "Implement ext +\nint L7 VIP health\n(F5 + NetSec)"),
+    ("3", "Add Specific\nProber Pools &\nH6 synthetics"),
+    ("4", "Pilot App B1→B2\nXD1 recovery\n(App + Cloud)"),
     ("5", "Plan rSeries/VELOS\n21.1.x+ rebuild &\nX2A/X2B"),
-    ("6", "Fault-inject &\nmeasure 99.95%\nevidence"),
+    ("6", "Fault-inject &\nprove 99.95%\n(mgmt + unmgmt)"),
 ]
 for i, (n, t) in enumerate(phases):
     x = 0.45 + i * 1.82
     add_text(s, n, x + 0.56, 1.18, 0.36, 0.34, 10.5, True, WHITE, PP_ALIGN.CENTER, TEAL, TEAL)
-    add_text(s, t, x, 1.58, 1.48, 1.02, 8.6, True, DARK, PP_ALIGN.CENTER, LIGHT, MID)
+    add_text(s, t, x, 1.58, 1.48, 1.02, 8.4, True, DARK, PP_ALIGN.CENTER, LIGHT, MID)
     if i < 6:
         arrow(s, x + 1.52, 2.09, x + 1.78, 2.09, TEAL, width=2.0)
 
 checks = [
-    "external + internal VIP health contracts documented",
-    "one member failure remains local (Action=Reject)",
-    "GTM never advertises broken required service path",
-    "inter-site link loss does not withdraw healthy site",
-    "GTM / prober / sync convergence measured",
-    "App A / B / C / D cascade & XD1 tested",
+    "external + internal VIP health contracts signed with App/NetSec",
+    "1 WAF or backend failure stays local R0/R1 (Action=Reject)",
+    "GTM never advertises a broken required service path",
+    "inter-site link loss never withdraws a healthy local site",
+    "GTM / prober / sync convergence time measured end-to-end",
+    "App A / B / C / D cascade & XD1 fallback tested with App teams",
     "AT3 WebSocket / stateful T6 & no-OneConnect verified",
-    "planned maintenance + extra failure tested (GTM first)",
-    "platform-migrate validate & rollback/failback tested",
+    "managed maintenance + extra failure tested (GTM upgraded first)",
+    "platform-migrate validate & rollback/failback tested for rebuild",
 ]
-add_text(s, "Before claiming target readiness", 0.55, 2.95, 4.5, 0.38, 13, True, NAVY, radius=False)
+add_text(s, "Cross-team acceptance gates before claiming 99.95% readiness", 0.55, 2.95, 7.5, 0.38, 12.5, True, NAVY, radius=False)
 for i, ch in enumerate(checks):
     x = 0.55 + (i % 3) * 4.12
     y = 3.48 + (i // 3) * 0.78
     add_text(s, "✓", x, y, 0.30, 0.34, 11, True, TEAL, PP_ALIGN.CENTER, radius=False)
-    add_text(s, ch, x + 0.32, y, 3.65, 0.52, 9.0, False, DARK, radius=False)
+    add_text(s, ch, x + 0.32, y, 3.65, 0.54, 8.8, False, DARK, radius=False)
 add_text(
     s,
-    "Change safety remains part of the SLO: never change both sites together; upgrade BIG-IP DNS before LTM (big3d_install); drain one member at a time; preserve rollback.",
+    "Managed-change safety is part of the 99.95% SLO: never change both sites together; upgrade BIG-IP DNS before LTM (big3d_install); drain one node at a time; preserve rollback.",
     0.55,
     6.16,
     12.25,
     0.60,
-    10.2,
+    10.0,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -804,26 +856,36 @@ add_text(
 )
 footer(s, 14)
 
-# Slide 15 — Timing Shorthand Appendix (fixed table-vs-callout overlap!)
+# Slide 15 — Appendix A: Recovery Timing Shorthand (T1-T9)
 s = slide()
 title(
     s,
-    "Appendix — timing shorthand",
-    "Planning categories, not SLAs. Measure end-to-end from fault to the first successful business transaction.",
+    "Appendix A — recovery timing shorthand (T1–T9)",
+    "Planning categories, not vendor SLAs. Always measure end-to-end from fault to the first successful business transaction.",
 )
 rows = [
     ("T1", "BIG-IP HA peer / device failover", "~3s+ detection (Failover.NetTimeoutSec=3) + convergence"),
-    ("T2", "LTM / WAF member detection", "commonly up to ~16s (5s/16s default); set Action=Reject"),
+    ("T2", "LTM / WAF pool member detection", "commonly up to ~16s (5s/16s default); set Action=Reject"),
     ("T3", "GTM health observation", "monitor / config specific (direct default 30s / 120s)"),
-    ("T4", "GTM state + DNS convergence", "state learning/sync + answer + TTL (30s default) / re-resolution"),
+    ("T4", "GTM state + DNS convergence", "state learning/sync + answer + DNS TTL (30s default) / re-lookup"),
     ("T5", "Manual / warm / cold recovery", "minutes+; procedure and passive-app startup dependent"),
-    ("T6", "Application recovery", "retry / reconnect / re-auth / state / replay"),
-    ("T7", "Failback", "controlled return (auto-failback default 60s when enabled)"),
-    ("T8", "DNS / cache / existing connection", "behaviour modifier, not a duration"),
-    ("T9", "CFW recovery", "product/config specific; measure separately from internal FW"),
+    ("T6", "Application recovery", "client retry / reconnect / re-auth / session state / replay"),
+    ("T7", "Failback", "controlled return to primary (auto-failback default 60s if enabled)"),
+    ("T8", "DNS / cache / existing sockets", "behavior modifier (existing TCP sockets stay pinned), not a duration"),
+    ("T9", "Cloud Firewall (CFW) recovery", "product/config specific; measure separately from internal firewall"),
 ]
-# y=1.18, headh=0.44, 9 rows * 0.48 = 4.32 => ends at y=5.94 (0.34" clean gap before banner at y=6.28!)
-simple_table(s, ["ID", "Meaning", "Management interpretation"], rows, 0.55, 1.18, [0.95, 4.15, 7.15], rowh=0.48, fs=8.9, headh=0.44)
+simple_table(
+    s,
+    ["Code", "Meaning", "Management interpretation"],
+    rows,
+    0.55,
+    1.18,
+    [0.95, 4.15, 7.15],
+    rowh=0.48,
+    fs=8.9,
+    headh=0.44,
+    aligns=[PP_ALIGN.CENTER, PP_ALIGN.LEFT, PP_ALIGN.LEFT],
+)
 add_text(
     s,
     "Critical addition: where GTM health is site-local only, include the measured GTM synchronization/state-learning delay before DNS TTL and T6.",
@@ -831,7 +893,7 @@ add_text(
     6.28,
     12.25,
     0.50,
-    10.2,
+    10.0,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -839,6 +901,75 @@ add_text(
     RGBColor(92, 164, 82),
 )
 footer(s, 15)
+
+# Slide 16 — Appendix B: Executive Glossary of Acronyms & Shorthand Codes (NEW!)
+s = slide()
+title(
+    s,
+    "Appendix B — executive glossary of acronyms & codes",
+    "Plain-English definitions of every F5, infrastructure, health-layer, topology, and recovery code used in this deck.",
+)
+left_terms = [
+    ("GTM / BIG-IP DNS", "Global Traffic Manager — F5 DNS control plane for site selection"),
+    ("LTM", "Local Traffic Manager — F5 local load balancer & Virtual IP tier"),
+    ("WAF / AWAF", "Web Application Firewall / F5 Advanced WAF (formerly ASM)"),
+    ("VIP / VS", "Virtual IP / Virtual Server — published application endpoint"),
+    ("DSC", "Device Service Clustering — F5 HA synchronization/failover group"),
+    ("F5OS", "F5 hardware hypervisor on rSeries / VELOS hosting isolated tenants"),
+    ("iQuery / big3d", "F5 protocol & agent sharing LTM/VS health metrics with GTM"),
+    ("CFW / ELB", "Private-Cloud Firewall / Enterprise (Cloud) Load Balancer"),
+    ("SNAT / XFF", "Source NAT Pool (symmetric return) / X-Forwarded-For client IP header"),
+]
+right_terms = [
+    ("H1 / H2", "Health layers: H1 = Device HA failover • H2 = Local LTM/ELB pool member"),
+    ("H3 / H4", "Health layers: H3 = External VIP (GTM) • H4 = Internal VIP (GTM/LTM)"),
+    ("H5 / H6", "Health layers: H5 = Shared dependency (App B) • H6 = Independent synthetic SLO"),
+    ("R0 / R1", "Recovery classes: R0 = Zero user impact • R1 = Auto local recovery (secs)"),
+    ("R2 / R3 / R4", "R2 = Cross-site component • R3 = Auto site/DNS failover • R4 = Manual DR"),
+    ("W1 – W4", "Dedicated WAF topologies (active pool, DSC cluster, reserve, asymmetric)"),
+    ("S1 / S2", "Shared WAF topologies (S1 = tenant LTMs + shared WAF; S2 = both shared)"),
+    ("X2A / X2B / XD1", "Cross-site R2 patterns: remote WAF, remote front-end, App B fallback"),
+    ("AT1 – AT4 / SLO", "App types (stateless, stateful, WebSocket, L4) • Service Level Objective"),
+]
+simple_table(
+    s,
+    ["Term / Code", "Plain-English definition"],
+    left_terms,
+    0.45,
+    1.18,
+    [1.80, 4.25],
+    rowh=0.52,
+    fs=8.5,
+    headh=0.42,
+    aligns=[PP_ALIGN.CENTER, PP_ALIGN.LEFT],
+)
+simple_table(
+    s,
+    ["Code / Layer", "Plain-English definition"],
+    right_terms,
+    6.75,
+    1.18,
+    [1.70, 4.43],
+    rowh=0.52,
+    fs=8.5,
+    headh=0.42,
+    aligns=[PP_ALIGN.CENTER, PP_ALIGN.LEFT],
+)
+add_text(
+    s,
+    "Note: Reference codes (e.g., K14707, K12818, K08433560) refer to official MyF5 Knowledge Base articles summarized in the repository’s F5 documentation reference tables.",
+    0.45,
+    6.42,
+    12.43,
+    0.44,
+    9.4,
+    True,
+    NAVY,
+    PP_ALIGN.CENTER,
+    LIGHT,
+    MID,
+)
+footer(s, 16)
 
 prs.save(OUT)
 print(OUT)

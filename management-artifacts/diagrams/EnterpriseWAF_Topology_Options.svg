@@ -1,0 +1,326 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+<defs>
+  <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7.5,3 z" fill="#073b64"/></marker>
+  <marker id="arrT" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7.5,3 z" fill="#0f8b8d"/></marker>
+  <marker id="arrTS" markerWidth="8" markerHeight="8" refX="0.5" refY="3" orient="auto"><path d="M7.5,0 L7.5,6 L0,3 z" fill="#0f8b8d"/></marker>
+  <marker id="arrO" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7.5,3 z" fill="#d17714"/></marker>
+  <style>
+    .t{font-family:Liberation Sans,Arial,sans-serif;fill:#162432}
+    .sub{font-family:Liberation Sans,Arial,sans-serif;fill:#536575}
+    .h{font-family:Liberation Sans,Arial,sans-serif;fill:#ffffff;font-weight:bold}
+    .hd{font-family:Liberation Sans,Arial,sans-serif;fill:#073b64;font-weight:bold}
+    .ltm{fill:#dcf5f8;stroke:#073b64;stroke-width:1.6;rx:7}
+    .waf{fill:#ccefed;stroke:#0f8b8d;stroke-width:1.6;rx:7}
+    .res{fill:#fff7dc;stroke:#d17714;stroke-width:1.6;stroke-dasharray:5 3;rx:7}
+    .cfw{fill:#ede8ff;stroke:#5c4cd2;stroke-width:1.5;rx:7}
+    .ten{fill:#f5f8fb;stroke:#94a3b8;stroke-width:1.3;rx:6}
+    .fl{stroke:#073b64;stroke-width:2.0;fill:none;marker-end:url(#arr)}
+    .flO{stroke:#d17714;stroke-width:1.8;fill:none;stroke-dasharray:5 4;marker-end:url(#arrO)}
+    .sy{stroke:#0f8b8d;stroke-width:1.8;fill:none;stroke-dasharray:4 3;marker-start:url(#arrTS);marker-end:url(#arrT)}
+  </style>
+</defs>
+
+<rect width="1600" height="900" fill="#f8fafc"/>
+
+<!-- Title & Legend -->
+<text x="34" y="40" class="t" font-size="28" font-weight="bold" fill="#073b64">WAF tier topology options (within end-to-end application delivery)</text>
+<text x="36" y="65" class="sub" font-size="14">Initial focus is the F5 WAF tier; mini-diagrams show one site per option (4-tenant / 2-site LTM + WAF counts noted). LTM = Local Traffic Manager; DSC = HA Cluster.</text>
+
+<rect x="1038" y="14" width="528" height="36" rx="9" fill="#ffffff" stroke="#d9e6ef" stroke-width="1.5"/>
+<rect x="1052" y="23" width="18" height="18" class="ltm"/>
+<text x="1077" y="37" class="t" font-size="12" font-weight="bold">LTM HA</text>
+<rect x="1138" y="23" width="18" height="18" class="waf"/>
+<text x="1163" y="37" class="t" font-size="12" font-weight="bold">Active WAF</text>
+<rect x="1244" y="23" width="18" height="18" class="res"/>
+<text x="1269" y="37" class="t" font-size="12" font-weight="bold">Standby / Reserve</text>
+<line x1="1388" y1="32" x2="1418" y2="32" class="fl"/>
+<text x="1425" y="37" class="t" font-size="12" font-weight="bold">Traffic</text>
+<line x1="1476" y1="32" x2="1506" y2="32" class="flO"/>
+<text x="1513" y="37" class="t" font-size="12" font-weight="bold">Fallback</text>
+
+<!-- ================= ROW 1: W1, W2, W3 ================= -->
+
+<!-- CARD W1 (Highlighted: Highest-Isolation Fallback) -->
+<rect x="34" y="88" width="492" height="312" rx="14" fill="#ffffff" stroke="#5ca452" stroke-width="2.2"/>
+<rect x="34" y="88" width="492" height="38" rx="12" fill="#dff5c1"/>
+<rect x="34" y="112" width="492" height="14" fill="#dff5c1"/>
+<line x1="34" y1="126" x2="526" y2="126" stroke="#5ca452" stroke-width="1.5"/>
+<text x="50" y="113" class="hd" font-size="15">W1 — Dedicated LTM + Active WAF Pool</text>
+<rect x="372" y="96" width="142" height="22" rx="6" fill="#073b64"/>
+<text x="443" y="111" text-anchor="middle" class="h" font-size="11">High-Isolation Option</text>
+
+<!-- W1 Mini Diagram -->
+<text x="280" y="146" text-anchor="middle" class="sub" font-size="11.5" font-weight="bold">Per Tenant / Per Site (independent active pool, load-balanced by LTM)</text>
+<rect x="52" y="182" width="96" height="62" class="ltm"/>
+<text x="100" y="209" text-anchor="middle" class="t" font-size="12.5" font-weight="bold">Tenant LTM</text>
+<text x="100" y="227" text-anchor="middle" class="sub" font-size="11">2-node HA</text>
+
+<rect x="206" y="158" width="122" height="32" class="waf"/>
+<text x="267" y="179" text-anchor="middle" class="t" font-size="12" font-weight="bold">Active WAF 1</text>
+<rect x="206" y="198" width="122" height="32" class="waf"/>
+<text x="267" y="219" text-anchor="middle" class="t" font-size="12" font-weight="bold">Active WAF 2</text>
+<rect x="206" y="238" width="122" height="32" class="waf"/>
+<text x="267" y="259" text-anchor="middle" class="t" font-size="12" font-weight="bold">Active WAF 3</text>
+<text x="267" y="286" text-anchor="middle" class="sub" font-size="10.5">(2 or 3 independent WAFs; no DSC cluster)</text>
+
+<rect x="394" y="182" width="114" height="62" class="cfw"/>
+<text x="451" y="209" text-anchor="middle" class="t" font-size="12" font-weight="bold">Private Cloud</text>
+<text x="451" y="227" text-anchor="middle" class="sub" font-size="11">CFW → ELB</text>
+
+<path d="M148 202 L203 174" class="fl"/>
+<path d="M148 213 H203" class="fl"/>
+<path d="M148 224 L203 254" class="fl"/>
+<path d="M328 174 L391 202" class="fl"/>
+<path d="M328 214 H391" class="fl"/>
+<path d="M328 254 L391 224" class="fl"/>
+
+<!-- W1 Bottom Summary -->
+<rect x="46" y="328" width="468" height="60" rx="8" fill="#f5f8fb" stroke="#d9e6ef"/>
+<text x="60" y="348" class="t" font-size="12" font-weight="bold">4 tenants / 2 sites: 16 LTM + 24 WAF = 40 (3/site) | 16 + 16 = 32 (2/site)</text>
+<text x="60" y="368" class="sub" font-size="11">Best dedicated N-2 maintenance headroom and lowest cross-tenant blast radius.</text>
+
+<!-- CARD W2 -->
+<rect x="554" y="88" width="492" height="312" rx="14" fill="#ffffff" stroke="#073b64" stroke-width="1.8"/>
+<rect x="554" y="88" width="492" height="38" rx="12" fill="#eef6fb"/>
+<rect x="554" y="112" width="492" height="14" fill="#eef6fb"/>
+<line x1="554" y1="126" x2="1046" y2="126" stroke="#c8dbe8" stroke-width="1.5"/>
+<text x="570" y="113" class="hd" font-size="15">W2 — Dedicated LTM + WAF HA Cluster (DSC)</text>
+
+<!-- W2 Mini Diagram -->
+<text x="800" y="146" text-anchor="middle" class="sub" font-size="11.5" font-weight="bold">Per Tenant / Per Site (2-node Active/Standby WAF cluster)</text>
+<rect x="572" y="182" width="96" height="62" class="ltm"/>
+<text x="620" y="209" text-anchor="middle" class="t" font-size="12.5" font-weight="bold">Tenant LTM</text>
+<text x="620" y="227" text-anchor="middle" class="sub" font-size="11">2-node HA</text>
+
+<rect x="714" y="154" width="152" height="122" rx="10" fill="#f0fdfa" stroke="#0f8b8d" stroke-width="1.4" stroke-dasharray="6 4"/>
+<text x="790" y="170" text-anchor="middle" class="sub" font-size="10.5" font-weight="bold">DSC HA Cluster</text>
+<rect x="728" y="178" width="124" height="34" class="waf"/>
+<text x="790" y="200" text-anchor="middle" class="t" font-size="12" font-weight="bold">WAF 1 (Active)</text>
+<path d="M790 214 V230" class="sy"/>
+<rect x="728" y="232" width="124" height="34" class="res"/>
+<text x="790" y="254" text-anchor="middle" class="t" font-size="12" font-weight="bold">WAF 2 (Standby)</text>
+<text x="790" y="293" text-anchor="middle" class="sub" font-size="10.5">AWAF mirroring needs licensed LTM (max 2)</text>
+
+<rect x="914" y="182" width="114" height="62" class="cfw"/>
+<text x="971" y="209" text-anchor="middle" class="t" font-size="12" font-weight="bold">Private Cloud</text>
+<text x="971" y="227" text-anchor="middle" class="sub" font-size="11">CFW → ELB</text>
+
+<path d="M668 206 H725" class="fl"/>
+<path d="M668 220 L725 248" class="flO"/>
+<path d="M852 195 L911 208" class="fl"/>
+<path d="M852 248 L911 222" class="flO"/>
+
+<!-- W2 Bottom Summary -->
+<rect x="566" y="328" width="468" height="60" rx="8" fill="#f5f8fb" stroke="#d9e6ef"/>
+<text x="580" y="348" class="t" font-size="12" font-weight="bold">4 tenants / 2 sites: 16 LTM + 16 WAF = 32 (W2b; or 0+16 if no LTM)</text>
+<text x="580" y="368" class="sub" font-size="11">Simple pair boundary, but zero local redundancy left during maintenance of 1 node.</text>
+
+<!-- CARD W3 -->
+<rect x="1074" y="88" width="492" height="312" rx="14" fill="#ffffff" stroke="#073b64" stroke-width="1.8"/>
+<rect x="1074" y="88" width="492" height="38" rx="12" fill="#eef6fb"/>
+<rect x="1074" y="112" width="492" height="14" fill="#eef6fb"/>
+<line x1="1074" y1="126" x2="1566" y2="126" stroke="#c8dbe8" stroke-width="1.5"/>
+<text x="1090" y="113" class="hd" font-size="15">W3 — Preferred WAFs + Shared Reserve (Parallel)</text>
+
+<!-- W3 Mini Diagram -->
+<text x="1320" y="146" text-anchor="middle" class="sub" font-size="11.5" font-weight="bold">Priority Group 1: Dedicated WAFs  |  Priority Group 2: Shared Reserve</text>
+<rect x="1090" y="166" width="94" height="44" class="ltm"/>
+<text x="1137" y="185" text-anchor="middle" class="t" font-size="11.5" font-weight="bold">Tenant A LTM</text>
+<text x="1137" y="201" text-anchor="middle" class="sub" font-size="10">2-node HA</text>
+
+<rect x="1090" y="226" width="94" height="44" class="ltm"/>
+<text x="1137" y="245" text-anchor="middle" class="t" font-size="11.5" font-weight="bold">Tenant B LTM</text>
+<text x="1137" y="261" text-anchor="middle" class="sub" font-size="10">2-node HA</text>
+
+<rect x="1238" y="156" width="132" height="36" class="waf"/>
+<text x="1304" y="179" text-anchor="middle" class="t" font-size="11.5" font-weight="bold">A: 2 Dedicated WAFs</text>
+
+<rect x="1238" y="202" width="132" height="38" class="res"/>
+<text x="1304" y="219" text-anchor="middle" class="t" font-size="11" font-weight="bold">Shared Reserve WAFs</text>
+<text x="1304" y="234" text-anchor="middle" class="sub" font-size="10">(2/site; priority 2)</text>
+
+<rect x="1238" y="250" width="132" height="36" class="waf"/>
+<text x="1304" y="273" text-anchor="middle" class="t" font-size="11.5" font-weight="bold">B: 2 Dedicated WAFs</text>
+
+<rect x="1434" y="188" width="114" height="62" class="cfw"/>
+<text x="1491" y="215" text-anchor="middle" class="t" font-size="12" font-weight="bold">Private Cloud</text>
+<text x="1491" y="233" text-anchor="middle" class="sub" font-size="11">CFW → ELB</text>
+
+<path d="M1184 182 L1235 174" class="fl"/>
+<path d="M1184 196 L1235 215" class="flO"/>
+<path d="M1184 254 L1235 268" class="fl"/>
+<path d="M1184 240 L1235 227" class="flO"/>
+<path d="M1370 174 L1431 206" class="fl"/>
+<path d="M1370 221 H1431" class="flO"/>
+<path d="M1370 268 L1431 232" class="fl"/>
+
+<!-- W3 Bottom Summary -->
+<rect x="1086" y="328" width="468" height="60" rx="8" fill="#f5f8fb" stroke="#d9e6ef"/>
+<text x="1100" y="348" class="t" font-size="12" font-weight="bold">4 tenants / 2 sites: 16 LTM + 20 WAF = 36 (16 pref + 4 reserve)</text>
+<text x="1100" y="368" class="sub" font-size="11">Dedicated normal path; saves only 4 WAFs vs W1-3 while adding reserve contention.</text>
+
+<!-- ================= ROW 2: W4, S1, S2 ================= -->
+
+<!-- CARD W4 -->
+<rect x="34" y="420" width="492" height="312" rx="14" fill="#ffffff" stroke="#073b64" stroke-width="1.8"/>
+<rect x="34" y="420" width="492" height="38" rx="12" fill="#eef6fb"/>
+<rect x="34" y="444" width="492" height="14" fill="#eef6fb"/>
+<line x1="34" y1="458" x2="526" y2="458" stroke="#c8dbe8" stroke-width="1.5"/>
+<text x="50" y="445" class="hd" font-size="15">W4 — Asymmetric Site 1 Cluster + Extra WAF</text>
+
+<!-- W4 Mini Diagram: Side-by-side Site 1 vs Site 2! -->
+<rect x="48" y="472" width="234" height="168" rx="10" fill="#f8fafc" stroke="#cbd5e1"/>
+<text x="165" y="490" text-anchor="middle" class="hd" font-size="12">Site 1 — Primary (3 WAFs)</text>
+<rect x="58" y="532" width="66" height="52" class="ltm"/>
+<text x="91" y="555" text-anchor="middle" class="t" font-size="11" font-weight="bold">LTM</text>
+<text x="91" y="571" text-anchor="middle" class="sub" font-size="10">HA pair</text>
+<rect x="156" y="502" width="114" height="52" class="waf"/>
+<text x="213" y="524" text-anchor="middle" class="t" font-size="11" font-weight="bold">WAF Cluster</text>
+<text x="213" y="541" text-anchor="middle" class="sub" font-size="10">(2-node DSC)</text>
+<rect x="156" y="572" width="114" height="48" class="res"/>
+<text x="213" y="593" text-anchor="middle" class="t" font-size="11" font-weight="bold">Extra WAF 3</text>
+<text x="213" y="609" text-anchor="middle" class="sub" font-size="10">(parallel spare)</text>
+<path d="M124 548 L153 528" class="fl"/>
+<path d="M124 568 L153 594" class="flO"/>
+
+<rect x="294" y="472" width="218" height="168" rx="10" fill="#fffaf0" stroke="#e2bf50"/>
+<text x="403" y="490" text-anchor="middle" class="t" font-size="12" font-weight="bold" fill="#b45309">Site 2 — DR (2 WAFs only)</text>
+<rect x="304" y="532" width="66" height="52" class="ltm"/>
+<text x="337" y="555" text-anchor="middle" class="t" font-size="11" font-weight="bold">LTM</text>
+<text x="337" y="571" text-anchor="middle" class="sub" font-size="10">HA pair</text>
+<rect x="394" y="528" width="108" height="60" class="waf"/>
+<text x="448" y="554" text-anchor="middle" class="t" font-size="11" font-weight="bold">WAF Cluster</text>
+<text x="448" y="571" text-anchor="middle" class="sub" font-size="10">(2-node DSC)</text>
+<path d="M370 558 H391" class="fl"/>
+<text x="403" y="622" text-anchor="middle" class="t" font-size="10.5" font-weight="bold" fill="#b45309">Asymmetric DR headroom</text>
+
+<!-- W4 Bottom Summary -->
+<rect x="46" y="660" width="468" height="60" rx="8" fill="#f5f8fb" stroke="#d9e6ef"/>
+<text x="60" y="680" class="t" font-size="12" font-weight="bold">4 tenants / 2 sites: 16 LTM + 20 WAF = 36 (3/tenant S1 + 2/tenant S2)</text>
+<text x="60" y="700" class="sub" font-size="11">Extra Site 1 resilience, but DR site (Site 2) has weaker maintenance/failure headroom.</text>
+
+<!-- CARD S1 (Highlighted: Preferred 17.5.x Candidate) -->
+<rect x="554" y="420" width="492" height="312" rx="14" fill="#ffffff" stroke="#5ca452" stroke-width="2.2"/>
+<rect x="554" y="420" width="492" height="38" rx="12" fill="#dff5c1"/>
+<rect x="554" y="444" width="492" height="14" fill="#dff5c1"/>
+<line x1="554" y1="458" x2="1046" y2="458" stroke="#5ca452" stroke-width="1.5"/>
+<text x="570" y="445" class="hd" font-size="14.5">S1 — Tenant LTMs + Shared WAF Pool</text>
+<rect x="876" y="428" width="158" height="22" rx="6" fill="#0f8b8d"/>
+<text x="955" y="443" text-anchor="middle" class="h" font-size="11">Preferred 17.5.x Option</text>
+
+<!-- S1 Mini Diagram -->
+<text x="800" y="478" text-anchor="middle" class="sub" font-size="11.5" font-weight="bold">4 Separate Tenant LTM HA Pairs → 1 Shared Active WAF Pool (e.g. 4/site)</text>
+<rect x="568" y="492" width="98" height="30" class="ltm"/>
+<text x="617" y="512" text-anchor="middle" class="t" font-size="11" font-weight="bold">Tenant A LTM</text>
+<rect x="568" y="528" width="98" height="30" class="ltm"/>
+<text x="617" y="548" text-anchor="middle" class="t" font-size="11" font-weight="bold">Tenant B LTM</text>
+<rect x="568" y="564" width="98" height="30" class="ltm"/>
+<text x="617" y="584" text-anchor="middle" class="t" font-size="11" font-weight="bold">Tenant C LTM</text>
+<rect x="568" y="600" width="98" height="30" class="ltm"/>
+<text x="617" y="620" text-anchor="middle" class="t" font-size="11" font-weight="bold">Tenant D LTM</text>
+
+<rect x="722" y="490" width="144" height="144" rx="10" fill="#e6fbf8" stroke="#0f8b8d" stroke-width="1.8"/>
+<text x="794" y="509" text-anchor="middle" class="hd" font-size="11.5">Shared Active WAF Pool</text>
+<rect x="734" y="517" width="56" height="36" class="waf"/>
+<text x="762" y="540" text-anchor="middle" class="t" font-size="11" font-weight="bold">WAF 1</text>
+<rect x="798" y="517" width="56" height="36" class="waf"/>
+<text x="826" y="540" text-anchor="middle" class="t" font-size="11" font-weight="bold">WAF 2</text>
+<rect x="734" y="561" width="56" height="36" class="waf"/>
+<text x="762" y="584" text-anchor="middle" class="t" font-size="11" font-weight="bold">WAF 3</text>
+<rect x="798" y="561" width="56" height="36" class="waf"/>
+<text x="826" y="584" text-anchor="middle" class="t" font-size="11" font-weight="bold">WAF 4</text>
+<text x="794" y="618" text-anchor="middle" class="sub" font-size="10">Parent/Child + Route Domains</text>
+
+<rect x="916" y="530" width="114" height="64" class="cfw"/>
+<text x="973" y="557" text-anchor="middle" class="t" font-size="12" font-weight="bold">Private Cloud</text>
+<text x="973" y="575" text-anchor="middle" class="sub" font-size="11">CFW → ELB</text>
+
+<path d="M666 507 L719 532" class="fl"/>
+<path d="M666 543 L719 552" class="fl"/>
+<path d="M666 579 L719 572" class="fl"/>
+<path d="M666 615 L719 592" class="fl"/>
+<path d="M866 562 H913" class="fl"/>
+
+<!-- S1 Bottom Summary -->
+<rect x="566" y="660" width="468" height="60" rx="8" fill="#f5f8fb" stroke="#d9e6ef"/>
+<text x="580" y="680" class="t" font-size="12" font-weight="bold">4 tenants / 2 sites: 16 LTM + 8 WAF = 24 (retains tenant LTM HA)</text>
+<text x="580" y="700" class="sub" font-size="11">Best 17.5.x efficiency with N-2 WAF pool, but shared WAF tier is a multi-tenant risk.</text>
+
+<!-- CARD S2 -->
+<rect x="1074" y="420" width="492" height="312" rx="14" fill="#ffffff" stroke="#be3144" stroke-width="1.8"/>
+<rect x="1074" y="420" width="492" height="38" rx="12" fill="#fff0f0"/>
+<rect x="1074" y="444" width="492" height="14" fill="#fff0f0"/>
+<line x1="1074" y1="458" x2="1566" y2="458" stroke="#f1c0c7" stroke-width="1.5"/>
+<text x="1090" y="445" class="t" font-size="15" font-weight="bold" fill="#9f1239">S2 — Shared LTM + Shared WAF Pool</text>
+<rect x="1418" y="428" width="136" height="22" rx="6" fill="#be3144"/>
+<text x="1486" y="443" text-anchor="middle" class="h" font-size="11">Out of Current Scope</text>
+
+<!-- S2 Mini Diagram -->
+<text x="1320" y="478" text-anchor="middle" class="sub" font-size="11.5" font-weight="bold">All 4 Tenants Share Both the LTM Tier and the WAF Pool</text>
+<rect x="1088" y="514" width="76" height="96" class="ten"/>
+<text x="1126" y="538" text-anchor="middle" class="t" font-size="11" font-weight="bold">Tenants</text>
+<text x="1126" y="556" text-anchor="middle" class="sub" font-size="11">A, B,</text>
+<text x="1126" y="574" text-anchor="middle" class="sub" font-size="11">C, D</text>
+<text x="1126" y="596" text-anchor="middle" class="sub" font-size="10">combined</text>
+
+<rect x="1194" y="528" width="90" height="68" fill="#fff0f0" stroke="#be3144" stroke-width="1.8" rx="8"/>
+<text x="1239" y="556" text-anchor="middle" class="t" font-size="11.5" font-weight="bold">Shared LTM</text>
+<text x="1239" y="574" text-anchor="middle" class="sub" font-size="10.5">1 HA pair/site</text>
+
+<rect x="1316" y="514" width="106" height="96" rx="9" fill="#fff0f0" stroke="#be3144" stroke-width="1.6"/>
+<text x="1369" y="535" text-anchor="middle" class="t" font-size="11" font-weight="bold">Shared WAFs</text>
+<rect x="1326" y="544" width="40" height="24" class="waf"/>
+<text x="1346" y="560" text-anchor="middle" class="t" font-size="10" font-weight="bold">W1</text>
+<rect x="1372" y="544" width="40" height="24" class="waf"/>
+<text x="1392" y="560" text-anchor="middle" class="t" font-size="10" font-weight="bold">W2</text>
+<rect x="1326" y="574" width="40" height="24" class="waf"/>
+<text x="1346" y="590" text-anchor="middle" class="t" font-size="10" font-weight="bold">W3</text>
+<rect x="1372" y="574" width="40" height="24" class="waf"/>
+<text x="1392" y="590" text-anchor="middle" class="t" font-size="10" font-weight="bold">W4</text>
+
+<rect x="1450" y="530" width="102" height="64" class="cfw"/>
+<text x="1501" y="557" text-anchor="middle" class="t" font-size="11.5" font-weight="bold">Private Cloud</text>
+<text x="1501" y="575" text-anchor="middle" class="sub" font-size="10.5">CFW → ELB</text>
+
+<path d="M1164 562 H1191" class="fl"/>
+<path d="M1284 562 H1313" class="fl"/>
+<path d="M1422 562 H1447" class="fl"/>
+
+<!-- S2 Bottom Summary -->
+<rect x="1086" y="660" width="468" height="60" rx="8" fill="#fff7f7" stroke="#f1c0c7"/>
+<text x="1100" y="680" class="t" font-size="12" font-weight="bold">4 tenants / 2 sites: 4 LTM + 8 WAF = 12 (lowest count, highest risk)</text>
+<text x="1100" y="700" class="sub" font-size="11">Breaks tenant LTM isolation; one bad change can affect all 4 tenants at once.</text>
+
+<!-- ================= BOTTOM REBUILD BAND: F5OS HARDWARE-ISOLATED TENANTS ================= -->
+<rect x="34" y="748" width="1532" height="100" rx="14" fill="#ebf8e9" stroke="#5ca452" stroke-width="2"/>
+<!-- Left visual of 3 physical rSeries/VELOS hosts with isolated F5OS tenants -->
+<rect x="52" y="762" width="166" height="72" rx="8" fill="#ffffff" stroke="#073b64" stroke-width="1.5"/>
+<text x="135" y="779" text-anchor="middle" class="hd" font-size="11">rSeries / VELOS Host 1</text>
+<rect x="60" y="786" width="72" height="20" rx="4" fill="#dcf5f8" stroke="#073b64"/><text x="96" y="800" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS A-1</text>
+<rect x="138" y="786" width="72" height="20" rx="4" fill="#ccefed" stroke="#0f8b8d"/><text x="174" y="800" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS B-1</text>
+<rect x="60" y="810" width="72" height="20" rx="4" fill="#ede8ff" stroke="#5c4cd2"/><text x="96" y="824" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS C-1</text>
+<rect x="138" y="810" width="72" height="20" rx="4" fill="#fff7dc" stroke="#d17714"/><text x="174" y="824" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS D-1</text>
+
+<rect x="230" y="762" width="166" height="72" rx="8" fill="#ffffff" stroke="#073b64" stroke-width="1.5"/>
+<text x="313" y="779" text-anchor="middle" class="hd" font-size="11">rSeries / VELOS Host 2</text>
+<rect x="238" y="786" width="72" height="20" rx="4" fill="#dcf5f8" stroke="#073b64"/><text x="274" y="800" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS A-2</text>
+<rect x="316" y="786" width="72" height="20" rx="4" fill="#ccefed" stroke="#0f8b8d"/><text x="352" y="800" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS B-2</text>
+<rect x="238" y="810" width="72" height="20" rx="4" fill="#ede8ff" stroke="#5c4cd2"/><text x="274" y="824" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS C-2</text>
+<rect x="316" y="810" width="72" height="20" rx="4" fill="#fff7dc" stroke="#d17714"/><text x="352" y="824" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS D-2</text>
+
+<rect x="408" y="762" width="166" height="72" rx="8" fill="#ffffff" stroke="#073b64" stroke-width="1.5"/>
+<text x="491" y="779" text-anchor="middle" class="hd" font-size="11">rSeries / VELOS Host 3</text>
+<rect x="416" y="786" width="72" height="20" rx="4" fill="#dcf5f8" stroke="#073b64"/><text x="452" y="800" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS A-3</text>
+<rect x="494" y="786" width="72" height="20" rx="4" fill="#ccefed" stroke="#0f8b8d"/><text x="530" y="800" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS B-3</text>
+<rect x="416" y="810" width="72" height="20" rx="4" fill="#ede8ff" stroke="#5c4cd2"/><text x="452" y="824" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS C-3</text>
+<rect x="494" y="810" width="72" height="20" rx="4" fill="#fff7dc" stroke="#d17714"/><text x="530" y="824" text-anchor="middle" class="t" font-size="9.5" font-weight="bold">F5OS D-3</text>
+
+<!-- Right explanation of F5OS rebuild advantage -->
+<text x="598" y="781" class="hd" font-size="14.5">Target Hardware Rebuild Option (rSeries r4000–r12000 or VELOS + BIG-IP 21.1.x+): F5OS Per-Tenant WAFs</text>
+<text x="598" y="805" class="t" font-size="12.5">• Each F5OS tenant runs an isolated BIG-IP OS/policy/upgrade domain on shared hardware — combining S1 physical consolidation with W1 tenant isolation.</text>
+<text x="598" y="827" class="sub" font-size="12">• Mandatory rule: spread each tenant's 2–3 active WAF tenants across separate physical rSeries appliances or VELOS blades (r2000 does not support multi-tenancy).</text>
+
+<!-- Consistent Deck Footer -->
+<text x="34" y="878" class="sub" font-size="13">End-to-end application delivery summary</text>
+<text x="1566" y="878" text-anchor="end" class="sub" font-size="13">Nov 2026  •  9</text>
+</svg>

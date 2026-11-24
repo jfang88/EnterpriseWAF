@@ -7,11 +7,13 @@
 
 # 1. Purpose
 
-This file is the single grounding source for **what exists today, how the current architecture is laid out, and what is treated as a stable enterprise fact**.
+This file is the single grounding source for **what exists today, how the current end-to-end application-delivery architecture is laid out, and what is treated as a stable enterprise fact**.
+
+While the architecture evaluates **end-to-end application delivery** across every hop (DNS/GTM, edge firewalls, LTM, WAF, internal firewall, private-cloud CFW/ELB, and applications/dependencies), **initial implementation focuses on the WAF tier** (and F5 LTM/GTM interfaces) because edge/internal firewalls, private-cloud CFW/ELB, and applications are owned by partner teams and require coordinated cross-team contracts.
 
 Use it to ground:
 
-- architecture diagrams;
+- end-to-end application-delivery diagrams;
 - management slides;
 - WAF topology comparisons;
 - failure and recovery analysis;
@@ -25,22 +27,22 @@ Where the exact current implementation has not yet been confirmed, this file say
 | Area | Current-state / stable fact |
 |---|---|
 | **Sites** | Two sites: **Site 1** and **Site 2**, treated as separate infrastructure and routing failure domains |
-| **Primary estate** | Four-tenant **extranet** application-delivery environment; the wider estate may contain approximately 3-4 tenant/hosting contexts |
+| **Primary estate** | Four-tenant **extranet** end-to-end application-delivery environment; the wider estate may contain approximately 3-4 tenant/hosting contexts |
 | **External access** | External partner/customer users and API clients primarily use private leased-line / VPN-style connectivity |
 | **GTM / DNS** | One **BIG-IP DNS/GTM cluster per site**; the site clusters communicate/synchronize the enterprise GTM/DNS view |
 | **GTM placement** | GTM/DNS is an **edge service inside the edge-firewall security boundary** |
 | **External DNS use** | External/customer DNS reaches the enterprise edge GTM over the private leased-line/VPN path through the edge firewall |
 | **Internal DNS use** | Internal users use **internal enterprise DNS**; selected endpoint names/namespaces can be delegated or conditionally forwarded to the **same edge GTM service** |
-| **Edge firewalls** | Each tenant/site has **two HA edge-firewall pairs, two devices per pair (2 x 2 devices)** |
+| **Edge firewalls** | Each tenant/site has **two HA edge-firewall pairs, two devices per pair (2 x 2 devices)** (*Network/Security team owned*) |
 | **External VIPs** | Externally reachable application VIPs live on the edge-firewall tier |
 | **LTM** | Existing tenant LTM HA boundaries are retained; the default model is **two LTMs per tenant/site in an HA/Sync-Failover pair** |
-| **WAF / BIG-IP platform** | Current estate runs **BIG-IP 17.5.x** (LTM, BIG-IP DNS/GTM, Advanced WAF/ASM; EoTS Jan 1, 2029 per F5 `K15643`). Exact WAF topology/sharing is a design variable; rebuild onto newer hardware/software (e.g., rSeries/VELOS/F5OS + BIG-IP 21.1.x+) is a **target-state** change tracked in `future_architecture_improvements.md` |
+| **WAF / BIG-IP platform** | Current estate runs **BIG-IP 17.5.x** (LTM, BIG-IP DNS/GTM, Advanced WAF/ASM; EoTS Jan 1, 2029 per F5 `K15643`). Initial delivery focus is the WAF tier; exact WAF topology/sharing is a design variable; rebuild onto newer hardware/software (e.g., rSeries/VELOS/F5OS + BIG-IP 21.1.x+) is a **target-state** change tracked in `future_architecture_improvements.md` |
 | **Internal network** | Internal users/desktops/systems, internal DNS and internal service/LTM VIPs are **outside the private-cloud boundary** |
-| **Internal firewall** | A distinct **internal firewall** separates the enterprise internal network from private cloud |
-| **Private-cloud firewall** | A distinct **CFW** sits in front of private-cloud ELB/service endpoints |
-| **Applications** | Applications may run on VMs, Kubernetes, PaaS or on-premises platforms; App A/B/C/D dependency chains are first-class availability dependencies |
+| **Internal firewall** | A distinct **internal firewall** separates the enterprise internal network from private cloud (*Network/Security team owned*) |
+| **Private-cloud firewall** | A distinct **CFW** sits in front of private-cloud ELB/service endpoints (*Cloud Platform team owned*) |
+| **Applications** | Applications may run on VMs, Kubernetes, PaaS or on-premises platforms (*Application teams*); App A/B/C/D dependency chains are first-class availability dependencies |
 | **Application mode** | Most applications are active/passive; some passive-site applications may require manual startup; some applications may be active/active |
-| **Availability requirement** | Evaluate the service against a **99.95% availability target**, including planned maintenance where applicable |
+| **Availability requirement** | Evaluate the end-to-end service against a **99.95% total availability target (`4h 22m 48s / year`) covering BOTH managed (planned maintenance/changes) and unmanaged (unplanned failure) outages combined** |
 | **Cross-site routing** | Cross-site WAF/front-end/dependency routing is **not assumed to exist today** unless separately confirmed |
 
 # 3. Architecture planes and parallel paths
@@ -357,11 +359,11 @@ Typical implications:
 
 # 11. Current availability requirement and reporting rule
 
-Use **99.95% availability** as the service-level target to assess.
+Use **99.95% total availability** as the end-to-end service-level target to assess.
 
-If planned maintenance counts against the SLO, 99.95% corresponds approximately to:
+This **99.95% target explicitly includes BOTH managed outages (planned maintenance, patching, upgrades, certificate rotations, policy changes) AND unmanaged outages (unplanned hardware, software, network, or dependency failures) combined**. It corresponds approximately to:
 
-- **4 hours 22 minutes 48 seconds per year**;
+- **4 hours 22 minutes 48 seconds per year** (managed + unmanaged combined);
 - **21 minutes 54 seconds per average month**;
 - **5 minutes 2 seconds per week**.
 
