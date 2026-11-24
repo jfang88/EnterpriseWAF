@@ -1,60 +1,77 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
-  <defs>
-    <style>
-      .title{font:700 38px Arial;fill:#0A314E}.sub{font:20px Arial;fill:#55616B}.h{font:700 21px Arial;fill:#fff}.t{font:700 17px Arial;fill:#191E23}.s{font:15px Arial;fill:#191E23}.b{fill:#EEF6FB;stroke:#125A82;stroke-width:2}.g{fill:#DCF3D2;stroke:#007878;stroke-width:2}.p{fill:#EEE9FC;stroke:#695AD2;stroke-width:3}.n{fill:#0A314E;stroke:#0A314E;stroke-width:2}.a{stroke:#0A314E;stroke-width:3;fill:none;marker-end:url(#arrow)}.d{stroke:#007878;stroke-width:3;fill:none;stroke-dasharray:10 8;marker-end:url(#arrow)}
-    </style>
-    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0A314E"/></marker>
-  </defs>
-  <rect width="1600" height="900" fill="white"/>
-  <text x="50" y="58" class="title">EnterpriseWAF end-to-end topology</text>
-  <text x="50" y="90" class="sub">Internal users and DNS are outside the private cloud; Internal Firewall and CFW are separate boundaries</text>
+<defs>
+ <marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#073b64"/></marker>
+ <marker id="t" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f8b8d"/></marker>
+ <style>
+ .tx{font-family:Arial,sans-serif;fill:#162432}.h{font-family:Arial,sans-serif;fill:white;font-weight:bold}.b{stroke:#073b64;stroke-width:2;rx:14}.f{stroke:#073b64;stroke-width:3;fill:none;marker-end:url(#a)}.d{stroke:#0f8b8d;stroke-width:3;fill:none;stroke-dasharray:10 8;marker-end:url(#t)}.s{stroke:#0f8b8d;stroke-width:3;fill:none;stroke-dasharray:8 6}.o{stroke:#d17714;stroke-width:3;fill:none;stroke-dasharray:8 7;marker-end:url(#a)}
+ </style>
+</defs>
+<rect width="1600" height="900" fill="#f8fafc"/>
+<text x="55" y="55" class="tx" font-size="34" font-weight="bold">EnterpriseWAF — Grounded End-to-End Architecture</text>
+<text x="58" y="88" class="tx" font-size="19" fill="#536575">Stable baseline for diagrams and management artifacts</text>
 
-  <!-- external path -->
-  <rect x="35" y="150" rx="12" width="150" height="80" class="b"/><text x="110" y="183" text-anchor="middle" class="t">External users</text><text x="110" y="207" text-anchor="middle" class="s">/ API clients</text>
-  <rect x="220" y="150" rx="12" width="160" height="80" class="b"/><text x="300" y="183" text-anchor="middle" class="t">External /</text><text x="300" y="207" text-anchor="middle" class="s">customer DNS</text>
-  <rect x="415" y="150" rx="12" width="160" height="80" class="b"/><text x="495" y="183" text-anchor="middle" class="t">Enterprise DNS</text><text x="495" y="207" text-anchor="middle" class="s">/ GTM</text>
-  <rect x="610" y="150" rx="12" width="160" height="80" class="b"/><text x="690" y="183" text-anchor="middle" class="t">Leased line</text><text x="690" y="207" text-anchor="middle" class="s">/ VPN</text>
-  <path d="M185 190 H220 M380 190 H415 M575 190 H610" class="a"/>
+<rect x="35" y="145" width="145" height="82" fill="#f5f8fb" class="b"/><text x="108" y="180" text-anchor="middle" class="tx" font-size="19" font-weight="bold">External users /</text><text x="108" y="206" text-anchor="middle" class="tx" font-size="19" font-weight="bold">API clients</text>
+<rect x="205" y="145" width="145" height="82" fill="#f5f8fb" class="b"/><text x="278" y="180" text-anchor="middle" class="tx" font-size="19" font-weight="bold">External /</text><text x="278" y="206" text-anchor="middle" class="tx" font-size="19" font-weight="bold">customer DNS</text>
+<rect x="375" y="145" width="170" height="82" fill="#f5f8fb" class="b"/><text x="460" y="177" text-anchor="middle" class="tx" font-size="18" font-weight="bold">Private leased line /</text><text x="460" y="203" text-anchor="middle" class="tx" font-size="18" font-weight="bold">VPN / extranet</text>
+<path d="M180 186 H205" class="f"/><path d="M350 186 H375" class="f"/>
 
-  <!-- internal network -->
-  <rect x="35" y="330" rx="18" width="735" height="250" fill="#F7FAFC" stroke="#125A82" stroke-width="3"/>
-  <rect x="35" y="330" rx="18" width="735" height="42" class="n"/><text x="402" y="358" text-anchor="middle" class="h">ENTERPRISE INTERNAL NETWORK — OUTSIDE PRIVATE CLOUD</text>
-  <rect x="60" y="420" rx="12" width="120" height="80" class="b"/><text x="120" y="452" text-anchor="middle" class="t">Internal users</text><text x="120" y="476" text-anchor="middle" class="s">/ desktops</text>
-  <rect x="205" y="420" rx="12" width="120" height="80" class="b"/><text x="265" y="452" text-anchor="middle" class="t">Internal DNS</text>
-  <rect x="350" y="420" rx="12" width="130" height="80" class="b"/><text x="415" y="448" text-anchor="middle" class="t">Optional</text><text x="415" y="472" text-anchor="middle" class="s">internal GTM</text>
-  <rect x="505" y="420" rx="12" width="130" height="80" class="b"/><text x="570" y="448" text-anchor="middle" class="t">Internal LTM</text><text x="570" y="472" text-anchor="middle" class="s">/ service VIP</text>
-  <rect x="660" y="420" rx="12" width="90" height="80" class="b"/><text x="705" y="448" text-anchor="middle" class="t">Internal</text><text x="705" y="472" text-anchor="middle" class="s">Firewall</text>
-  <path d="M180 460 H205 M325 460 H350 M480 460 H505 M635 460 H660" class="a"/>
+<rect x="35" y="535" width="515" height="180" fill="#eef6fb" stroke="#073b64" stroke-width="2" rx="18"/>
+<rect x="35" y="535" width="515" height="42" fill="#073b64" rx="18"/><text x="292" y="563" text-anchor="middle" class="h" font-size="20">Enterprise internal network — outside private cloud</text>
+<rect x="55" y="605" width="105" height="70" fill="#f5f8fb" class="b"/><text x="108" y="635" text-anchor="middle" class="tx" font-size="16">Internal users /</text><text x="108" y="658" text-anchor="middle" class="tx" font-size="16">systems</text>
+<rect x="180" y="605" width="110" height="70" fill="#f5f8fb" class="b"/><text x="235" y="635" text-anchor="middle" class="tx" font-size="16">Internal</text><text x="235" y="658" text-anchor="middle" class="tx" font-size="16">enterprise DNS</text>
+<rect x="310" y="605" width="105" height="70" fill="#dcf5f8" class="b"/><text x="363" y="635" text-anchor="middle" class="tx" font-size="16">Internal LTM /</text><text x="363" y="658" text-anchor="middle" class="tx" font-size="16">service VIP</text>
+<rect x="435" y="605" width="95" height="70" fill="#dcf5f8" class="b"/><text x="483" y="635" text-anchor="middle" class="tx" font-size="16">Internal</text><text x="483" y="658" text-anchor="middle" class="tx" font-size="16">firewall</text>
+<path d="M160 640 H180" class="f"/><path d="M290 640 H310" class="f"/><path d="M415 640 H435" class="f"/>
 
-  <!-- Site 1 -->
-  <rect x="820" y="120" rx="18" width="360" height="650" fill="white" stroke="#0A314E" stroke-width="3"/>
-  <rect x="820" y="120" rx="18" width="360" height="48" class="n"/><text x="1000" y="153" text-anchor="middle" class="h">SITE 1 — PRIMARY</text>
-  <rect x="870" y="205" rx="12" width="260" height="58" class="b"/><text x="1000" y="240" text-anchor="middle" class="t">Edge firewall / application VIP</text>
-  <rect x="870" y="282" rx="12" width="260" height="58" class="b"/><text x="1000" y="317" text-anchor="middle" class="t">Tenant LTM HA pair</text>
-  <rect x="870" y="359" rx="12" width="260" height="58" class="b"/><text x="1000" y="394" text-anchor="middle" class="t">WAF enforcement tier</text>
-  <path d="M1000 263 V282 M1000 340 V359" class="a"/>
-  <rect x="850" y="450" rx="18" width="300" height="280" class="p"/><text x="1000" y="480" text-anchor="middle" fill="#695AD2" font-family="Arial" font-weight="700" font-size="18">PRIVATE CLOUD BOUNDARY</text>
-  <rect x="885" y="510" rx="12" width="230" height="48" class="b"/><text x="1000" y="540" text-anchor="middle" class="t">Private-cloud CFW</text>
-  <rect x="885" y="580" rx="12" width="230" height="48" class="b"/><text x="1000" y="610" text-anchor="middle" class="t">ELB / service</text>
-  <rect x="885" y="650" rx="12" width="230" height="52" class="g"/><text x="1000" y="681" text-anchor="middle" class="t">App A / B / C / D</text>
-  <path d="M1000 417 V510 M1000 558 V580 M1000 628 V650" class="a"/>
-  <path d="M750 460 C790 460 815 530 885 534" class="a"/>
+<!-- Site 1 -->
+<rect x="590" y="110" width="430" height="625" fill="white" stroke="#073b64" stroke-width="2" rx="18"/>
+<rect x="590" y="110" width="430" height="50" fill="#073b64" rx="18"/><text x="805" y="145" text-anchor="middle" class="h" font-size="28">Site 1 — Primary</text>
+<rect x="620" y="185" width="370" height="60" fill="#dcf5f8" class="b"/><text x="805" y="212" text-anchor="middle" class="tx" font-size="19" font-weight="bold">2 × HA edge-firewall pairs</text><text x="805" y="236" text-anchor="middle" class="tx" font-size="16">2 devices per pair (2 × 2)</text>
+<rect x="620" y="270" width="165" height="70" fill="#dff5c1" class="b"/><text x="703" y="300" text-anchor="middle" class="tx" font-size="18" font-weight="bold">GTM / DNS cluster</text><text x="703" y="324" text-anchor="middle" class="tx" font-size="16">edge service</text>
+<rect x="815" y="270" width="175" height="70" fill="#dcf5f8" class="b"/><text x="903" y="300" text-anchor="middle" class="tx" font-size="18" font-weight="bold">Tenant LTM HA</text><text x="903" y="324" text-anchor="middle" class="tx" font-size="16">service</text>
+<rect x="815" y="360" width="175" height="55" fill="#ccefed" class="b"/><text x="903" y="394" text-anchor="middle" class="tx" font-size="20" font-weight="bold">WAF tier</text>
+<path d="M805 245 L703 270" class="o"/><path d="M885 245 L903 270" class="f"/><path d="M903 340 V360" class="f"/>
 
-  <!-- Site 2 -->
-  <rect x="1230" y="120" rx="18" width="330" height="650" fill="white" stroke="#0A314E" stroke-width="3"/>
-  <rect x="1230" y="120" rx="18" width="330" height="48" class="n"/><text x="1395" y="153" text-anchor="middle" class="h">SITE 2 — DR</text>
-  <rect x="1275" y="260" rx="12" width="240" height="58" class="b"/><text x="1395" y="295" text-anchor="middle" class="t">Tenant LTM HA pair</text>
-  <rect x="1275" y="337" rx="12" width="240" height="58" class="b"/><text x="1395" y="372" text-anchor="middle" class="t">WAF enforcement tier</text>
-  <rect x="1260" y="450" rx="18" width="270" height="280" class="p"/><text x="1395" y="480" text-anchor="middle" fill="#695AD2" font-family="Arial" font-weight="700" font-size="18">PRIVATE CLOUD</text>
-  <rect x="1290" y="510" rx="12" width="210" height="48" class="b"/><text x="1395" y="540" text-anchor="middle" class="t">CFW</text>
-  <rect x="1290" y="580" rx="12" width="210" height="48" class="b"/><text x="1395" y="610" text-anchor="middle" class="t">ELB / service</text>
-  <rect x="1290" y="650" rx="12" width="210" height="52" class="g"/><text x="1395" y="681" text-anchor="middle" class="t">App A / B / C — DR</text>
-  <path d="M1395 318 V337 M1395 395 V510 M1395 558 V580 M1395 628 V650" class="a"/>
+<rect x="615" y="440" width="390" height="265" fill="#ede8ff" stroke="#5c4cd2" stroke-width="3" rx="24"/>
+<rect x="655" y="440" width="310" height="40" fill="#5c4cd2" rx="10"/><text x="810" y="468" text-anchor="middle" class="h" font-size="19">Site 1 private cloud boundary</text>
+<rect x="650" y="505" width="110" height="55" fill="#dcf5f8" class="b"/><text x="705" y="539" text-anchor="middle" class="tx" font-size="19" font-weight="bold">CFW</text>
+<rect x="790" y="505" width="160" height="55" fill="#dcf5f8" class="b"/><text x="870" y="539" text-anchor="middle" class="tx" font-size="18" font-weight="bold">ELB / service</text><path d="M760 532 H790" class="f"/>
+<rect x="650" y="585" width="95" height="50" fill="#dff5c1" class="b"/><text x="698" y="616" text-anchor="middle" class="tx" font-size="18" font-weight="bold">App A</text>
+<rect x="760" y="585" width="95" height="50" fill="#dff5c1" class="b"/><text x="808" y="616" text-anchor="middle" class="tx" font-size="18" font-weight="bold">App D</text>
+<rect x="870" y="585" width="95" height="50" fill="#dcf5f8" class="b"/><text x="918" y="607" text-anchor="middle" class="tx" font-size="14">B service VIP /</text><text x="918" y="628" text-anchor="middle" class="tx" font-size="14">discovery</text>
+<path d="M870 560 L698 585" class="f"/><path d="M870 560 L808 585" class="f"/>
+<rect x="680" y="655" width="100" height="48" fill="#dff5c1" class="b"/><text x="730" y="685" text-anchor="middle" class="tx" font-size="18" font-weight="bold">App B</text>
+<rect x="820" y="655" width="125" height="48" fill="#dff5c1" class="b"/><text x="883" y="685" text-anchor="middle" class="tx" font-size="16">App C / deps</text>
+<path d="M918 635 L730 655" class="f"/><path d="M780 679 H820" class="f"/><path d="M903 415 L705 505" class="f"/><path d="M530 640 L650 532" class="f"/>
 
-  <!-- contingency -->
-  <path d="M1130 388 C1190 388 1210 366 1275 366" class="d"/><text x="1200" y="350" text-anchor="middle" class="s">X2A remote WAF</text>
-  <path d="M1290 534 C1215 534 1200 534 1150 534" class="d"/><text x="1205" y="520" text-anchor="middle" class="s">X2B route-back</text>
-  <path d="M1115 680 C1190 680 1215 680 1290 680" class="d"/><text x="1205" y="667" text-anchor="middle" class="s">XD1 remote App B fallback</text>
+<!-- Site 2 -->
+<rect x="1075" y="110" width="430" height="625" fill="white" stroke="#073b64" stroke-width="2" rx="18"/>
+<rect x="1075" y="110" width="430" height="50" fill="#073b64" rx="18"/><text x="1290" y="145" text-anchor="middle" class="h" font-size="28">Site 2 — DR / Secondary</text>
+<rect x="1105" y="185" width="370" height="60" fill="#dcf5f8" class="b"/><text x="1290" y="212" text-anchor="middle" class="tx" font-size="19" font-weight="bold">2 × HA edge-firewall pairs</text><text x="1290" y="236" text-anchor="middle" class="tx" font-size="16">2 devices per pair (2 × 2)</text>
+<rect x="1105" y="270" width="165" height="70" fill="#dff5c1" class="b"/><text x="1188" y="300" text-anchor="middle" class="tx" font-size="18" font-weight="bold">GTM / DNS cluster</text><text x="1188" y="324" text-anchor="middle" class="tx" font-size="16">edge service</text>
+<rect x="1300" y="270" width="175" height="70" fill="#dcf5f8" class="b"/><text x="1388" y="300" text-anchor="middle" class="tx" font-size="18" font-weight="bold">Tenant LTM HA</text><text x="1388" y="324" text-anchor="middle" class="tx" font-size="16">service</text>
+<rect x="1300" y="360" width="175" height="55" fill="#ccefed" class="b"/><text x="1388" y="394" text-anchor="middle" class="tx" font-size="20" font-weight="bold">WAF tier</text>
+<path d="M1290 245 L1188 270" class="o"/><path d="M1370 245 L1388 270" class="f"/><path d="M1388 340 V360" class="f"/>
+<rect x="1100" y="440" width="390" height="265" fill="#ede8ff" stroke="#5c4cd2" stroke-width="3" rx="24"/>
+<rect x="1140" y="440" width="310" height="40" fill="#5c4cd2" rx="10"/><text x="1295" y="468" text-anchor="middle" class="h" font-size="19">Site 2 private cloud boundary</text>
+<rect x="1135" y="505" width="110" height="55" fill="#dcf5f8" class="b"/><text x="1190" y="539" text-anchor="middle" class="tx" font-size="19" font-weight="bold">CFW</text>
+<rect x="1275" y="505" width="160" height="55" fill="#dcf5f8" class="b"/><text x="1355" y="539" text-anchor="middle" class="tx" font-size="18" font-weight="bold">ELB / service</text><path d="M1245 532 H1275" class="f"/>
+<rect x="1135" y="585" width="95" height="50" fill="#dff5c1" class="b"/><text x="1183" y="616" text-anchor="middle" class="tx" font-size="18" font-weight="bold">App A</text>
+<rect x="1245" y="585" width="95" height="50" fill="#dff5c1" class="b"/><text x="1293" y="616" text-anchor="middle" class="tx" font-size="18" font-weight="bold">App D</text>
+<rect x="1355" y="585" width="95" height="50" fill="#dcf5f8" class="b"/><text x="1403" y="607" text-anchor="middle" class="tx" font-size="14">B service VIP /</text><text x="1403" y="628" text-anchor="middle" class="tx" font-size="14">discovery</text>
+<path d="M1355 560 L1183 585" class="f"/><path d="M1355 560 L1293 585" class="f"/>
+<rect x="1165" y="655" width="100" height="48" fill="#dff5c1" class="b"/><text x="1215" y="685" text-anchor="middle" class="tx" font-size="18" font-weight="bold">App B</text>
+<rect x="1305" y="655" width="125" height="48" fill="#dff5c1" class="b"/><text x="1368" y="685" text-anchor="middle" class="tx" font-size="16">App C / deps</text>
+<path d="M1403 635 L1215 655" class="f"/><path d="M1265 679 H1305" class="f"/><path d="M1388 415 L1190 505" class="f"/>
 
-  <rect x="180" y="815" rx="14" width="1240" height="48" class="g"/><text x="800" y="845" text-anchor="middle" class="t">Healthy local services must not depend on the inter-site link. Internal Firewall and CFW must be monitored and tested separately.</text>
+<path d="M545 186 H620" class="f"/>
+<path d="M235 605 C360 490,530 390,703 340" class="o"/><text x="305" y="505" class="tx" font-size="15" fill="#d17714">selected internal names use same edge GTM</text>
+<path d="M785 305 H1105" class="s"/><path d="M1105 325 H785" class="s"/><text x="945" y="290" text-anchor="middle" class="tx" font-size="15" fill="#0f8b8d">GTM cluster synchronization / global availability view</text>
+<path d="M990 388 H1300" class="d"/><text x="1050" y="372" class="tx" font-size="15" fill="#0f8b8d">X2A remote-WAF</text>
+<path d="M1300 415 C1190 455,1040 500,760 532" class="d"/><text x="1000" y="470" class="tx" font-size="15" fill="#0f8b8d">X2B route-back</text>
+<path d="M965 610 C1080 620,1110 650,1215 655" class="d"/><text x="1020" y="640" class="tx" font-size="15" fill="#0f8b8d">XD1 B2 fallback</text>
+
+<rect x="65" y="785" width="1470" height="65" fill="#ebf8e9" stroke="#5ca452" stroke-width="2" rx="14"/>
+<text x="800" y="814" text-anchor="middle" class="tx" font-size="16" font-weight="bold">Fixed: GTM is inside the edge firewall • both sites have 2 × 2 edge firewalls • same GTM service is used by selected external + internal DNS names</text>
+<text x="800" y="838" text-anchor="middle" class="tx" font-size="16" font-weight="bold">Internal firewall is distinct from CFW • GTM synchronization does not imply cross-site probing • cross-site paths are contingency only</text>
 </svg>
