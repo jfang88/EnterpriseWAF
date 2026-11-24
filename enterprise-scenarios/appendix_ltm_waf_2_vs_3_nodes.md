@@ -3,7 +3,7 @@
 
 **Status:** Supporting design appendix  
 **Baseline:** The enterprise default remains **two LTMs per site**. Three-device LTM is an optional comparison only.  
-**Primary inputs:** enterprise_scenario_invariants.md and analysis_variables_and_f5_assumptions.md
+**Primary inputs:** [current_architecture_and_invariants.md](./current_architecture_and_invariants.md) and [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)
 
 # 1. Why this distinction matters
 

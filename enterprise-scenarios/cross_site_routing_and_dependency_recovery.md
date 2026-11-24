@@ -2,9 +2,10 @@
 
 Status: Derived design study
 
-Stable baseline: enterprise_scenario_invariants.md  
-Changeable assumptions: analysis_variables_and_f5_assumptions.md  
-Related matrix: common_failure_matrix.md
+Stable baseline: [current_architecture_and_invariants.md](./current_architecture_and_invariants.md)  
+Target improvements: [future_architecture_improvements.md](./future_architecture_improvements.md)  
+Changeable assumptions: [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)  
+Related matrix: [common_failure_matrix.md](./common_failure_matrix.md)
 
 ## 1. Purpose
 
@@ -392,22 +393,24 @@ If A cannot safely retry/reconnect to B2, cross-site routing must not be counted
 
 ## 11. Failure-mode overlay
 
-    +-------------------------- SITE 1 --------------------------+
-    | Edge FW -> LTM -> Local WAF -> App A1                    |
-    |              |                       |                    |
-    |              |                       +--> App B1          |
-    +--------------|--------------------------------------------+
-                   |
-                   | X2A: remote WAF contingency
-                   v
-    +-------------------------- SITE 2 --------------------------+
-    | Edge FW -> LTM -> Remote WAF -> App A2 / App B2          |
-    +--------------------------|--------------------------------+
-                               |
-                               +---- X2B route-back ---> App A1
+```text
+    +-------------------------------- SITE 1 --------------------------------+
+    | Edge FW -> LTM -> Local WAF -> Site 1 CFW -> ELB -> App A1 -> App B1   |
+    |             |                       ^                                  |
+    |             |                       |                                  |
+    +-------------|-----------------------|----------------------------------+
+                  | X2A: remote WAF       | X2A return / X2B route-back
+                  v                       | (requires SNAT Pool + XFF +
+    +-------------|-----------------------|  symmetric firewall policy)
+    |             |                       |                                  |
+    | Edge FW -> LTM -> Remote WAF -------+-----> Site 2 CFW -> ELB -> A2/B2 |
+    +-------------------------------- SITE 2 --------------------------------+
 
-    GTM can move external ingress Site 1 -> Site 2.
-    App A1 can independently move dependency B1 -> B2.
+    GTM can move external ingress Site 1 -> Site 2 (X2B / X2C).
+    App A1 can independently move dependency B1 -> B2 (XD1) via B service VIP.
+```
+
+Note on F5 routing symmetry (`K13876`, `K95573163`, `K4816`): `Auto Last Hop` preserves local L2 MAC return symmetry, whereas cross-site L3 route-back through stateful firewalls requires a **SNAT Pool** (avoiding single-IP SNAT Automap port exhaustion) plus **HTTP `X-Forwarded-For` insertion** on LTM and **Trust X-Forwarded-For** in AWAF policies so security rules/rate limits see real external client IPs.
 
 These are independent recovery paths and should be tested independently.
 

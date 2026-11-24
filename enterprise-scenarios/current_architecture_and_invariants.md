@@ -34,7 +34,7 @@ Where the exact current implementation has not yet been confirmed, this file say
 | **Edge firewalls** | Each tenant/site has **two HA edge-firewall pairs, two devices per pair (2 x 2 devices)** |
 | **External VIPs** | Externally reachable application VIPs live on the edge-firewall tier |
 | **LTM** | Existing tenant LTM HA boundaries are retained; the default model is **two LTMs per tenant/site in an HA/Sync-Failover pair** |
-| **WAF** | BIG-IP Advanced WAF/ASM is part of the application-delivery path; exact WAF topology/sharing is a design variable, not a current-state invariant |
+| **WAF / BIG-IP platform** | Current estate runs **BIG-IP 17.5.x** (LTM, BIG-IP DNS/GTM, Advanced WAF/ASM; EoTS Jan 1, 2029 per F5 `K15643`). Exact WAF topology/sharing is a design variable; rebuild onto newer hardware/software (e.g., rSeries/VELOS/F5OS + BIG-IP 21.1.x+) is a **target-state** change tracked in `future_architecture_improvements.md` |
 | **Internal network** | Internal users/desktops/systems, internal DNS and internal service/LTM VIPs are **outside the private-cloud boundary** |
 | **Internal firewall** | A distinct **internal firewall** separates the enterprise internal network from private cloud |
 | **Private-cloud firewall** | A distinct **CFW** sits in front of private-cloud ELB/service endpoints |
@@ -43,20 +43,19 @@ Where the exact current implementation has not yet been confirmed, this file say
 | **Availability requirement** | Evaluate the service against a **99.95% availability target**, including planned maintenance where applicable |
 | **Cross-site routing** | Cross-site WAF/front-end/dependency routing is **not assumed to exist today** unless separately confirmed |
 
-# 3. Architecture layer breakdown
+# 3. Architecture planes and parallel paths
 
-| Layer | Current role | Current boundary |
+Do **not** treat the architecture as one linear inline stack: external and internal access are **parallel ingress paths** that converge at the private-cloud delivery tier, while DNS/GTM and health/observability are **control planes**.
+
+| Plane / Path | Current role | Current boundary |
 |---|---|---|
-| **L0 - users / resolvers** | external users/API clients, external/customer DNS, internal users, internal enterprise DNS | outside application-delivery/private-cloud stack |
-| **L1 - global DNS / site selection** | Site 1 and Site 2 BIG-IP DNS/GTM clusters; selected external/internal names | edge service behind edge firewall |
-| **L2 - site edge / ingress** | private leased line/VPN, 2 x 2 edge firewalls, external application VIPs | site edge/security |
-| **L3 - local delivery/security** | tenant LTM HA service and WAF tier | tenant application-delivery path |
-| **L4 - internal access boundary** | internal LTM/service VIP and internal firewall | enterprise internal network -> private cloud |
-| **L5 - private-cloud delivery** | CFW and ELB/service | private-cloud boundary |
-| **L6 - business application** | App A/B/C/D, sessions, state, DB, identity, event services | application/platform |
-| **L7 - application dependencies** | App A/D -> B -> C and other shared services | application/service architecture |
-
-Health/observability is **cross-cutting** and is not itself one inline layer.
+| **Client / resolver plane** | external users/API clients, external/customer DNS, internal users, internal enterprise DNS | outside application-delivery/private-cloud stack |
+| **DNS / site-selection control plane** | Site 1 and Site 2 BIG-IP DNS/GTM clusters; answers selected external and delegated internal names (not an inline data hop) | edge service inside edge-firewall boundary |
+| **External ingress path** | private leased line/VPN -> 2 x 2 edge firewalls / external VIPs -> tenant LTM HA service -> WAF tier | extranet / site edge & tenant delivery |
+| **Internal ingress path** | internal LTM/service VIP -> distinct **internal firewall** (may bypass external WAF) | enterprise internal network -> private cloud |
+| **Private-cloud delivery tier** | distinct **CFW** -> ELB/service (where external and internal paths converge) | private-cloud boundary |
+| **Application + dependency tier** | App A/B/C/D, sessions, state, DB, identity, event services, and App A/D -> B -> C chains | application/platform |
+| **Health / observability / recovery plane** | cross-cutting across HA, local member, endpoint, dependency and synthetic tiers (not an inline hop) | cross-cutting |
 
 # 4. Site and edge architecture
 
@@ -117,7 +116,7 @@ Internal user/system
   -> DNS answer containing internal service/LTM VIP
 ```
 
-The application data path then follows the internal service path described in section 6.
+The application data path then follows the internal service path described in section 8.
 
 Internal and external DNS namespaces/answers are logically distinct even where the same GTM platform participates in both.
 
@@ -167,7 +166,7 @@ flowchart LR
   subgraph EXT[External / customer environment]
     EU[External users / API clients]
     EDNS[External / customer DNS]
-    EU --> EDNS
+    EU -. DNS query .-> EDNS
   end
 
   subgraph INT[Enterprise internal network - outside private cloud]
@@ -175,7 +174,8 @@ flowchart LR
     IDNS[Internal enterprise DNS]
     ILTM[Internal LTM / service VIP]
     IFW[Internal firewall]
-    IU --> IDNS --> ILTM --> IFW
+    IU -. DNS query .-> IDNS
+    IU --> ILTM --> IFW
   end
 
   subgraph S1E[Site 1 edge / delivery]
@@ -204,10 +204,12 @@ flowchart LR
   end
 
   subgraph S2E[Site 2 edge / delivery]
+    NET2[Private leased line / VPN]
     FW2[2 x HA edge-firewall pairs]
     GTM2[Site 2 GTM/DNS cluster]
     LTM2[Tenant LTM HA service]
     WAF2[WAF tier]
+    NET2 --> FW2
     FW2 --> LTM2 --> WAF2
     FW2 -. DNS query .-> GTM2
   end
@@ -220,11 +222,15 @@ flowchart LR
   end
 
   EDNS -. DNS over private path .-> NET1
+  EDNS -. DNS over private path .-> NET2
   EU --> NET1
+  EU -. DR / alternate VIP .-> NET2
   IDNS -. selected delegated names .-> GTM1
+  IDNS -. selected delegated names .-> GTM2
 
   WAF1 --> CFW1
   IFW --> CFW1
+  IFW -. DR / alternate internal path .-> CFW2
   WAF2 --> CFW2
 
   GTM1 <-. GTM/DNS synchronization .-> GTM2

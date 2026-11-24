@@ -1,67 +1,242 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
 <defs>
-  <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#073b64"/></marker>
-  <marker id="teal" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#0f8b8d"/></marker>
-  <style>.t{font-family:Arial,sans-serif;fill:#162432}.h{font-family:Arial,sans-serif;fill:white;font-weight:bold}.b{stroke:#073b64;stroke-width:2;rx:14}.f{stroke:#073b64;stroke-width:3;fill:none;marker-end:url(#arrow)}.d{stroke:#d17714;stroke-width:3;fill:none;stroke-dasharray:10 8;marker-end:url(#arrow)}.s{stroke:#0f8b8d;stroke-width:3;fill:none;stroke-dasharray:9 7;marker-end:url(#teal)}</style>
+  <marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L8.5,3 z" fill="#073b64"/></marker>
+  <marker id="orange" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L8.5,3 z" fill="#d17714"/></marker>
+  <marker id="teal" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L8.5,3 z" fill="#0f8b8d"/></marker>
+  <marker id="tealStart" markerWidth="9" markerHeight="9" refX="0.5" refY="3" orient="auto"><path d="M8.5,0 L8.5,6 L0,3 z" fill="#0f8b8d"/></marker>
+  <style>
+    .t{font-family:Liberation Sans,Arial,sans-serif;fill:#162432}
+    .sub{font-family:Liberation Sans,Arial,sans-serif;fill:#536575}
+    .h{font-family:Liberation Sans,Arial,sans-serif;fill:#ffffff;font-weight:bold}
+    .b{stroke:#073b64;stroke-width:2;rx:12}
+    .f{stroke:#073b64;stroke-width:2.8;fill:none;marker-end:url(#arrow)}
+    .fdr{stroke:#073b64;stroke-width:2.2;fill:none;stroke-dasharray:6 5;marker-end:url(#arrow)}
+    .d{stroke:#d17714;stroke-width:2.6;fill:none;stroke-dasharray:9 6;marker-end:url(#orange)}
+    .s{stroke:#0f8b8d;stroke-width:2.8;fill:none;stroke-dasharray:8 6;marker-start:url(#tealStart);marker-end:url(#teal)}
+  </style>
 </defs>
+
 <rect width="1600" height="900" fill="#f8fafc"/>
-<text x="55" y="55" class="t" font-size="34" font-weight="bold">EnterpriseWAF — Current-State End-to-End Architecture</text>
-<text x="58" y="88" class="t" font-size="19" fill="#536575">Current validated layers only; target health probes and cross-site contingency are intentionally not shown.</text>
 
-<rect x="35" y="145" width="150" height="82" fill="#f5f8fb" class="b"/><text x="110" y="180" text-anchor="middle" class="t" font-size="18" font-weight="bold">External users /</text><text x="110" y="205" text-anchor="middle" class="t" font-size="18" font-weight="bold">API clients</text>
-<rect x="210" y="145" width="150" height="82" fill="#f5f8fb" class="b"/><text x="285" y="180" text-anchor="middle" class="t" font-size="18" font-weight="bold">External /</text><text x="285" y="205" text-anchor="middle" class="t" font-size="18" font-weight="bold">customer DNS</text>
-<rect x="385" y="145" width="165" height="82" fill="#f5f8fb" class="b"/><text x="468" y="178" text-anchor="middle" class="t" font-size="17" font-weight="bold">Private leased line /</text><text x="468" y="202" text-anchor="middle" class="t" font-size="17" font-weight="bold">VPN / extranet</text>
-<path d="M185 186 H210" class="f"/><path d="M360 186 H385" class="f"/>
+<!-- Title & Legend -->
+<text x="48" y="48" class="t" font-size="32" font-weight="bold" fill="#073b64">Current-state end-to-end architecture (BIG-IP 17.5.x)</text>
+<text x="50" y="76" class="sub" font-size="16">DNS control plane is separate from application data; target health probes and X2A/X2B/XD1 are intentionally not shown.</text>
 
-<rect x="35" y="555" width="520" height="180" fill="#eef6fb" stroke="#073b64" stroke-width="2" rx="18"/>
-<rect x="35" y="555" width="520" height="42" fill="#073b64" rx="18"/><text x="295" y="583" text-anchor="middle" class="h" font-size="20">Enterprise internal network — outside private cloud</text>
-<rect x="55" y="625" width="105" height="70" fill="#f5f8fb" class="b"/><text x="108" y="654" text-anchor="middle" class="t" font-size="16">Internal</text><text x="108" y="677" text-anchor="middle" class="t" font-size="16">users</text>
-<rect x="180" y="625" width="110" height="70" fill="#f5f8fb" class="b"/><text x="235" y="654" text-anchor="middle" class="t" font-size="16">Internal</text><text x="235" y="677" text-anchor="middle" class="t" font-size="16">DNS</text>
-<rect x="310" y="625" width="115" height="70" fill="#dcf5f8" class="b"/><text x="368" y="654" text-anchor="middle" class="t" font-size="16">Internal LTM /</text><text x="368" y="677" text-anchor="middle" class="t" font-size="16">service VIP</text>
-<rect x="445" y="625" width="90" height="70" fill="#dcf5f8" class="b"/><text x="490" y="654" text-anchor="middle" class="t" font-size="16">Internal</text><text x="490" y="677" text-anchor="middle" class="t" font-size="16">firewall</text>
-<path d="M160 660 H180" class="f"/><path d="M290 660 H310" class="f"/><path d="M425 660 H445" class="f"/>
+<rect x="1030" y="22" width="530" height="38" rx="9" fill="#ffffff" stroke="#d9e6ef" stroke-width="1.5"/>
+<line x1="1048" y1="41" x2="1084" y2="41" stroke="#073b64" stroke-width="2.8" marker-end="url(#arrow)"/>
+<text x="1094" y="46" class="t" font-size="13" font-weight="bold">Data</text>
+<line x1="1148" y1="41" x2="1186" y2="41" stroke="#d17714" stroke-width="2.6" stroke-dasharray="7 5" marker-end="url(#orange)"/>
+<text x="1196" y="46" class="t" font-size="13" font-weight="bold">DNS control</text>
+<line x1="1302" y1="41" x2="1340" y2="41" stroke="#0f8b8d" stroke-width="2.8" stroke-dasharray="6 5" marker-end="url(#teal)"/>
+<text x="1350" y="46" class="t" font-size="13" font-weight="bold">GTM sync</text>
+<line x1="1436" y1="41" x2="1474" y2="41" stroke="#073b64" stroke-width="2.2" stroke-dasharray="5 4" marker-end="url(#arrow)"/>
+<text x="1484" y="46" class="t" font-size="13" font-weight="bold">DR path</text>
 
-<!-- Site 1 -->
-<rect x="590" y="115" width="430" height="640" fill="white" stroke="#073b64" stroke-width="2" rx="18"/>
-<rect x="590" y="115" width="430" height="50" fill="#073b64" rx="18"/><text x="805" y="150" text-anchor="middle" class="h" font-size="28">Site 1 — Primary</text>
-<rect x="620" y="188" width="370" height="60" fill="#dcf5f8" class="b"/><text x="805" y="214" text-anchor="middle" class="t" font-size="18" font-weight="bold">2 × HA edge-firewall pairs</text><text x="805" y="238" text-anchor="middle" class="t" font-size="16">2 devices per pair (2 × 2)</text>
-<rect x="620" y="272" width="165" height="68" fill="#dff5c1" class="b"/><text x="703" y="310" text-anchor="middle" class="t" font-size="18" font-weight="bold">GTM / DNS cluster</text>
-<rect x="815" y="272" width="175" height="68" fill="#dcf5f8" class="b"/><text x="903" y="310" text-anchor="middle" class="t" font-size="18" font-weight="bold">Tenant LTM HA</text>
-<rect x="815" y="362" width="175" height="55" fill="#ccefed" class="b"/><text x="903" y="397" text-anchor="middle" class="t" font-size="20" font-weight="bold">WAF tier</text>
-<path d="M805 248 L703 272" class="d"/><path d="M885 248 L903 272" class="f"/><path d="M903 340 V362" class="f"/>
-<rect x="615" y="445" width="390" height="275" fill="#ede8ff" stroke="#5c4cd2" stroke-width="3" rx="24"/>
-<rect x="655" y="445" width="310" height="40" fill="#5c4cd2" rx="10"/><text x="810" y="473" text-anchor="middle" class="h" font-size="19">Site 1 private cloud</text>
-<rect x="650" y="510" width="105" height="55" fill="#dcf5f8" class="b"/><text x="703" y="545" text-anchor="middle" class="t" font-size="19" font-weight="bold">CFW</text>
-<rect x="790" y="510" width="160" height="55" fill="#dcf5f8" class="b"/><text x="870" y="545" text-anchor="middle" class="t" font-size="18" font-weight="bold">ELB / service</text><path d="M755 537 H790" class="f"/>
-<rect x="650" y="595" width="90" height="48" fill="#dff5c1" class="b"/><text x="695" y="625" text-anchor="middle" class="t" font-size="18" font-weight="bold">App A</text>
-<rect x="755" y="595" width="90" height="48" fill="#dff5c1" class="b"/><text x="800" y="625" text-anchor="middle" class="t" font-size="18" font-weight="bold">App D</text>
-<rect x="860" y="595" width="90" height="48" fill="#dff5c1" class="b"/><text x="905" y="625" text-anchor="middle" class="t" font-size="18" font-weight="bold">App B</text>
-<rect x="860" y="662" width="90" height="48" fill="#dff5c1" class="b"/><text x="905" y="692" text-anchor="middle" class="t" font-size="18" font-weight="bold">App C</text>
-<path d="M870 565 L695 595" class="f"/><path d="M870 565 L800 595" class="f"/><path d="M845 619 H860" class="f"/><path d="M905 643 V662" class="f"/><path d="M903 417 L703 510" class="f"/><path d="M535 660 L650 537" class="f"/>
+<!-- ================= LEFT: EXTERNAL ACCESS ================= -->
+<rect x="35" y="132" width="465" height="236" rx="16" fill="#ffffff" stroke="#073b64" stroke-width="2"/>
+<rect x="35" y="132" width="465" height="38" rx="12" fill="#073b64"/>
+<rect x="35" y="156" width="465" height="14" fill="#073b64"/>
+<text x="268" y="157" text-anchor="middle" class="h" font-size="16">External / partner environment</text>
 
-<!-- Site 2 -->
-<rect x="1075" y="115" width="430" height="640" fill="white" stroke="#073b64" stroke-width="2" rx="18"/>
-<rect x="1075" y="115" width="430" height="50" fill="#073b64" rx="18"/><text x="1290" y="150" text-anchor="middle" class="h" font-size="28">Site 2 — DR / Secondary</text>
-<rect x="1105" y="188" width="370" height="60" fill="#dcf5f8" class="b"/><text x="1290" y="214" text-anchor="middle" class="t" font-size="18" font-weight="bold">2 × HA edge-firewall pairs</text><text x="1290" y="238" text-anchor="middle" class="t" font-size="16">2 devices per pair (2 × 2)</text>
-<rect x="1105" y="272" width="165" height="68" fill="#dff5c1" class="b"/><text x="1188" y="310" text-anchor="middle" class="t" font-size="18" font-weight="bold">GTM / DNS cluster</text>
-<rect x="1300" y="272" width="175" height="68" fill="#dcf5f8" class="b"/><text x="1388" y="310" text-anchor="middle" class="t" font-size="18" font-weight="bold">Tenant LTM HA</text>
-<rect x="1300" y="362" width="175" height="55" fill="#ccefed" class="b"/><text x="1388" y="397" text-anchor="middle" class="t" font-size="20" font-weight="bold">WAF tier</text>
-<path d="M1290 248 L1188 272" class="d"/><path d="M1370 248 L1388 272" class="f"/><path d="M1388 340 V362" class="f"/>
-<rect x="1100" y="445" width="390" height="275" fill="#ede8ff" stroke="#5c4cd2" stroke-width="3" rx="24"/>
-<rect x="1140" y="445" width="310" height="40" fill="#5c4cd2" rx="10"/><text x="1295" y="473" text-anchor="middle" class="h" font-size="19">Site 2 private cloud</text>
-<rect x="1135" y="510" width="105" height="55" fill="#dcf5f8" class="b"/><text x="1188" y="545" text-anchor="middle" class="t" font-size="19" font-weight="bold">CFW</text>
-<rect x="1275" y="510" width="160" height="55" fill="#dcf5f8" class="b"/><text x="1355" y="545" text-anchor="middle" class="t" font-size="18" font-weight="bold">ELB / service</text><path d="M1240 537 H1275" class="f"/>
-<rect x="1135" y="595" width="90" height="48" fill="#dff5c1" class="b"/><text x="1180" y="625" text-anchor="middle" class="t" font-size="18" font-weight="bold">App A</text>
-<rect x="1240" y="595" width="90" height="48" fill="#dff5c1" class="b"/><text x="1285" y="625" text-anchor="middle" class="t" font-size="18" font-weight="bold">App D</text>
-<rect x="1345" y="595" width="90" height="48" fill="#dff5c1" class="b"/><text x="1390" y="625" text-anchor="middle" class="t" font-size="18" font-weight="bold">App B</text>
-<rect x="1345" y="662" width="90" height="48" fill="#dff5c1" class="b"/><text x="1390" y="692" text-anchor="middle" class="t" font-size="18" font-weight="bold">App C</text>
-<path d="M1355 565 L1180 595" class="f"/><path d="M1355 565 L1285 595" class="f"/><path d="M1330 619 H1345" class="f"/><path d="M1390 643 V662" class="f"/><path d="M1388 417 L1188 510" class="f"/>
+<!-- External Data Row -->
+<rect x="52" y="188" width="182" height="62" fill="#f5f8fb" class="b"/>
+<text x="143" y="214" text-anchor="middle" class="t" font-size="15" font-weight="bold">External users /</text>
+<text x="143" y="235" text-anchor="middle" class="t" font-size="15" font-weight="bold">API clients</text>
 
-<path d="M550 186 H620" class="f"/>
-<path d="M235 625 C360 505,520 390,703 340" class="d"/><text x="300" y="520" class="t" font-size="15" fill="#d17714">selected internal names may delegate to same edge GTM</text>
-<path d="M785 305 H1105" class="s"/><path d="M1105 325 H785" class="s"/><text x="945" y="288" text-anchor="middle" class="t" font-size="15" fill="#0f8b8d">GTM synchronization</text>
+<rect x="292" y="188" width="190" height="62" fill="#f5f8fb" class="b"/>
+<text x="387" y="214" text-anchor="middle" class="t" font-size="15" font-weight="bold">Private leased line /</text>
+<text x="387" y="235" text-anchor="middle" class="t" font-size="15" font-weight="bold">VPN / extranet</text>
 
-<rect x="70" y="795" width="1460" height="60" fill="#fff7dc" stroke="#e2bf50" stroke-width="2" rx="14"/>
-<text x="800" y="820" text-anchor="middle" class="t" font-size="16" font-weight="bold">Current-state unknown: monitor depth, external/internal VIP L7 checks, iQuery, cross-site probing, intervals/timeouts and app readiness endpoints.</text>
-<text x="800" y="844" text-anchor="middle" class="t" font-size="15">Do not draw target health-check arrows or X2A/X2B/XD1 as deployed until validated.</text>
+<!-- External DNS Row (separate control plane) -->
+<rect x="52" y="286" width="182" height="60" fill="#fff7dc" stroke="#d17714" stroke-width="2" rx="12"/>
+<text x="143" y="311" text-anchor="middle" class="t" font-size="15" font-weight="bold">External /</text>
+<text x="143" y="332" text-anchor="middle" class="t" font-size="15" font-weight="bold">customer DNS</text>
+
+<!-- External Arrows -->
+<path d="M234 219 H289" class="f"/>
+<path d="M143 250 V283" class="d"/>
+<text x="152" y="272" class="t" font-size="12" font-weight="bold" fill="#d17714">DNS query</text>
+<path d="M234 316 H387 V253" class="d"/>
+<text x="316" y="336" text-anchor="middle" class="t" font-size="12" font-weight="bold" fill="#d17714">DNS over private path</text>
+
+<!-- ================= LEFT: INTERNAL NETWORK ================= -->
+<rect x="35" y="454" width="465" height="292" rx="16" fill="#eef6fb" stroke="#073b64" stroke-width="2"/>
+<rect x="35" y="454" width="465" height="38" rx="12" fill="#073b64"/>
+<rect x="35" y="478" width="465" height="14" fill="#073b64"/>
+<text x="268" y="479" text-anchor="middle" class="h" font-size="15">Enterprise internal network — outside private cloud</text>
+
+<!-- Internal Data Row -->
+<rect x="50" y="514" width="122" height="60" fill="#f5f8fb" class="b"/>
+<text x="111" y="540" text-anchor="middle" class="t" font-size="14" font-weight="bold">Internal</text>
+<text x="111" y="559" text-anchor="middle" class="t" font-size="14" font-weight="bold">users / apps</text>
+
+<rect x="200" y="514" width="136" height="60" fill="#dcf5f8" class="b"/>
+<text x="268" y="540" text-anchor="middle" class="t" font-size="14" font-weight="bold">Internal LTM /</text>
+<text x="268" y="559" text-anchor="middle" class="t" font-size="14" font-weight="bold">service VIP</text>
+
+<rect x="364" y="514" width="120" height="60" fill="#dcf5f8" class="b"/>
+<text x="424" y="540" text-anchor="middle" class="t" font-size="14" font-weight="bold">Internal</text>
+<text x="424" y="559" text-anchor="middle" class="t" font-size="14" font-weight="bold">firewall</text>
+
+<!-- Internal DNS Row (separate control plane) -->
+<rect x="50" y="636" width="170" height="58" fill="#fff7dc" stroke="#d17714" stroke-width="2" rx="12"/>
+<text x="135" y="661" text-anchor="middle" class="t" font-size="14" font-weight="bold">Internal enterprise</text>
+<text x="135" y="680" text-anchor="middle" class="t" font-size="14" font-weight="bold">DNS</text>
+
+<!-- Internal Data & DNS Arrows -->
+<path d="M172 544 H197" class="f"/>
+<path d="M336 544 H361" class="f"/>
+<path d="M111 574 V633" class="d"/>
+<text x="120" y="610" class="t" font-size="12" font-weight="bold" fill="#d17714">DNS query</text>
+
+<!-- ================= SITE 1 — PRIMARY ================= -->
+<rect x="548" y="132" width="464" height="614" rx="16" fill="#ffffff" stroke="#073b64" stroke-width="2"/>
+<rect x="548" y="132" width="464" height="40" rx="12" fill="#073b64"/>
+<rect x="548" y="158" width="464" height="14" fill="#073b64"/>
+<text x="780" y="159" text-anchor="middle" class="h" font-size="20">Site 1 — Primary</text>
+
+<!-- Edge FW -->
+<rect x="568" y="188" width="424" height="58" fill="#dcf5f8" class="b"/>
+<text x="780" y="213" text-anchor="middle" class="t" font-size="16" font-weight="bold">2 × HA edge-firewall pairs / external VIPs</text>
+<text x="780" y="234" text-anchor="middle" class="sub" font-size="13">2 devices per HA pair (2 × 2)</text>
+
+<!-- Site 1 Left = Data (LTM -> WAF), Right = Control (GTM facing Site 2 GTM!) -->
+<rect x="568" y="272" width="196" height="56" fill="#dcf5f8" class="b"/>
+<text x="666" y="306" text-anchor="middle" class="t" font-size="16" font-weight="bold">Tenant LTM HA</text>
+
+<rect x="568" y="348" width="196" height="52" fill="#ccefed" class="b"/>
+<text x="666" y="380" text-anchor="middle" class="t" font-size="16" font-weight="bold">WAF tier</text>
+
+<rect x="802" y="272" width="190" height="56" fill="#dff5c1" class="b"/>
+<text x="897" y="306" text-anchor="middle" class="t" font-size="16" font-weight="bold">GTM / DNS cluster</text>
+
+<!-- Edge FW -> LTM -> WAF and Edge FW -.-> GTM -->
+<path d="M666 246 V269" class="f"/>
+<path d="M666 328 V345" class="f"/>
+<path d="M897 246 V269" class="d"/>
+
+<!-- Site 1 Private Cloud -->
+<rect x="566" y="454" width="428" height="274" rx="18" fill="#ede8ff" stroke="#5c4cd2" stroke-width="2.5"/>
+<rect x="752" y="462" width="228" height="32" rx="8" fill="#5c4cd2"/>
+<text x="866" y="484" text-anchor="middle" class="h" font-size="15">Site 1 private cloud</text>
+
+<rect x="586" y="514" width="114" height="54" fill="#dcf5f8" class="b"/>
+<text x="643" y="547" text-anchor="middle" class="t" font-size="17" font-weight="bold">CFW</text>
+
+<rect x="748" y="514" width="190" height="54" fill="#dcf5f8" class="b"/>
+<text x="843" y="547" text-anchor="middle" class="t" font-size="16" font-weight="bold">ELB / service</text>
+<path d="M700 541 H745" class="f"/>
+
+<rect x="586" y="600" width="90" height="44" fill="#dff5c1" class="b"/>
+<text x="631" y="628" text-anchor="middle" class="t" font-size="15" font-weight="bold">App A</text>
+
+<rect x="706" y="600" width="90" height="44" fill="#dff5c1" class="b"/>
+<text x="751" y="628" text-anchor="middle" class="t" font-size="15" font-weight="bold">App D</text>
+
+<rect x="836" y="600" width="96" height="44" fill="#dff5c1" class="b"/>
+<text x="884" y="628" text-anchor="middle" class="t" font-size="15" font-weight="bold">App B</text>
+
+<rect x="836" y="672" width="96" height="44" fill="#dff5c1" class="b"/>
+<text x="884" y="700" text-anchor="middle" class="t" font-size="15" font-weight="bold">App C</text>
+
+<!-- Site 1 Private Cloud Internal Arrows (including App A -> App B!) -->
+<path d="M843 568 L636 598" class="f"/>
+<path d="M843 568 L754 598" class="f"/>
+<path d="M796 622 H833" class="f"/>
+<path d="M631 644 V662 H814 V634 H833" class="f"/>
+<path d="M884 644 V669" class="f"/>
+
+<!-- Site 1 WAF -> CFW (clean straight drop on left, ZERO crossing of Private cloud banner!) -->
+<path d="M643 400 V511" class="f"/>
+
+<!-- ================= SITE 2 — DR / SECONDARY ================= -->
+<rect x="1100" y="132" width="464" height="614" rx="16" fill="#ffffff" stroke="#073b64" stroke-width="2"/>
+<rect x="1100" y="132" width="464" height="40" rx="12" fill="#073b64"/>
+<rect x="1100" y="158" width="464" height="14" fill="#073b64"/>
+<text x="1332" y="159" text-anchor="middle" class="h" font-size="20">Site 2 — DR / Secondary</text>
+
+<!-- Edge FW -->
+<rect x="1120" y="188" width="424" height="58" fill="#dcf5f8" class="b"/>
+<text x="1332" y="213" text-anchor="middle" class="t" font-size="16" font-weight="bold">2 × HA edge-firewall pairs / external VIPs</text>
+<text x="1332" y="234" text-anchor="middle" class="sub" font-size="13">2 devices per HA pair (2 × 2)</text>
+
+<!-- Site 2 Left = Control (GTM facing Site 1 GTM!), Right = Data (LTM -> WAF) -->
+<rect x="1120" y="272" width="190" height="56" fill="#dff5c1" class="b"/>
+<text x="1215" y="306" text-anchor="middle" class="t" font-size="16" font-weight="bold">GTM / DNS cluster</text>
+
+<rect x="1348" y="272" width="196" height="56" fill="#dcf5f8" class="b"/>
+<text x="1446" y="306" text-anchor="middle" class="t" font-size="16" font-weight="bold">Tenant LTM HA</text>
+
+<rect x="1348" y="348" width="196" height="52" fill="#ccefed" class="b"/>
+<text x="1446" y="380" text-anchor="middle" class="t" font-size="16" font-weight="bold">WAF tier</text>
+
+<!-- Edge FW -> LTM -> WAF and Edge FW -.-> GTM -->
+<path d="M1215 246 V269" class="d"/>
+<path d="M1446 246 V269" class="f"/>
+<path d="M1446 328 V345" class="f"/>
+
+<!-- Site 2 Private Cloud -->
+<rect x="1118" y="454" width="428" height="274" rx="18" fill="#ede8ff" stroke="#5c4cd2" stroke-width="2.5"/>
+<rect x="1132" y="462" width="228" height="32" rx="8" fill="#5c4cd2"/>
+<text x="1246" y="484" text-anchor="middle" class="h" font-size="15">Site 2 private cloud</text>
+
+<rect x="1392" y="514" width="134" height="54" fill="#dcf5f8" class="b"/>
+<text x="1459" y="547" text-anchor="middle" class="t" font-size="17" font-weight="bold">CFW</text>
+
+<rect x="1142" y="514" width="196" height="54" fill="#dcf5f8" class="b"/>
+<text x="1240" y="547" text-anchor="middle" class="t" font-size="16" font-weight="bold">ELB / service</text>
+<path d="M1392 541 H1341" class="f"/>
+
+<rect x="1138" y="600" width="90" height="44" fill="#dff5c1" class="b"/>
+<text x="1183" y="628" text-anchor="middle" class="t" font-size="15" font-weight="bold">App A</text>
+
+<rect x="1258" y="600" width="90" height="44" fill="#dff5c1" class="b"/>
+<text x="1303" y="628" text-anchor="middle" class="t" font-size="15" font-weight="bold">App D</text>
+
+<rect x="1388" y="600" width="96" height="44" fill="#dff5c1" class="b"/>
+<text x="1436" y="628" text-anchor="middle" class="t" font-size="15" font-weight="bold">App B</text>
+
+<rect x="1388" y="672" width="96" height="44" fill="#dff5c1" class="b"/>
+<text x="1436" y="700" text-anchor="middle" class="t" font-size="15" font-weight="bold">App C</text>
+
+<!-- Site 2 Private Cloud Internal Arrows (including App A -> App B!) -->
+<path d="M1240 568 L1186 598" class="f"/>
+<path d="M1240 568 L1299 598" class="f"/>
+<path d="M1348 622 H1385" class="f"/>
+<path d="M1183 644 V662 H1366 V634 H1385" class="f"/>
+<path d="M1436 644 V669" class="f"/>
+
+<!-- Site 2 WAF -> CFW (clean straight drop on right, ZERO crossing of Private cloud banner!) -->
+<path d="M1459 400 V511" class="f"/>
+
+<!-- ================= CROSS-DOMAIN CONNECTORS (CLEAN CORRIDORS) ================= -->
+<!-- External leased line -> Site 1 Edge FW -->
+<path d="M482 219 H565" class="f"/>
+<!-- External leased line -> Site 2 Edge FW (top corridor y=104 & middle corridor x=1056, zero header crossings!) -->
+<path d="M518 219 V104 H1056 V217 H1117" class="fdr"/>
+<text x="790" y="96" text-anchor="middle" class="sub" font-size="13" font-weight="bold">DR / alternate leased-line &amp; DNS path to Site 2</text>
+
+<!-- Internal Firewall -> Site 1 CFW (straight horizontal!) -->
+<path d="M484 544 H583" class="f"/>
+<!-- Internal Firewall -> Site 2 CFW (bottom corridor y=764, zero overlaps!) -->
+<path d="M424 574 V764 H1576 V541 H1529" class="fdr"/>
+
+<!-- Internal DNS -> Site 1 & Site 2 GTM (clean orthogonal route through open corridor x=524, y=424) -->
+<path d="M220 676 H524 V424 H897 V331" class="d"/>
+<path d="M897 424 H1215 V331" class="d"/>
+<text x="320" y="644" text-anchor="middle" class="t" font-size="13" font-weight="bold" fill="#d17714">selected internal names may</text>
+<text x="320" y="661" text-anchor="middle" class="t" font-size="13" font-weight="bold" fill="#d17714">delegate to same edge GTM</text>
+
+<!-- GTM Synchronization: short, crisp, ZERO box crossings! -->
+<path d="M995 300 H1117" class="s"/>
+<text x="1056" y="286" text-anchor="middle" class="t" font-size="13" font-weight="bold" fill="#0f8b8d">GTM sync</text>
+
+<!-- Bottom Yellow Callout -->
+<rect x="35" y="786" width="1530" height="58" rx="12" fill="#fff7dc" stroke="#e2bf50" stroke-width="2"/>
+<text x="800" y="811" text-anchor="middle" class="t" font-size="14" font-weight="bold" fill="#073b64">Current-state unknown to validate: TCP/port vs L7 monitor depth • external/internal VIP checks • iQuery • cross-site probing • intervals/timeouts • app readiness</text>
+<text x="800" y="833" text-anchor="middle" class="sub" font-size="13">Do not draw target health-check probes or X2A/X2B/XD1 contingency paths as deployed current state until validated.</text>
+
+<!-- Consistent Deck Footer -->
+<text x="48" y="876" class="sub" font-size="13">EnterpriseWAF management summary</text>
+<text x="1555" y="876" text-anchor="end" class="sub" font-size="13">Nov 2026  •  4</text>
 </svg>

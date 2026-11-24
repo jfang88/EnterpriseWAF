@@ -2,7 +2,7 @@
 
 > **ARCHIVED — superseded architecture analysis**
 >
-> This file is retained for historical context only. Current authoritative analysis is in [enterprise-scenarios/](.../enterprise-scenarios/README.md).
+> This file is retained for historical context only. Current authoritative analysis is in [enterprise-scenarios/](../enterprise-scenarios/README.md).
 >
 > Do not use this archived file as the current topology, timing, or decision baseline.
 

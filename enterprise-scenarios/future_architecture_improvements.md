@@ -1,9 +1,8 @@
 # EnterpriseWAF Future Architecture Improvements
 
 **Status:** Target-state / to-be architecture guidance  
-**Current-state source:** [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)  
-**Current-state topology:** [high_level_architecture.md](./high_level_architecture.md)  
-**Purpose:** Keep proposed improvements separate from the current-state / invariant baseline.
+**Current-state source:** [current_architecture_and_invariants.md](./current_architecture_and_invariants.md)  
+**Purpose:** Keep proposed target-state improvements (including target health monitoring and future hardware/BIG-IP rebuild) separate from the validated BIG-IP 17.5.x current-state baseline.
 
 # 1. Target decision
 
@@ -138,7 +137,7 @@ Use when the selected GTM/prober can reach the target VIP through a path that us
 
 The monitor should verify more than TCP connect. For HTTP/HTTPS, use a stable send/receive contract so the monitor confirms expected application content/readiness.
 
-## 7.2 LTM/iQuery health
+## 7.2 LTM/iQuery health and firewall NAT considerations
 
 Use when LTM is the better observer of the local application path or when direct GTM probing cannot safely/reliably traverse the desired path.
 
@@ -152,6 +151,11 @@ BIG-IP DNS/GTM consumes virtual-server health via iQuery
 GTM makes external/internal site-selection decision
 ```
 
+**F5 BIG-IP DNS / LTM integration guardrails (official F5 docs):**
+
+- **Firewall NAT & disabled Auto-Discovery (`K14707`, `K9138`):** Because external application VIPs live on the edge firewall (NATted to private LTM VIPs), BIG-IP DNS server/virtual-server objects must be configured with the external firewall VIP as `Address` and the private LTM VIP as `Translation`, and firewall policy must permit **TCP 4353 (iQuery)**. Specifying a `Translation` address **automatically disables Virtual Server Auto-Discovery** (`K9138`), so virtual-server inventory must be explicitly managed (or automated via AS3/BIG-IQ) to prevent drift.
+- **Avoid duplicate monitoring (`K5431`):** When using the `bigip` monitor over iQuery, do not stack redundant direct monitors on both the LTM virtual server and the GTM virtual server unless a separate path-verification perspective is intentionally required.
+
 ## 7.3 Prober pools / multiple perspectives
 
 For critical services, define explicitly:
@@ -162,6 +166,12 @@ For critical services, define explicitly:
 - whether a local and a remote/corroborating perspective are used;
 - how many successful probes are required;
 - how inter-site network loss should affect the result.
+
+**F5 prober-pool guardrails (official F5 docs):**
+
+- Without explicit **Prober Pools** (`Specific Prober Pool`, `K08433560`), BIG-IP DNS dynamically delegates probing across any `big3d` device in the data center (`K8170`).
+- F5 documents (`K000163083`) that after maintenance or iQuery reconnection, BIG-IP DNS may temporarily pick an LTM outside the configured prober pool; if that device lacks routes to the target across segmented firewall zones, probes fail with `no route` and mark healthy endpoints down. Validate routing and prober-pool fallback behavior explicitly.
+- When an LTM in a prober pool runs a non-`bigip` monitor (such as TCP/HTTP) against a virtual server local to itself without SNAT, F5 documents (`K000159606`) potential physical-MAC vs. MAC-masquerade flapping on the network.
 
 Use `All`, `At Least`, or `Require` semantics only after testing the failure behavior. **Do not create a design where loss of the inter-site link alone marks an otherwise healthy local site down.**
 
@@ -174,42 +184,46 @@ flowchart LR
     EP[External-side prober / synthetic]
   end
 
-  subgraph INT[Enterprise internal network]
+  subgraph INT[Enterprise internal network - outside private cloud]
     IP[Internal-side prober]
     IDNS[Internal enterprise DNS]
   end
 
-  subgraph S1[Site 1]
+  subgraph S1[Site 1 - Primary]
     EFW1[2 x HA edge-firewall pairs / external VIP]
     G1[GTM/DNS cluster]
     L1[Tenant LTM]
     W1[WAF]
     IV1[Internal service VIP / LTM]
     IF1[Internal firewall]
-    CFW1[CFW]
-    ELB1[ELB/service]
-    APP1[App readiness]
+    subgraph S1PC[Site 1 private cloud]
+      CFW1[CFW]
+      ELB1[ELB/service]
+      APP1[App readiness]
+    end
 
     EFW1 --> L1 --> W1 --> CFW1 --> ELB1 --> APP1
     IV1 --> IF1 --> CFW1
   end
 
-  subgraph S2[Site 2]
+  subgraph S2[Site 2 - DR / Secondary]
     EFW2[2 x HA edge-firewall pairs / external VIP]
     G2[GTM/DNS cluster]
     L2[Tenant LTM]
     W2[WAF]
     IV2[Internal service VIP / LTM]
     IF2[Internal firewall]
-    CFW2[CFW]
-    ELB2[ELB/service]
-    APP2[App readiness]
+    subgraph S2PC[Site 2 private cloud]
+      CFW2[CFW]
+      ELB2[ELB/service]
+      APP2[App readiness]
+    end
 
     EFW2 --> L2 --> W2 --> CFW2 --> ELB2 --> APP2
     IV2 --> IF2 --> CFW2
   end
 
-  G1 <-. GTM synchronization / global state .-> G2
+  G1 <-. GTM sync / global state .-> G2
 
   EP -. H3 external L7 .-> EFW1
   EP -. H3 external L7 .-> EFW2
@@ -244,7 +258,7 @@ Each protected endpoint should have a health contract covering:
 | critical dependencies | dependencies that must be available to accept traffic |
 | non-critical dependencies | dependencies that should not withdraw the whole service |
 | timeout | normal/degraded response boundary |
-| maintenance semantics | how the application intentionally leaves service |
+| maintenance semantics | how the application intentionally leaves service (e.g., returning a **Receive Disable String** per F5 `K12818` so LTM/ELB drains traffic cleanly before shutdown) |
 | owner | application team responsible for versioning the contract |
 
 ## Avoid false green
@@ -255,6 +269,8 @@ TCP 443 works
   -> CFW/ELB/application is broken
   -> GTM still advertises the site
 ```
+
+**F5 LTM Virtual Server false-green guardrail (`K40554304`):** By default (`Immediate Action On Service Down = None`), a BIG-IP LTM virtual server continues to complete TCP 3-way handshakes even when all pool members are offline. Set `Immediate Action On Service Down = Reject` or `Drop` on virtual servers where upstream TCP probes must not see a false-green listener.
 
 ## Avoid false red and cascades
 
@@ -343,12 +359,32 @@ Prefer the smallest safe recovery domain.
 
 Continue to evaluate:
 
-1. **S1 - tenant-specific LTM pairs + shared independent active WAF pool** as the leading cost/resilience candidate;
-2. **dedicated W1 with three independent WAFs per tenant/site** as the high-isolation fallback;
+1. **S1 - tenant-specific LTM pairs + shared independent active WAF pool** as the leading cost/resilience candidate on dedicated/current BIG-IP 17.5.x appliances;
+2. **dedicated W1 with three independent WAFs per tenant/site** as the high-isolation fallback (or **F5OS-isolated dedicated per-tenant WAF tenants on shared rSeries/VELOS hardware** during the target rebuild — see §15A);
 3. W3 where dedicated normal-state WAFs plus shared reserve are operationally preferred;
 4. W2 where simple HA and connection mirroring matter more than horizontal WAF scale.
 
 Whichever topology is selected must support rolling maintenance, staged/canary WAF policy deployment, application-level policy isolation, rollback, required N-1/N-2 capacity and one planned maintenance event plus one additional credible failure where the SLO requires it.
+
+## 15A. Platform rebuild impact: BIG-IP 17.5.x (current) vs. newer devices and BIG-IP 21.1.x+ / F5OS (future)
+
+The current estate runs **BIG-IP 17.5.x** (End of Technical Support: **January 1, 2029**, MyF5 `K15643`), and the target state assumes a rebuild onto newer F5 hardware and software (**rSeries / VELOS running F5OS** with **BIG-IP 21.1.x**, EoTS **May 5, 2029**, or subsequent BIG-IP 22.x/23.x releases). Note that **BIG-IP Next 20.x reached EoTS on April 30, 2025** (`K15643`), so the supported target path is modern BIG-IP TMOS on F5OS (rSeries/VELOS) or VE.
+
+### What DOES change the recommendations (and why)
+
+| Newer Platform / BIG-IP 21.1.x+ Feature | How It Changes Recommendations | Why (Verified F5 Basis) |
+|---|---|---|
+| **F5OS Hardware Multi-Tenancy (rSeries / VELOS)** | **Reframes S1 vs. Dedicated W1:** Instead of accepting S1's shared-OS/shared-upgrade blast radius to reduce appliance count, you can run **dedicated per-tenant BIG-IP WAF tenants on shared rSeries/VELOS hardware** (providing S1-like hardware consolidation with Dedicated-W1 OS, RBAC, policy, and upgrade isolation). | Each F5OS tenant runs an isolated BIG-IP TMOS instance with dedicated vCPU, memory, disk, management IP, and software image (`F5OS Tenant Management`). **Hardware fault rule:** spread each tenant's 2–3 active WAF tenants across *separate physical rSeries appliances or VELOS blades/chassis* so one physical host failure remains an N-1 event. Note: `r2000` does not support multi-tenancy (`r2800` supports up to 2 on F5OS-A 1.8+; `r4000`/`r5000`/`r10000`/`r12000` and VELOS support full multi-tenancy). |
+| **BIG-IP 21.x hardware drop of legacy appliances** | **Makes hardware rebuild mandatory before 21.x:** Cannot upgrade iSeries/VIPRION/vCMP to BIG-IP 21.x in place. Plan a parallel greenfield/blue-green rebuild using `platform-migrate validate`. | BIG-IP 21.x is **not supported on iSeries, VIPRION, or vCMP** — only rSeries, VELOS, and VE (`BIG-IP 21.1.0 New Features`). Use `tmsh load sys ucs <file> platform-migrate validate` (new in 21.1.0, `K82540512`); note 21.1.0 strips HA-group trunks on migration and requires >= 88 GB tenant virtual disk (vs. 86 GB on 17.5.x, `K45191957`/`K000164011`). |
+| **`cloud-init` for F5OS tenants (BIG-IP 21.1.0+)** | **Reduces W1/S1/W3 operational drift & rebuild RTO:** Supports declarative first-boot tenant onboarding (paired with AS3/BIG-IQ), making 3+ node independent WAF pools significantly easier to keep consistent and rebuild rapidly. | Native `cloud-init` support on VELOS/rSeries F5OS tenants automates onboarding and declarative configuration (`BIG-IP 21.1.0 Cloud-Init Support`). |
+| **64-bit BIG-IP + `bigd` scale + SNAT pool IPs in in-TMM monitors + OOM priority** | **Improves target H2/H3/H4 L7 monitoring reliability at scale** and reduces monitor-daemon bottlenecks in large four-tenant estates. | Documented in `BIG-IP 21.1.0 New Features`. |
+| **ACMEv2, TLS 1.3 default parent profiles, X25519 HW offload, Hybrid Post-Quantum TLS & Modern WAF (OpenAPI 3.1, HTTP/3 WAF, MCP)** | **Lowers certificate-expiry outage risk** (a frequent real-world 99.95% breaker) and prepares WAF for modern APIs/AI workloads without redesigning LTM/WAF topology. | `BIG-IP 21.1.0 New Features` adds native ACMEv2, `SecP256rMLKEM768`/`SecP384rMLKEM1024`, OpenAPI 3.1, MCP inspection/persistence, client-side HTTP/3 WAF (LTM HTTP/3 remains experimental; no BADOS yet), and Multi-RPZ (up to 65,535 zones) on BIG-IP DNS. |
+
+### What does NOT change on BIG-IP 21.1.x+
+
+- **Rolling maintenance & N-1/N-2 headroom remain mandatory:** In-place upgrade in BIG-IP **21.1.x is still experimental** and components requiring reboot still take the node offline (full in-place upgrade support starts in **BIG-IP 22.0.x** per `Upgrading to BIG-IP Version 21.1.0`). Do **not** relax node-draining or N-1/N-2 sizing requirements on 21.1.x.
+- **AWAF/ASM connection mirroring limits are unchanged:** Still max 2 devices, requires licensed & provisioned LTM, resets on 3rd-device failover, and resets on failback (`BIG-IP 21.1 ASM Connection Mirroring Limitations`). AT3 WebSocket applications **must** still implement client reconnect/backoff/re-auth/replay.
+- **Core control/data-plane fundamentals remain unchanged:** DSC single active owner per traffic group, GTM-first + `big3d_install` upgrade order (`K25923322`), NAT `Translation` disabling GTM auto-discovery (`K14707`/`K9138`), DNS TTL vs. established TCP sockets, and App A/B/C/D dependency cascade risk all apply identically.
 
 # 16. Implementation sequence
 
@@ -356,13 +392,14 @@ Whichever topology is selected must support rolling maintenance, staged/canary W
 
 Confirm:
 
-- current GTM monitor types, targets and aliases;
+- current GTM monitor types, targets and aliases (including NAT `Address`/`Translation` mappings per `K14707`);
 - current external and internal wide-IP/pool structure;
 - current delegated internal namespaces;
-- iQuery/LTM integration;
+- iQuery/LTM integration and TCP 4353 firewall rules;
 - GTM prober pools / probe sources / availability requirements;
 - cross-site probing behavior;
 - monitor intervals/timeouts;
+- LTM `Action On Service Down` and VS `Immediate Action On Service Down` settings;
 - application readiness endpoints;
 - independent synthetic monitoring.
 
@@ -407,14 +444,15 @@ Before calling the target health architecture ready:
 11. independent synthetic monitoring measures the user/business outcome;
 12. planned maintenance, rollback and failback are tested within the 99.95% objective.
 
-# 18. F5 implementation references
+# 18. F5 official documentation reference summary
 
-Relevant official F5 capabilities used by this target design include:
-
-- BIG-IP DNS/LTM integration and iQuery;
-- BIG-IP DNS HTTP/HTTPS/TCP health monitors;
-- send/receive strings for content validation;
-- BIG-IP DNS prober pools / device-specific probing;
-- BIG-IP DNS availability requirements such as `All`, `At Least`, and `Require`.
+| Domain | Verified Capability / Constraint | Applies To | Official F5 Reference |
+|---|---|---|---|
+| **BIG-IP DNS + LTM / NAT** | External firewall VIPs require `Address` + `Translation` in BIG-IP DNS, TCP 4353 iQuery, and disable VS Auto-Discovery | 17.5.x & 21.1.x | [MyF5 K14707](https://my.f5.com/manage/s/article/K14707), [K55502976](https://my.f5.com/manage/s/article/K55502976), [BIG-IP 17.5 DNS+LTM](https://techdocs.f5.com/en-us/bigip-17-5-0/big-ip-dns-implementations/integrating-big-ip-dns-into-a-network-with-big-ip-ltm-systems.html) |
+| **BIG-IP DNS Prober Pools & Monitors** | Avoid duplicate LTM+GTM VS monitors; configure `Specific Prober Pool`; validate reconnect fallback (`no route`) & non-`bigip` local probe MAC flapping | 17.5.x & 21.1.x | [MyF5 K5431](https://my.f5.com/manage/s/article/K5431), [K8170](https://my.f5.com/manage/s/article/K8170), [K08433560](https://my.f5.com/manage/s/article/K08433560), [K000163083](https://my.f5.com/manage/s/article/K000163083), [K000159606](https://my.f5.com/manage/s/article/K000159606), [K15408](https://my.f5.com/manage/s/article/K15408) |
+| **BIG-IP DNS Upgrade Order** | Upgrade BIG-IP DNS first, then update `big3d` on monitored LTMs via `big3d_install` | 17.5.x & 21.1.x | [MyF5 K25923322](https://my.f5.com/manage/s/article/K25923322), [K13703](https://my.f5.com/manage/s/article/K13703) |
+| **LTM False-Green & Graceful Drain** | Set VS `Immediate Action On Service Down = Reject/Drop` to stop TCP 3WHS false-greens; pool `Action On Service Down = Reject` for fast reconnect; `Receive Disable String` + `Disabled` vs `Forced Offline` | 17.5.x & 21.1.x | [MyF5 K40554304](https://my.f5.com/manage/s/article/K40554304), [K15095](https://my.f5.com/manage/s/article/K15095), [K12818](https://my.f5.com/manage/s/article/K12818), [K13310](https://my.f5.com/manage/s/article/K13310) |
+| **AWAF Mirroring, Policies & WebSockets** | Mirroring needs licensed+provisioned LTM (max 2 devices; no 3rd failover/failback); WebSocket profile required & incompatible with OneConnect; Parent/Child policies; Live Update staging | 17.5.x & 21.1.x | [BIG-IP 21.1 ASM Mirroring Limitations](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-asm-implementations/connection-mirroring-with-asm/connection-mirroring-limitations.html), [Policy Settings](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-asm-implementations/changing-security-policy-settings.html), [MyF5 K84421441](https://my.f5.com/manage/s/article/K84421441), [K000151124](https://my.f5.com/manage/s/article/K000151124), [K82512024](https://my.f5.com/manage/s/article/K82512024) |
+| **Rebuild: BIG-IP 21.1.x / F5OS / rSeries / VELOS** | Hardware-isolated F5OS tenants (not on r2000); 21.x drops iSeries/VIPRION/vCMP; 17.5.x EoTS Jan 2029; 21.1.x EoTS May 2029; BIG-IP Next 20.x EoTS Apr 2025; `cloud-init`; `platform-migrate validate`; experimental in-place upgrade in 21.1.x (full in 22.0.x); ACMEv2, OpenAPI 3.1, HTTP/3 WAF, MCP, PQC TLS, Multi-RPZ | 21.1.x / F5OS | [BIG-IP 21.1.0 New Features](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-release-notes/big-ip-new-features.html), [Upgrade 21.1](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-release-notes/big-ip-upgrade.html), [Cloud-Init](https://techdocs.f5.com/en-us/bigip-21-1-0/big-ip-f5os-cloud-init-support-velos-rseries/cloud-init-support-velos-rseries.html), [F5OS Tenant Mgmt](https://techdocs.f5.com/en-us/f5os-a-1-5-0/f5-rseries-systems-administration-configuration/title-tenant-management.html), [VELOS Getting Started](https://techdocs.f5.com/en-us/f5os-2-0-0/velos-systems-getting-started/getting-started-with-velos.html), [MyF5 K15643](https://my.f5.com/manage/s/article/K15643), [K000163422](https://my.f5.com/s/article/K000163422), [K82540512](https://my.f5.com/manage/s/article/K82540512), [K45191957](https://my.f5.com/manage/s/article/K45191957) |
 
 Validate exact configuration syntax and behavior against the deployed BIG-IP release before implementation.

@@ -210,21 +210,24 @@ active/standby for a traffic group
 ## W3 — tenant-preferred WAFs plus shared reserve
 
 ~~~text
-Tenant LTM pair
-    |
-preferred WAF1 + WAF2
-    |
-shared reserve WAF capacity
-    |
-   CFW
-    |
-   ELB/app
+      Tenant LTM pair
+             |
+     +-------+-------+
+     |               |
+preferred WAF1/WAF2  shared reserve WAF capacity
+(higher priority)    (lower priority contingency)
+     \               /
+      +------+------+
+             |
+            CFW
+             |
+          ELB/app
 ~~~
 
 Baseline remains **two LTMs per tenant per site**.
 
 - Normal traffic uses tenant-preferred active WAFs.
-- Shared reserve is activated when tenant-preferred capacity is lost or maintained.
+- Shared reserve sits in parallel as lower-priority contingency capacity activated when tenant-preferred capacity is lost or maintained.
 - Can survive loss of both preferred WAFs if reserve capacity is available, policy-ready and routable.
 - Reserve exhaustion or a bad shared policy can affect multiple tenants.
 
@@ -234,12 +237,18 @@ Baseline remains **two LTMs per tenant per site**.
 ## W4 — Site 1 cluster + extra WAF; Site 2 cluster only
 
 ~~~text
-Site 1                         Site 2
-LTM pair                       LTM pair
-   |                              |
-WAF HA cluster                WAF HA cluster
-   |
-extra independent WAF
+Site 1                                 Site 2
+LTM pair                               LTM pair
+   |                                      |
+   +-------------------+            WAF HA cluster
+   |                   |                  |
+WAF HA cluster  extra independent WAF    CFW
+   \                   /                  |
+    +--------+--------+                ELB/app
+             |
+            CFW
+             |
+          ELB/app
 ~~~
 
 - Site 1 can survive broader WAF failure than a simple two-node cluster.

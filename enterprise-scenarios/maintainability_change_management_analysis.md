@@ -1,7 +1,8 @@
 # Maintainability, Change Safety and Availability Analysis
 
 **Status:** Derived analysis — second lens after failure/recovery  
-**Stable baseline:** [enterprise_scenario_invariants.md](./enterprise_scenario_invariants.md)  
+**Stable baseline:** [current_architecture_and_invariants.md](./current_architecture_and_invariants.md)  
+**Target improvements:** [future_architecture_improvements.md](./future_architecture_improvements.md)  
 **Changeable assumptions:** [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md)  
 **Failure analysis:** [common_failure_matrix.md](./common_failure_matrix.md)
 
@@ -47,9 +48,13 @@ Therefore the relevant question is not whether each F5 appliance is 99.95% avail
 
 # 3. F5 operational capabilities relevant to maintainability
 
-## 3.1 Node/pool-member drain
+## 3.1 Node/pool-member drain (`K13310`, `K12818`)
 
-BIG-IP LTM supports disabling a pool member while allowing active/persistent connections to continue. This is useful for planned maintenance because the device/member can stop receiving ordinary new traffic before it is removed from service.
+BIG-IP LTM supports two distinct maintenance drain states plus monitor-driven draining:
+
+- **`Disabled` (`session user-disabled`):** stops new general connections, but **still accepts new connections matching an existing persistence session** (e.g., cookie/source-IP persistence);
+- **`Forced Offline` (`session user-disabled state user-down`):** blocks **all** new connections (including persistent sessions) while allowing existing active sockets to finish — or resets them immediately when pool `Action On Service Down = Reject` (`K15095`);
+- **`Receive Disable String` (`K12818`):** lets an application or WAF readiness endpoint signal `Up (disabled)` so LTM drains the member automatically during CI/CD or rolling waves.
 
 Operational implication:
 
@@ -70,19 +75,21 @@ Operational implications:
 
 For risky changes, consistency and blast-radius reduction must be balanced deliberately.
 
-## 3.3 Advanced WAF policy synchronization
+## 3.3 Advanced WAF policy synchronization and Live Update (`K82512024`)
 
 Advanced WAF/ASM can synchronize security policies/configuration across multiple systems using ASM-enabled device groups, including Sync-Only groups for scaled deployments.
 
-This is useful for W1/W3 independent WAF pools, but it means:
+This is useful for W1/W3/S1 independent WAF pools, but it means:
 
 > "Independent dataplane nodes" do not automatically mean "independent change failure domains."
 
 If the same policy change is automatically synchronized to every node, a logical policy error can still affect the entire pool.
 
+For **ASM Live Update** (`K82512024`), `liveupdate.allowautoinstallonsecondary` defaults to `false` on DSC device groups; prefer **Scheduled or Manual** signature installation paired with staging rather than uncontrolled `Real Time` installation in production.
+
 ## 3.4 WAF policy staging
 
-Advanced WAF supports an enforcement-readiness/staging period for new/changed policy entities and attack signatures.
+Advanced WAF supports an enforcement-readiness/staging period (default **7 days**) for new/changed policy entities and attack signatures.
 
 While staged, violations can be observed without immediately applying blocking behavior.
 
@@ -120,13 +127,14 @@ Important operational caveat:
 
 Rollback needs a separate known-good snapshot/configuration strategy.
 
-## 3.7 BIG-IP software upgrade behavior
+## 3.7 BIG-IP software upgrade behavior and GTM-first order (`K25923322`)
 
-BIG-IP upgrades should not be assumed to be in-service at the individual appliance level.
+BIG-IP upgrades should not be assumed to be in-service at the individual appliance level on current **BIG-IP 17.5.x** or target **BIG-IP 21.1.x**:
 
-F5's current in-place-upgrade documentation explicitly states that in-place upgrade is **not an in-service upgrade** and the device is expected to be offline during the procedure.
+- F5 documents that **in-place upgrade in BIG-IP 21.1.x is experimental** and components requiring reboot still take the device offline (full in-place upgrade support starts in **BIG-IP 22.0.x**);
+- **Mandatory upgrade order across BIG-IP DNS (GTM) and LTM (`K25923322`, `K13703`):** because `big3d` is only backwards compatible, always upgrade **BIG-IP DNS first**, immediately followed by running `big3d_install` on monitored BIG-IP LTM devices before upgrading LTM.
 
-Availability therefore comes from:
+Availability during upgrades therefore comes from:
 
 - HA peer;
 - independent pool members;
