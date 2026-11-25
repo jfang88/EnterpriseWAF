@@ -45,7 +45,7 @@ Where the exact current implementation has not yet been confirmed, this file say
 | **Target rebuild hardware standard (confirmed invariant)** | Future hardware rebuild is standardized on **F5 rSeries `r2800` pizza boxes ONLY** (no VELOS blade chassis, no `r4800`/`r5000+`), running **`F5OS-A 1.8.0+`** + **BIG-IP 21.1.x+**: max **2 F5OS tenants/box** (`4 vCPU / 12 GB RAM` each, or 1 full-box tenant at `8 vCPU / 24 GB RAM`), **single 480 GB NVMe SSD (~447 GB usable, no RAID-1)**, **no FPGA and no Spanning Tree Protocol (`STP`)** (1 interface/LAG per VLAN, `K000152319`), ≥ 88 GB virtual disk per `21.1.x` tenant (`K45191957`), and `.tar.bundle` image format (`K000158849`). Detailed rebuild design is tracked in `future_architecture_improvements.md` |
 | **Internal network** | Internal users/desktops/systems, internal DNS and internal service/LTM VIPs are **outside the private-cloud boundary** |
 | **Internal firewall** | A distinct **internal firewall** separates the enterprise internal network from private cloud (*Network/Security team owned*) |
-| **Private-cloud firewall** | A distinct **CFW** sits in front of private-cloud ELB/service endpoints (*Cloud Platform team owned*) |
+| **Private-cloud firewall** | **CFW** is the logical private-cloud edge available in both sites; site-local enforcement paths precede ELB/service endpoints (*Cloud Platform team owned*) |
 | **Applications** | Applications may run on VMs, Kubernetes, PaaS or on-premises platforms (*Application teams*); App A/B/C/D dependency chains are first-class availability dependencies |
 | **Application portfolio & protocol baseline (invariant)** | The enterprise portfolio includes **stateless web/API (`AT1`)**, **stateful web with potential sticky-session requirements (`AT2`)**, **WebSocket / long-lived real-time connections (`AT3`)**, and **non-web / L4 services (`AT4`)** that may bypass WAF |
 | **External client-IP visibility (invariant)** | Some applications **require tracking the real external user/client IP address** (for security, audit, fraud/compliance, rate-limiting, or IP ACLs). Preserving client IP depends on SNAT usage and **where TLS/HTTP is terminated** — requiring raw L3 preservation (no SNAT), **SNAT + `X-Forwarded-For` (`XFF`)** injection at the first HTTP/TLS terminator (LTM, WAF, or **Cloud ELB/Ingress** injecting its own headers when ELB terminates TLS), or **PROXY Protocol** for L4 TCP |
@@ -171,6 +171,8 @@ The target health-check design is therefore treated as a **future improvement** 
 
 # 7. Canonical current-state topology
 
+The CFW is one logical private-cloud edge/security boundary available in both sites, represented by site-local enforcement paths. ELB/service endpoints sit behind that boundary. This does not establish a stretched physical firewall, shared state, automatic alternate-site routing, or independent failure domains: local and common-mode failures must be validated separately.
+
 ```mermaid
 flowchart LR
 
@@ -201,7 +203,7 @@ flowchart LR
   end
 
   subgraph S1C[Site 1 private cloud]
-    CFW1[CFW]
+    CFW1[CFW - Site 1 enforcement]
     ELB1[ELB / service]
     A1[App A]
     D1[App D]
@@ -226,7 +228,7 @@ flowchart LR
   end
 
   subgraph S2C[Site 2 private cloud / DR]
-    CFW2[CFW]
+    CFW2[CFW - Site 2 enforcement]
     ELB2[ELB / service]
     APP2[DR application instances]
     CFW2 --> ELB2 --> APP2
@@ -244,6 +246,9 @@ flowchart LR
   IFW -. DR / alternate internal path .-> CFW2
   WAF2 --> CFW2
 
+  CFWLOG[Logical private-cloud edge - both sites]
+  CFWLOG -.- CFW1
+  CFWLOG -.- CFW2
   GTM1 <-. GTM/DNS synchronization .-> GTM2
 ```
 
