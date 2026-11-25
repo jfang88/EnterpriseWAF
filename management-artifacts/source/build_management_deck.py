@@ -121,8 +121,26 @@ def title(s, t, st=None, tsize=22):
 
 
 def footer(s, n):
-    add_text(s, "End-to-end application delivery summary", 0.48, 7.18, 4.2, 0.18, 8.0, False, SLATE, radius=False)
-    add_text(s, f"Nov 2026  •  {n}", 11.55, 7.18, 1.25, 0.18, 8.0, False, SLATE, PP_ALIGN.RIGHT, radius=False)
+    add_text(s, "End-to-end application delivery summary", 0.48, 7.20, 4.2, 0.18, 7.8, False, SLATE, radius=False)
+    add_text(s, f"Nov 2026  •  {n}", 11.55, 7.20, 1.25, 0.18, 7.8, False, SLATE, PP_ALIGN.RIGHT, radius=False)
+
+
+def legend_bar(s, text):
+    add_text(
+        s,
+        text,
+        0.38,
+        6.84,
+        12.57,
+        0.29,
+        7.3,
+        False,
+        NAVY,
+        PP_ALIGN.LEFT,
+        RGBColor(238, 244, 249),
+        MID,
+        radius=True,
+    )
 
 
 def bullet_block(s, heading, items, x, y, w, h, fill=LIGHT, line=MID, headfill=NAVY, fs=10.5):
@@ -207,13 +225,13 @@ bullet_block(
     "Joint responsibility & scope",
     [
         "Infrastructure teams deliver resilient, rolling-upgradeable tiers, deterministic SNAT/XFF headers, and layer-accurate health steering.",
-        "App teams build failure-tolerant apps (T6 retries, external state, WS replay) and own L7 readiness & protocol contracts.",
+        "App teams build failure-tolerant apps (T6a client retry/WS reconnect + T6b externalized state) and own L7 readiness contracts.",
         "99.95% (managed + unmanaged) & potential ≤ 25% impact cap: evaluate S1+2 (6/site, 24 GB) vs. W1-3 (both 20 r2800s on rebuild).",
     ],
     0.55,
-    1.85,
+    1.80,
     3.92,
-    3.32,
+    3.38,
     GREEN,
     MID,
     NAVY,
@@ -228,9 +246,9 @@ bullet_block(
         "LTM & Cloud ELB eject failed nodes locally (Action=Reject; VS Reject on all-down) and pass/inject XFF & sticky cookies cleanly.",
     ],
     4.70,
-    1.85,
+    1.80,
     3.92,
-    3.32,
+    3.38,
     CYAN,
     MID,
     NAVY,
@@ -245,9 +263,9 @@ bullet_block(
         "2-WAF designs (W1-2/W2b) lose local N-2 during 4/yr upgrades; S1+2 needs Parent/Child canary gates to stay ≤ 25% impact.",
     ],
     8.85,
-    1.85,
+    1.80,
     3.92,
-    3.32,
+    3.38,
     PALEYELLOW,
     ORANGE,
     NAVY,
@@ -257,15 +275,19 @@ add_text(
     s,
     "Key decision: audit current 17.5.x health/SNAT/XFF baselines, sign joint Infra + App contracts per fault domain (Slide 14), and choose S1+2 vs. W1-3 on the confirmed r2800 standard (Glossary on Slide 17).",
     0.55,
-    5.50,
+    5.42,
     12.22,
     0.76,
-    11.4,
+    11.2,
     True,
     NAVY,
     PP_ALIGN.CENTER,
     PALEGREEN,
     RGBColor(92, 164, 82),
+)
+legend_bar(
+    s,
+    "Key:  GTM = BIG-IP DNS  •  LTM = Local Traffic Manager  •  VIP/VS = Virtual IP/Server  •  ELB = Cloud Load Balancer  •  H1–H6 = Health layers  •  S1+2/W1-3/W1-2/W2b = WAF topologies  •  T6a/T6b = Client/Server app recovery  •  SNAT/XFF = Source NAT / Client IP",
 )
 footer(s, 1)
 
@@ -288,13 +310,13 @@ bullet_block(
         "Unknown / validate in Phase 0: current GTM monitor depth, probers, TLS termination, SNAT & sticky-session config",
     ],
     0.55,
-    1.22,
+    1.16,
     5.92,
-    4.76,
+    4.78,
     LIGHT,
     MID,
     NAVY,
-    9.8,
+    9.7,
 )
 bullet_block(
     s,
@@ -302,33 +324,37 @@ bullet_block(
     [
         "Infra — Layered L7 health (H1–H6), Specific Prober Pools, NAT Translation maps & separate ext/int VIP state",
         "Infra — Consistent sticky path (ELB cookie + LTM OneConnect/CARP), multi-IP SNAT Pools, XFF/ELB header injection & App B XD1",
-        "App — Own /health/ready + Receive Disable drain (K12818), externalized session state (AT2), WS reconnect/replay (AT3) & retries",
+        "App — Own /health/ready + Receive Disable drain (K12818), client auto-recovery (T6a) & externalized server state (T6b)",
         "Topology — S1+2 (4+2=6 WAFs/site for rolling + outage + canary) vs. W1-3 (strict ≤ 25% tenant cap); W1-2 needs X2A",
         "Confirmed rebuild: rSeries r2800 pizza boxes ONLY (F5OS-A 1.8.0+; max 2 tenants/box; no blade chassis)",
         "r2800 guardrails: single 480 GB SSD (no RAID-1) + no STP → K+2 spread, remote HSL logs, LACP LAGs & cloud-init",
     ],
     6.86,
-    1.22,
+    1.16,
     5.92,
-    4.76,
+    4.78,
     PALEGREEN,
     RGBColor(92, 164, 82),
     TEAL,
-    9.8,
+    9.7,
 )
 add_text(
     s,
-    "Joint Responsibility Rule: Infrastructure delivers resilient layers, routing/XFF & health steering; Applications deliver T6 recovery & readiness contracts — never draw target controls as deployed facts.",
+    "Joint Responsibility Rule: Infrastructure delivers resilient layers, routing/XFF & health steering; Applications deliver T6a/T6b recovery & readiness contracts — never draw target controls as deployed facts.",
     0.55,
-    6.20,
+    6.10,
     12.23,
-    0.56,
-    10.1,
+    0.58,
+    9.8,
     True,
     NAVY,
     PP_ALIGN.CENTER,
     PALEYELLOW,
     GOLD,
+)
+legend_bar(
+    s,
+    "Key:  AT1–AT4 = Stateless/Stateful/WebSocket/L4  •  XD1 = App B1→B2 fallback  •  X2A = Remote WAF borrow  •  CARP = Stateless hash  •  STP = Spanning Tree (unsupported on r2800)  •  LACP LAG = Link Aggregation  •  T6a/T6b = Client/Server recovery",
 )
 footer(s, 2)
 
@@ -373,7 +399,7 @@ steps = [
     ("4", "GTM global state\nconverges"),
     ("5", "DNS answer\nchanges"),
     ("6", "DNS TTL cache\n+ re-lookup"),
-    ("7", "App recovery\n(T6)"),
+    ("7", "App recovery\n(T6a / T6b)"),
 ]
 for i, (n, t) in enumerate(steps):
     x = 0.45 + i * 1.82
@@ -392,9 +418,9 @@ bullet_block(
         "Upgrade BIG-IP DNS before LTM + push big3d health agent (K25923322)",
     ],
     0.65,
-    4.18,
+    4.10,
     5.8,
-    2.48,
+    2.54,
     PALEYELLOW,
     ORANGE,
     NAVY,
@@ -410,13 +436,17 @@ bullet_block(
         "Loss of inter-site link alone must never withdraw a healthy local site",
     ],
     6.88,
-    4.18,
+    4.10,
     5.8,
-    2.48,
+    2.54,
     PALEGREEN,
     RGBColor(92, 164, 82),
     NAVY,
     9.9,
+)
+legend_bar(
+    s,
+    "Key:  GTM = BIG-IP DNS  •  LTM = Local Traffic Manager  •  VIP = Virtual IP  •  TTL = DNS cache lifetime  •  big3d = F5 health agent  •  T6a = Client recovery (auto vs manual user steps)  •  T6b = Server app/state recovery",
 )
 footer(s, 7)
 
@@ -474,15 +504,19 @@ add_text(
     s,
     "Health contract caution: App A should not report globally unhealthy merely because an optional App B / C feature is degraded.",
     0.85,
-    6.08,
+    6.02,
     11.63,
-    0.54,
+    0.56,
     10.4,
     True,
     NAVY,
     PP_ALIGN.CENTER,
     PALEYELLOW,
     GOLD,
+)
+legend_bar(
+    s,
+    "Key:  XD1 = Dependency-local recovery (App A/D stay in Site 1 using remote App B2)  •  H5 = Shared dependency health layer  •  GTM = BIG-IP DNS  •  VIP = Virtual IP  •  LTM Reject (K15095) = Immediate TCP reset on failed member",
 )
 footer(s, 8)
 
@@ -510,15 +544,15 @@ title(
     "Target benchmark (active WAF pool + layered L7 + X2A/XD1); at 4 changes/yr per stack (~36 waves/yr), every tier must roll cleanly.",
 )
 # Left panel: 99.95% Total Budget + inline Recovery Class Key (R0-R4)
-add_text(s, "99.95% TOTAL budget", 0.45, 1.18, 3.35, 0.38, 12.5, True, WHITE, PP_ALIGN.CENTER, NAVY, NAVY)
+add_text(s, "99.95% TOTAL budget", 0.45, 1.16, 3.35, 0.36, 12.2, True, WHITE, PP_ALIGN.CENTER, NAVY, NAVY)
 add_text(
     s,
     "4h 22m 48s / year\n(21m 54s/mo • ~5m 2s/wk)",
     0.45,
-    1.60,
+    1.56,
     3.35,
-    0.78,
-    12.0,
+    0.76,
+    11.8,
     True,
     WHITE,
     PP_ALIGN.CENTER,
@@ -529,10 +563,10 @@ add_text(
     s,
     "Includes BOTH managed (planned changes/patching) & unmanaged (unplanned) outages combined",
     0.45,
-    2.44,
+    2.38,
     3.35,
-    0.66,
-    8.9,
+    0.64,
+    8.8,
     True,
     RED,
     PP_ALIGN.CENTER,
@@ -550,9 +584,9 @@ bullet_block(
         "R4 — Manual / warm-DR recovery (minutes+)",
     ],
     0.45,
-    3.22,
+    3.12,
     3.35,
-    2.78,
+    2.80,
     LIGHT,
     MID,
     TEAL,
@@ -569,31 +603,35 @@ rows = [
     ("Shared App B local failure", "App B service VIP fallback (H5 / XD1)", "R2 (XD1 local stay)"),
     ("Whole site failure", "BIG-IP DNS (GTM) + Site 2 DR", "R3 (or R4 if manual)"),
 ]
-# y=1.18, headh=0.44, 8 rows * 0.54 = 4.32 => ends at y=5.94 (clean gap before banner at y=6.18!)
+# y=1.16, headh=0.42, 8 rows * 0.54 = 4.32 => ends at y=5.90 (clean gap before banner at y=6.06!)
 simple_table(
     s,
     ["Outage / failure event", "Best recovery domain & tier", "Target recovery class"],
     rows,
     4.00,
-    1.18,
+    1.16,
     [2.95, 3.65, 2.25],
     rowh=0.54,
     fs=8.8,
-    headh=0.44,
+    headh=0.42,
 )
 add_text(
     s,
-    "Management test: at 4 updates/yr per stack, rolling R0/R1 changes use ~4–12 min/yr — but offline App/DB restarts can burn 180+ min/yr before 1 failure (K+2 active WAFs protect r2800 single-SSD & host reboots).",
+    "Management test: at 4 updates/yr per stack, rolling R0/R1 changes use ~4–12 min/yr — but offline App/DB restarts or manual T6a user steps can burn 180+ min/yr before 1 failure (K+2 active WAFs protect r2800 single-SSD & host reboots).",
     0.45,
-    6.18,
+    6.06,
     12.40,
-    0.62,
-    9.8,
+    0.64,
+    9.4,
     True,
     NAVY,
     PP_ALIGN.CENTER,
     PALEYELLOW,
     GOLD,
+)
+legend_bar(
+    s,
+    "Key:  H2/H3/H4/H5 = Local / External VIP / Internal VIP / App B health layers  •  X2A/X2B/XD1 = Remote WAF / Remote Front-End / App B fallback  •  K+2 = Peak + 2 active WAFs  •  T6a = Client recovery (auto vs manual user steps)",
 )
 footer(s, 10)
 
@@ -616,9 +654,9 @@ bullet_block(
         "Cannot bypass a failed local Cloud Firewall (CFW)",
     ],
     0.55,
-    1.28,
+    1.24,
     3.8,
-    4.55,
+    4.56,
     PALEGREEN,
     MID,
     TEAL,
@@ -635,9 +673,9 @@ bullet_block(
         "Degraded split-site state; validate firewall symmetry",
     ],
     4.76,
-    1.28,
+    1.24,
     3.8,
-    4.55,
+    4.56,
     LIGHT,
     MID,
     TEAL,
@@ -654,9 +692,9 @@ bullet_block(
         "Requires bounded timeouts, retry budget & compatible state",
     ],
     8.98,
-    1.28,
+    1.24,
     3.8,
-    4.55,
+    4.56,
     GREEN,
     MID,
     TEAL,
@@ -666,15 +704,19 @@ add_text(
     s,
     "Invariant: healthy local service must never depend on the inter-site link. Always test inter-site network partition while both sites are healthy.",
     0.55,
-    6.18,
+    6.04,
     12.23,
-    0.56,
-    10.5,
+    0.60,
+    10.3,
     True,
     NAVY,
     PP_ALIGN.CENTER,
     PALEYELLOW,
     GOLD,
+)
+legend_bar(
+    s,
+    "Key:  R2 = Auto cross-site component recovery  •  X2A = Remote WAF borrow  •  X2B = Remote front-end route-back  •  XD1 = App B1→B2 fallback  •  X2C = Full site DR  •  SNAT = Source NAT  •  XFF = X-Forwarded-For  •  CFW = Cloud FW",
 )
 footer(s, 11)
 
@@ -683,7 +725,7 @@ s = slide()
 title(
     s,
     "End-to-end sticky sessions, client-IP headers, SNAT & throughput",
-    "Target multi-layer alignment (Network/FW → LTM → WAF → CFW/ELB → App): high throughput in steady state + clean recovery on failure.",
+    "Target multi-layer alignment (Network/FW → LTM → WAF → CFW/ELB → App): high throughput in steady state + clean T6a/T6b recovery.",
     tsize=20.0,
 )
 at_rows = [
@@ -692,31 +734,31 @@ at_rows = [
         "5-tuple LACP LAG (no STP); f5-tcp-wan/lan + TLS 1.3 reuse; OneConnect + Least Conn (or CARP); SNAT Pool + strip/inject XFF if LTM terminates TLS",
         "Stateless active pool; Trust XFF (K4816); server keep-alive + TLS cache to ELB; disable extra WAF caching/gzip to save r2800 CPU",
         "Least Conn / LOR; no sticky cookie; preserve/append XFF (inject own XFF if ELB terminates TLS); fast H2 eject + graceful drain",
-        "Stateless service; external/shared state only; idempotent writes; automated client retry with backoff/jitter; read trusted XFF",
+        "T6a: automated client retry/backoff + DNS re-lookup; T6b: stateless service, external state only, idempotent writes; read trusted XFF",
     ),
     (
         "AT2:\nStateful\nWeb",
         "f5-tcp-wan/lan + OneConnect (mandatory so Keep-Alive honors cookies, K7964); LTM→WAF stateless CARP (K11362); SNAT Pool + XFF (K9816)",
         "Pass ELB/app sticky cookie untouched; Trust XFF; keep-alive + TLS reuse to ELB; Disabled / Receive Disable (K12818) drains sticky flows",
         "Single app-node sticky owner: ELB/Ingress cookie routes ANY WAF node to exact right App Node; preserve/inject XFF; Slow Start + drain",
-        "Externalized/replicated session store (Redis/DB) makes sticky a speed/locality optimization (not SPOF); graceful re-auth & reconcile",
+        "T6a: silent re-auth/retry (avoid manual user re-login!); T6b: externalized/replicated session store (Redis/DB) makes sticky a speed opt, not SPOF",
     ),
     (
         "AT3:\nWebSocket /\nReal-Time",
         "FW/NAT idle timeouts > app ping; WebSocket profile (K84421441); NEVER enable OneConnect (K000151124); Action=Reject (K15095); SNAT Pool + XFF",
         "WebSocket profile + AWAF policy (K000140381); Trust XFF; no mirroring on N>2 pools (2-device / no-failback limit unchanged in 21.1)",
         "Pin established WS TCP stream to target node; ELB idle timeout > ping; preserve/inject XFF on Upgrade; fast reset on crash",
-        "Client reconnect + exponential backoff/jitter + re-auth + resubscribe + sequence-gap replay (mandatory)",
+        "T6a (mandatory): client reconnect + backoff/jitter + re-auth + resubscribe + gap replay (or users hit manual refresh!); T6b: broker/state resume",
     ),
     (
         "AT4:\nNon-Web /\nLayer-4",
         "Perf L4 VS + FastL4 (K09948701, SW TMM on r2800); Source-IP/CARP; inline no-SNAT for IP ACLs/FTP (K15249), else SNAT Pool + PROXY Proto",
         "Bypasses external WAF tier (where permitted by policy) to avoid L7 proxy overhead & non-HTTP protocol breakage",
         "CFW stateful allow + L4 ELB (NLB/TCP passthrough) keeping raw IP or PROXY Protocol; 5-tuple/Source-IP hash; fast H2 removal",
-        "Protocol-native reconnect, DNS/service re-resolution, safe transaction replay & PROXY Protocol parsing if behind SNAT",
+        "T6a: protocol-native reconnect + DNS/service re-resolution; T6b: safe transaction replay, pool reset & PROXY Protocol parsing if behind SNAT",
     ),
 ]
-# y=1.12, headh=0.42, 4 rows * 1.09 = 4.36 => ends at y=5.90 (clean gap before banner at y=6.04!)
+# y=1.10, headh=0.40, 4 rows * 1.04 = 4.16 => ends at y=5.66 (clean gap before banner at y=5.78!)
 simple_table(
     s,
     [
@@ -724,30 +766,34 @@ simple_table(
         "Network, LTM & SNAT",
         "WAF Pool (AWAF)",
         "CFW & Cloud ELB",
-        "Application Tier (T6)",
+        "Application Tier (T6a Client / T6b Server)",
     ],
     at_rows,
     0.38,
-    1.12,
-    [1.40, 3.15, 2.65, 2.75, 2.62],
-    rowh=1.09,
-    fs=8.0,
-    headh=0.42,
+    1.10,
+    [1.36, 3.12, 2.62, 2.72, 2.75],
+    rowh=1.04,
+    fs=7.9,
+    headh=0.40,
     aligns=[PP_ALIGN.CENTER, PP_ALIGN.LEFT, PP_ALIGN.LEFT, PP_ALIGN.LEFT, PP_ALIGN.LEFT],
 )
 add_text(
     s,
     "Client-IP & SNAT Rules: First L7 TLS terminator (LTM, WAF, or Cloud ELB) strips untrusted XFF & injects real client IP (if ELB terminates TLS, upstream must keep raw IP or pass PROXY Protocol). Use multi-IP SNAT Pools (not Automap — ~65k port cap/IP, K7820/K8246) for L3 asymmetry, X2A/X2B & LTM→AWAF OneConnect (K9816). Never mix OneConnect with WebSocket (K000151124) or HTTP/2 full-proxy (K95032535).",
     0.38,
-    6.02,
+    5.78,
     12.57,
-    0.84,
-    8.3,
+    0.88,
+    8.2,
     True,
     NAVY,
     PP_ALIGN.CENTER,
     PALEYELLOW,
     GOLD,
+)
+legend_bar(
+    s,
+    "Key:  AT1–AT4 = App classes (Stateless/Stateful/WS/L4)  •  T6a = Client recovery  •  T6b = Server app recovery  •  CARP = Stateless hash  •  SNAT = Source NAT  •  XFF = X-Forwarded-For  •  H2 = Local pool health  •  LACP = Link agg",
 )
 footer(s, 12)
 
@@ -765,7 +811,7 @@ score_rows = [
         "16 + 24 = 40",
         "PASS (≤25% / 1 tenant; 1 node ≤8%)",
         "Very Strong (N-2)",
-        "1–2 WAF: 0–16s+T6 (Auto R0/R1)\nFull tier: ~16s X2A / ~46–150s R3",
+        "1–2 WAF: 0–16s+T6a/b (Auto R0/R1)\nFull tier: ~16s X2A / ~46–150s R3",
         "Pro: hard ≤25% isolation & 24 GB RAM\nCon: highest box count (40 units)",
     ),
     (
@@ -773,7 +819,7 @@ score_rows = [
         "16 + 16 = 32",
         "PARTIAL (tenant ≤25%, but 1 fault = 50% cap)",
         "Moderate (needs X2A)",
-        "1 WAF: 0–16s+T6 (Auto R1); Maint+fault:\n~16s X2A / ~46–150s R3 / T5 Manual DR",
+        "1 WAF: 0–16s+T6a/b (Auto R1); Maint+fault:\n~16s X2A / ~46–150s R3 / T5 Manual DR",
         "Pro: saves 8 WAFs vs W1-3\nCon: 0 local N-2 on 4/yr upgrades",
     ),
     (
@@ -781,7 +827,7 @@ score_rows = [
         "8* + 12* = 20*",
         "PASS (policy ≤25%; 1 box = 0% outage)",
         "Very Strong (if ≤12 GB)",
-        "1 box/host reboot: 0–16s+T6 (Auto R0/R1)\nMulti-box: ~16s X2A / R3 / Manual T5",
+        "1 box/host reboot: 0–16s+T6a/b (Auto R0/R1)\nMulti-box: ~16s X2A / R3 / Manual T5",
         "Pro: halves W1-3 to 20 r2800s\nCon: 12 GB RAM cap; 2 tenants/box",
     ),
     (
@@ -789,7 +835,7 @@ score_rows = [
         "16 (8*) + 12 = 28 (20*)",
         "COND. PASS (1 canary ≤17%; needs policy gates)",
         "Very Strong (+2 buffer)",
-        "1–2 WAF (roll+SSD+canary): 0–16s+T6 (Auto)\nFull tier: ~16s X2A / ~46–150s R3 (4-ten)",
+        "1–2 WAF (roll+SSD+canary): 0–16s+T6a/b\nFull tier: ~16s X2A / ~46–150s R3 (4-ten)",
         "Pro: full 24 GB RAM + canary/N-2 @ 20*\nCon: bad global push can >25%",
     ),
     (
@@ -797,7 +843,7 @@ score_rows = [
         "16 + 8 = 24",
         "TIGHT (1 node = 25%; no canary cushion)",
         "Strong if K≤2 only",
-        "1 WAF: 0–16s+T6 (Auto R1); Maint+fault\n(K>2): throttled / X2A / Manual T5",
+        "1 WAF: 0–16s+T6a/b (Auto R1); Maint+fault\n(K>2): throttled / X2A / Manual T5",
         "Pro: lowest shared WAF count (8)\nCon: no +2 rolling/canary margin",
     ),
     (
@@ -805,7 +851,7 @@ score_rows = [
         "16 + 20 = 36",
         "PASS normal / MED reserve risk",
         "Strong (if free)",
-        "1–2 WAF: ~16s+T6 via reserve (Auto PG)\nContention/drift: R2/R3 or Manual T5",
+        "1–2 WAF: ~16s+T6a/b via reserve (Auto PG)\nContention/drift: R2/R3 or Manual T5",
         "Pro: dedicated normal path\nCon: saves only 4 WAFs; complex",
     ),
     (
@@ -821,11 +867,11 @@ score_rows = [
         "4 + 8 = 12",
         "FAIL (100% — all 4 tenants at risk)",
         "Lowest Confidence",
-        "1 peer: ~3–16s (Auto); Bad LTM/WAF push:\nmins+ Manual T5 across all 4 tenants",
+        "1 peer: ~3–16s (Auto); Bad LTM/WAF push:\nmins–hrs Manual T5 across all 4 tenants",
         "Pro: lowest device count (12)\nCon: breaks tenant LTM & 25% cap",
     ),
 ]
-# y=1.10, headh=0.42, 8 rows * 0.57 = 4.56 => ends at y=6.08 (clean gap before banner at y=6.18!)
+# y=1.08, headh=0.38, 8 rows * 0.54 = 4.32 => ends at y=5.78 (clean gap before banner at y=5.88!)
 simple_table(
     s,
     [
@@ -838,96 +884,100 @@ simple_table(
     ],
     score_rows,
     0.38,
-    1.10,
-    [2.50, 1.38, 1.92, 1.32, 2.95, 2.50],
-    rowh=0.57,
-    fs=7.6,
-    headh=0.42,
+    1.08,
+    [2.48, 1.36, 1.90, 1.32, 3.01, 2.50],
+    rowh=0.54,
+    fs=7.4,
+    headh=0.38,
     aligns=[PP_ALIGN.LEFT, PP_ALIGN.CENTER, PP_ALIGN.LEFT, PP_ALIGN.CENTER, PP_ALIGN.LEFT, PP_ALIGN.LEFT],
 )
 add_text(
     s,
-    "*Confirmed r2800 rebuild (no blade chassis): BOTH W1-3 (2-tenant F5OS @ 4c/12G) AND S1+2 (full-box @ 8c/24G) land at 20 r2800s total (8 LTM @ 2/box + 12 WAF). Whole-site DR is Auto R3 (~46–150s+T6) for Active/Active or Manual R4/T5 (mins+) for passive-startup apps.",
+    "*Confirmed r2800 rebuild (no blade chassis): BOTH W1-3 (2-tenant F5OS @ 4c/12G) AND S1+2 (full-box @ 8c/24G) land at 20 r2800s total (8 LTM @ 2/box + 12 WAF). Whole-site DR is Auto R3 (~46–150s+T6a/b) for Active/Active or Manual R4/T5 (mins–hrs) for passive-startup apps.",
     0.38,
-    6.18,
+    5.88,
     12.57,
-    0.66,
-    8.5,
+    0.80,
+    8.4,
     True,
     NAVY,
     PP_ALIGN.CENTER,
     PALEYELLOW,
     GOLD,
 )
+legend_bar(
+    s,
+    "Key:  W1-3/W1-2 = Dedicated 3 or 2 WAF/site  •  S1/S1+2 = Shared 4 or 6 WAF/site  •  S2 = Shared LTM+WAF (OOS)  •  X2A = Remote WAF  •  R0–R4 = Recovery classes  •  T1/T5/T6a/T6b = HA/Manual/Client/Server recovery",
+)
 footer(s, 13)
 
-# Slide 14 — NEW: Joint Responsibility & Fault-Domain Recovery Matrix (Infra vs. App per Layer)
+# Slide 14 — Joint Responsibility & Fault-Domain Recovery Matrix (Infra vs. App per Layer)
 s = slide()
 title(
     s,
     "Joint responsibility: infra & app obligations per fault domain",
-    "Infrastructure delivers resilient layers & accurate health steering; App teams deliver T6 recovery & contracts at every fault domain.",
+    "Infrastructure delivers resilient layers & accurate health steering; App teams deliver T6a (client) & T6b (server) recovery at every fault domain.",
     tsize=20.5,
 )
 fd_rows = [
     (
         "1. DNS / BIG-IP GTM\n(H3 / H4)",
-        "Node: 0–3s\nSite: ~46–150s+T6",
+        "Node: 0–3s\nSite: ~46–150s+T6a/b",
         "Automated\n(R1 / R3)",
         "Dual-site GTM; Specific Prober Pools (K08433560); NAT Translation maps (K14707); separate ext/int wide-IPs; 30s TTL; upgrade GTM first",
-        "Respect DNS TTLs (no infinite JVM/pool IP pinning); re-resolve on socket error; own & version /health/ready contract",
+        "T6a: respect DNS TTLs (no infinite JVM/pool IP pinning) & re-resolve on socket error; T6b: own & version /health/ready contract",
     ),
     (
         "2. Network & Edge FW\n(H1)",
-        "Link/peer: 0–10s+T6\nFull edge: ~46–150s",
+        "Link/peer: 0–10s+T6a\nFull edge: ~46–150s",
         "Automated\n(R0/R1 / R3)",
         "2×2 HA edge FW pairs/tenant; dual-homed F5OS-A LACP LAGs (no STP on r2800, K000152319); FW idle timeouts > LTM/ELB keep-alives & WS ping",
-        "Client retry with backoff/jitter (AT1/AT2); WebSocket ping & reconnect/replay (AT3); tolerate brief packet loss",
+        "T6a: client retry with backoff/jitter (AT1/AT2); WebSocket ping & reconnect/replay (AT3) so brief drops do not force manual refresh",
     ),
     (
         "3. Tenant LTM HA Pair\n(H1 / H2)",
-        "1 peer: ~3s (T1)+T6\nBoth: ~46–150s+T6",
+        "1 peer: ~3s (T1)+T6a\nBoth: ~46–150s+T6a/b",
         "Auto (R1/R3)\nManual if no X2B",
         "Redundant TMM+mgmt HA; MAC masq; VS Immediate Action=Reject (K40554304); Action=Reject; OneConnect+CARP (no WS); SNAT Pool + XFF strip/inject",
-        "Idempotent writes on HA failover resets; reconnect dropped sockets (AT3/AT2); read trusted XFF header position",
+        "T6a: reconnect dropped sockets (AT3/AT2) without manual user re-login; T6b: idempotent writes on HA resets; read trusted XFF position",
     ),
     (
         "4. WAF Tier (AWAF)\n(H2 / r2800)",
-        "1–2 WAF: 0–16s+T6\nTier: ~16s X2A / R3",
-        "Auto (R0–R3)\nManual rollback/DR",
+        "1–2 WAF: 0–16s+T6a\nTier: ~16s X2A / R3",
+        "Auto (R0–R3)\nManual T5 rollback",
         "Size S1+2 or W1-3 (single-SSD/host-reboot safety); remote HSL + cloud-init; Trust XFF (K4816); pass ELB sticky cookies; 1-node canary ≤17–25%",
-        "Co-own canary policy sign-off (7-day staging, K82512024); never rely on AWAF mirroring for AT3 WS; handle reconnects",
+        "Co-own canary policy sign-off (7-day staging, K82512024); never rely on AWAF mirroring for AT3 WS; T6a handles socket reconnect cleanly",
     ),
     (
         "5. Internal FW & CFW\n(H4 / T9)",
-        "Member: ~3–10s+T6\nWhole CFW: ~46–150s",
+        "Member: ~3–10s+T6a\nWhole CFW: ~46–150s",
         "Auto HA / R3\n(unbounded if green!)",
         "Separate int-VIP (H4) from ext-VIP (H3); L7 probes MUST cross CFW→ELB→App (no T9C false-green); note X2A cannot bypass local CFW",
-        "Expose lightweight /health/ready behind CFW so CFW outage triggers automatic steering; tolerate site failover on CFW loss",
+        "T6b: expose lightweight /health/ready behind CFW so CFW outage triggers automatic steering; tolerate site failover on CFW loss",
     ),
     (
         "6. Cloud ELB / Ingress\n(H2)",
-        "Node: 0–10s+T6\nWhole ELB: ~46–150s",
+        "Node: 0–10s+T6a/b\nWhole ELB: ~46–150s",
         "Automated\n(R0/R1 / R3)",
         "Own single AT2 app-node sticky cookie; inject/append own XFF if terminating TLS (preserve upstream XFF); Slow Start + graceful drain",
-        "Implement Pod/VM readiness & preStop drain hooks (Receive Disable / HTTP 503) so rolling app updates stay R0/R1",
+        "T6b: implement Pod/VM readiness & preStop drain hooks (Receive Disable / HTTP 503) so rolling app updates stay R0/R1",
     ),
     (
         "7. App & Shared Deps\n(App A/D→B→C, H5)",
         "Node: 0–10s (R0/R1)\nApp B1: ~5–16s XD1",
-        "Auto (R0–R2)\nManual DB reconcile",
+        "Auto (R0–R2)\nManual T5 DB fix",
         "Stable App B service VIP (H5) with Action=Reject (K15095) + pre-approved B1→B2 cross-site routing/FW rules (XD1)",
-        "Separate critical vs optional deps in /health/ready (no cascades); circuit breakers; external session store (AT2); rolling DB/app updates",
+        "T6b: split critical vs optional deps in /health/ready, circuit breakers, external session store (AT2), rolling DB updates (avoid T5)",
     ),
     (
         "8. Whole Site / DR\n(X2C)",
-        "Active/Act: ~46–150s\nPassive: mins+ (T5)",
+        "Act/Act: ~46–150s+T6\nPassive: mins–hrs T5",
         "Auto (R3 Act/Act)\nManual (R4 Passive)",
         "Size Site 2 r2800 LTM/WAF (S1+2 or W1-3), SNAT Pools, CFW & ELB for 100% 4-tenant DR surge; keep policies & certs synced",
-        "Replicate state/data within RPO; automate passive-site startup & DB promotion (manual DR rapidly burns 262.8 min/yr budget)",
+        "T6b/T5: replicate state within RPO; automate passive-site startup & DB promotion (manual T5 & manual T6a quickly burn 262.8 min/yr)",
     ),
 ]
-# y=1.10, headh=0.40, 8 rows * 0.58 = 4.64 => ends at y=6.14 (clean gap before banner at y=6.22!)
+# y=1.08, headh=0.38, 8 rows * 0.55 = 4.40 => ends at y=5.86 (clean gap before banner at y=5.96!)
 simple_table(
     s,
     [
@@ -935,30 +985,34 @@ simple_table(
         "Longest Outage",
         "Auto / Manual",
         "Specific Infrastructure Obligations",
-        "Specific Application Obligations",
+        "Specific Application Obligations (T6a / T6b)",
     ],
     fd_rows,
     0.38,
-    1.10,
-    [1.82, 1.50, 1.30, 4.10, 3.85],
-    rowh=0.58,
-    fs=7.5,
-    headh=0.40,
+    1.08,
+    [1.82, 1.54, 1.30, 4.06, 3.85],
+    rowh=0.55,
+    fs=7.4,
+    headh=0.38,
     aligns=[PP_ALIGN.LEFT, PP_ALIGN.CENTER, PP_ALIGN.CENTER, PP_ALIGN.LEFT, PP_ALIGN.LEFT],
 )
 add_text(
     s,
-    "Joint Accountability: Health checks & recovery must be built at the exact right layer — infrastructure prevents false-greens & single-node outages; applications own T6 recovery & readiness contracts.",
+    "Joint Accountability: Infra prevents false-greens & single-node outages; App teams must engineer automated T6a (client retry/reconnect — avoiding manual user refresh/re-login) & T6b (server session/pool recovery — avoiding manual T5 startup).",
     0.38,
-    6.22,
+    5.96,
     12.57,
-    0.58,
-    9.4,
+    0.74,
+    8.9,
     True,
     NAVY,
     PP_ALIGN.CENTER,
     PALEGREEN,
     RGBColor(92, 164, 82),
+)
+legend_bar(
+    s,
+    "Key:  H1–H5 = Health layers (HA/Pool/Ext/Int/Dep)  •  T1/T5/T9 = HA/Manual/CFW  •  T6a/T6b = Client/Server app recovery  •  X2A/X2B/XD1/X2C = Cross-site patterns  •  R0–R4 = Recovery classes",
 )
 footer(s, 14)
 
@@ -990,72 +1044,79 @@ checks = [
     "1 WAF or backend failure stays local R0/R1 (Action=Reject)",
     "GTM never advertises a broken required service path",
     "inter-site link loss never withdraws a healthy local site",
-    "GTM / prober / sync convergence time measured end-to-end",
+    "GTM / prober / sync convergence + T6a/T6b measured end-to-end",
     "App A / B / C / D cascade & XD1 fallback tested with App teams",
     "AT1–AT4 sticky, XFF/ELB headers, SNAT Pool & no-OneConnect WS",
     "managed maintenance + extra failure + 1-node canary ≤ 25% tested",
     "r2800 LACP LAG (no STP), HSL logs & platform-migrate validated",
 ]
-add_text(s, "Cross-team acceptance gates before claiming 99.95% readiness", 0.55, 2.95, 7.5, 0.38, 12.5, True, NAVY, radius=False)
+add_text(s, "Cross-team acceptance gates before claiming 99.95% readiness", 0.55, 2.90, 7.5, 0.38, 12.5, True, NAVY, radius=False)
 for i, ch in enumerate(checks):
     x = 0.55 + (i % 3) * 4.12
-    y = 3.48 + (i // 3) * 0.78
+    y = 3.40 + (i // 3) * 0.76
     add_text(s, "✓", x, y, 0.30, 0.34, 11, True, TEAL, PP_ALIGN.CENTER, radius=False)
     add_text(s, ch, x + 0.32, y, 3.65, 0.54, 8.8, False, DARK, radius=False)
 add_text(
     s,
-    "Managed-change safety is part of the 99.95% SLO: never change both sites together; upgrade BIG-IP DNS before LTM (big3d_install); drain one node at a time; preserve rollback.",
+    "Managed-change safety is part of the 99.95% SLO: never change both sites together; upgrade BIG-IP DNS before LTM (big3d_install); drain one node at a time; verify T6a/T6b automation & preserve rollback.",
     0.55,
-    6.16,
+    5.96,
     12.25,
-    0.60,
-    10.0,
+    0.72,
+    9.6,
     True,
     NAVY,
     PP_ALIGN.CENTER,
     PALEYELLOW,
     GOLD,
 )
+legend_bar(
+    s,
+    "Key:  S1+2/W1-3 = Target WAF tiers  •  H6 = External synthetic SLO  •  XD1/X2A/X2B = Cross-site R2 patterns  •  R0/R1 = Local recovery  •  T6a/T6b = Client/Server app recovery  •  AT1–AT4 = App classes  •  LACP/STP = L2 link agg/Spanning Tree",
+)
 footer(s, 15)
 
-# Slide 16 — Appendix A: Recovery Timing Shorthand (T1-T9)
+# Slide 16 — Appendix A: Recovery Timing Shorthand (T1-T9, incl. T6a/T6b Split)
 s = slide()
 title(
     s,
-    "Appendix A — recovery timing shorthand (T1–T9)",
-    "Planning categories, not vendor SLAs. Always measure end-to-end from fault to the first successful business transaction.",
+    "Appendix A — recovery timing shorthand (T1–T9, incl. T6a / T6b)",
+    "Planning categories, not vendor SLAs. Measure end-to-end RTO = Infra/DNS detection + T6b (server) + T6a (client) to first successful transaction.",
+    tsize=20.0,
 )
 rows = [
-    ("T1", "BIG-IP HA peer / device failover", "~3s+ detection (Failover.NetTimeoutSec=3) + convergence"),
-    ("T2", "LTM / WAF pool member detection", "commonly up to ~16s (5s/16s default); set Action=Reject"),
-    ("T3", "GTM health observation", "monitor / config specific (direct default 30s / 120s)"),
-    ("T4", "GTM state + DNS convergence", "state learning/sync + answer + DNS TTL (30s default) / re-lookup"),
-    ("T5", "Manual / warm / cold recovery", "minutes+; procedure and passive-app startup dependent"),
-    ("T6", "Application recovery", "client retry / reconnect / re-auth / session state / replay"),
-    ("T7", "Failback", "controlled return to primary (auto-failback default 60s if enabled)"),
-    ("T8", "DNS / cache / existing sockets", "behavior modifier (existing TCP sockets stay pinned), not a duration"),
-    ("T9", "Cloud Firewall (CFW) recovery", "product/config specific; measure separately from internal firewall"),
+    ("T1", "BIG-IP HA peer / device failover", "~3s+ detection (Failover.NetTimeoutSec=3) + HA convergence (automated R1)"),
+    ("T2", "LTM / WAF pool member detection", "commonly up to ~16s (5s/16s default); set Action On Service Down=Reject (automated R1)"),
+    ("T3", "GTM health observation", "monitor / config specific (direct default 30s / 120s; LTM-assisted faster via iQuery)"),
+    ("T4", "GTM state + DNS convergence", "state learning/sync + answer + DNS TTL (30s default) / client re-lookup"),
+    ("T5", "Manual server / operational recovery", "minutes to hours — passive-site app startup, manual DB failover/promotion, hung-pool clear, manual rollback (R4)"),
+    ("T6a", "Client-side application recovery", "Auto (seconds): retry/backoff, DNS re-lookup, silent re-auth, WS reconnect/replay  |  Poorly architected (minutes+): manual user refresh, re-login, restart"),
+    ("T6b", "Server-side app & state recovery", "Auto (seconds–~2 min): externalized session lookup, DB/service pool reset, Pod/VM warmup, idempotent reconcile (vs. T5 manual startup/DB)"),
+    ("T7", "Failback", "controlled return to primary (auto-failback default 60s if enabled; prefer controlled failback)"),
+    ("T8", "DNS / cache / existing sockets", "behavior modifier (existing TCP sockets stay pinned until reset/timeout), not a duration"),
+    ("T9", "Cloud Firewall (CFW) recovery", "product/config specific; measure separately from internal firewall (prevent T9C false-green)"),
 ]
+# y=1.12, headh=0.38, 10 rows * 0.47 = 4.70 => ends at y=6.20 (clean gap before banner at y=6.32!)
 simple_table(
     s,
-    ["Code", "Meaning", "Management interpretation"],
+    ["Code", "Meaning", "Expected timing & management interpretation"],
     rows,
-    0.55,
-    1.18,
-    [0.95, 4.15, 7.15],
-    rowh=0.48,
-    fs=8.9,
-    headh=0.44,
+    0.50,
+    1.12,
+    [0.90, 3.65, 7.80],
+    rowh=0.47,
+    fs=8.3,
+    headh=0.38,
     aligns=[PP_ALIGN.CENTER, PP_ALIGN.LEFT, PP_ALIGN.LEFT],
 )
 add_text(
     s,
-    "Critical addition: where GTM health is site-local only, include the measured GTM synchronization/state-learning delay before DNS TTL and T6.",
-    0.55,
-    6.28,
-    12.25,
+    "Key distinction: Infra can deliver seconds-scale T1/T2/T4, but poorly architected clients (manual T6a user refresh/re-login) or manual server startup/DB failover (T5) turn seconds-scale infra failovers into minutes-to-hours user outages.",
     0.50,
-    10.0,
+    6.32,
+    12.35,
+    0.62,
+    9.4,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -1069,7 +1130,7 @@ s = slide()
 title(
     s,
     "Appendix B — executive glossary of acronyms & codes",
-    "Plain-English definitions of every F5, infrastructure, health-layer, topology, and recovery code used in this deck.",
+    "Plain-English definitions of every F5, infrastructure, health-layer, timing, topology, and cross-site code used in this deck.",
 )
 left_terms = [
     ("GTM / BIG-IP DNS", "Global Traffic Manager — F5 DNS control plane for site selection"),
@@ -1082,6 +1143,7 @@ left_terms = [
     ("SNAT / OneConnect", "Source NAT (multi-IP SNAT Pool avoids 65k port cap) • HTTP TCP reuse"),
     ("iQuery / big3d", "F5 protocol & agent sharing LTM/VS health metrics with GTM"),
     ("CFW / ELB / XFF", "Cloud FW / Cloud Load Balancer / X-Forwarded-For client IP header"),
+    ("T1–T4 / T7–T9", "Infra timings: HA (T1), pool (T2), GTM/DNS (T3/T4), failback/cache/CFW"),
 ]
 right_terms = [
     ("H1 / H2", "Health layers: H1 = Device HA failover • H2 = Local LTM/ELB pool member"),
@@ -1089,22 +1151,24 @@ right_terms = [
     ("H5 / H6", "Health layers: H5 = Shared dependency (App B) • H6 = Independent synthetic SLO"),
     ("R0 / R1", "Recovery classes: R0 = Zero user impact • R1 = Auto local recovery (secs)"),
     ("R2 / R3 / R4", "R2 = Cross-site component • R3 = Auto site/DNS failover • R4 = Manual DR"),
+    ("T6a / T6b / T5", "T6a = Client recovery (s auto / m+ manual) • T6b = Server auto • T5 = Manual DR"),
     ("W1-3 / W1-2 / W2–4", "Dedicated WAFs: W1-3 (3/site, N-2) vs W1-2 (2/site, N-1); W2 DSC; W3/W4"),
     ("S1 / S1+2 / S2", "Shared WAFs: S1 (4/site), S1+2 (+2 for rolling/outage/canary), S2 (OOS)"),
-    ("X2A / X2B / XD1", "Cross-site R2 patterns: remote WAF, remote front-end, App B fallback"),
+    ("X2A / X2B / X2C / XD1", "Cross-site: remote WAF (X2A), remote FE (X2B), full DR (X2C), App B (XD1)"),
     ("CARP / FastL4", "Stateless consistent hash persistence • Low-overhead L4 forwarding"),
     ("AT1 – AT4 / SLO", "App types (stateless, stateful, WebSocket, L4) • Service Level Objective"),
 ]
+# y=1.14, headh=0.38, 11 rows * 0.44 = 4.84 => ends at y=6.36 (clean gap before note at y=6.48!)
 simple_table(
     s,
     ["Term / Code", "Plain-English definition"],
     left_terms,
     0.45,
-    1.16,
+    1.14,
     [1.85, 4.20],
-    rowh=0.47,
-    fs=8.3,
-    headh=0.40,
+    rowh=0.44,
+    fs=8.1,
+    headh=0.38,
     aligns=[PP_ALIGN.CENTER, PP_ALIGN.LEFT],
 )
 simple_table(
@@ -1112,21 +1176,21 @@ simple_table(
     ["Code / Layer", "Plain-English definition"],
     right_terms,
     6.75,
-    1.16,
-    [1.75, 4.38],
-    rowh=0.47,
-    fs=8.3,
-    headh=0.40,
+    1.14,
+    [1.82, 4.31],
+    rowh=0.44,
+    fs=8.1,
+    headh=0.38,
     aligns=[PP_ALIGN.CENTER, PP_ALIGN.LEFT],
 )
 add_text(
     s,
     "Note: Reference codes (e.g., K14707, K12818, K7964, K9816, K7820) refer to official MyF5 Knowledge Base articles summarized in the repository’s F5 documentation reference tables.",
     0.45,
-    6.42,
+    6.48,
     12.43,
-    0.44,
-    9.2,
+    0.46,
+    9.0,
     True,
     NAVY,
     PP_ALIGN.CENTER,
