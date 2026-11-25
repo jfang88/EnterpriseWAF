@@ -62,7 +62,7 @@ The important distinction is:
 
 Detailed diagrams are in section 3 below, in [EnterpriseWAF_Topology_Options.svg](../management-artifacts/diagrams/EnterpriseWAF_Topology_Options.svg), and in [executive_recommendation.md](./executive_recommendation.md).
 
-## 1.2 Timing reference — T1 to T9
+## 1.2 Timing reference — T1 to T12
 
 The detailed timing definitions live in [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md#5-f5-monitoring-and-recovery-time-assumptions). The table below is the quick reference used throughout this summary.
 
@@ -78,6 +78,9 @@ The detailed timing definitions live in [analysis_variables_and_f5_assumptions.m
 | **T7** | Failback | controlled restoration; F5 auto-failback delay is configurable and commonly modelled around **60s when enabled** | return to preferred device/site after recovery |
 | **T8** | DNS cache vs existing-connection behavior | **behavior modifier, not a duration** | distinguishes new DNS lookup, cached old IP, existing TCP/WebSocket, and app connection-pool caching |
 | **T9** | Platform/cloud firewall (CFW) recovery | **product/config specific; measure** | CFW HA member failure, full CFW-context failure or CFW false-green |
+| **T10** | Private-cloud ELB member/HA/service recovery | TBD / measure | Local member withdrawal, VIP takeover, service loss |
+| **T11** | Kubernetes readiness/worker/ingress recovery | TBD / measure | Endpoint withdrawal, rescheduling and shared platform failure |
+| **T12** | VM/hypervisor recovery | TBD / measure | Guest/host failure, HA restart and shared storage/network |
 
 ### How to read combined timings
 
@@ -153,6 +156,8 @@ Internal user/system
   -> ELB/service
   -> application
 ~~~
+
+CFW is the logical private-cloud edge across both sites, with site-local enforcement and ELBs behind it. Physical HA, shared state and cross-site alternate paths are not inferred. Assess both local CFW loss and common-mode two-site failure.
 
 The **internal firewall and CFW are separate failure domains**. A WAF outage may leave the internal path healthy; an internal-firewall outage may block internal users while the external path remains healthy; a CFW outage can affect both paths if they converge on the same CFW.
 

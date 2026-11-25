@@ -720,7 +720,7 @@ Use **T5** where recovery depends on **manual operator action or slow warm/cold 
 | **`T6a` — Client-Side Recovery** | Browser SPA, thick desktop client, mobile app, partner API/WebSocket client | Automated retry with backoff/jitter (`AT1`/`AT2`), DNS re-resolution, silent token refresh, WebSocket reconnect + resubscribe + sequence-gap replay (`AT3`) — **typically seconds** | **Manual user steps required:** hard browser refresh, re-login, restarting a desktop client or partner job, or re-entering lost form/transaction work — **minutes+ (human-speed outage)** |
 | **`T6b` — Server-Side App & State Recovery** | Backend service tier, session store, caches, message queues, DB connections | Externalized/replicated session store (Redis/DB), clean DB/service connection-pool reset, Pod/VM warmup, idempotent transaction reconciliation — **typically seconds to ~1–2 min** | **Escalates to `T5` manual server-side recovery:** passive-site app startup, manual DB failover/promotion, manual restart of hung pools, or manual data reconciliation — **minutes to hours** |
 
-**Rule:** Total user-visible RTO is `Infrastructure Recovery (T1–T4 / T9) + T5 (if manual server/DR) + T6b (server app/state) + T6a (client/user)`. Poor client-side recovery (`T6a` manual) or manual server-side recovery (`T5` / `T6b` manual) can dominate user-visible RTO even when F5 failover completes in **3–16 seconds**.
+**Rule:** Total user-visible RTO is `Infrastructure Recovery (T1–T4 / T9–T12) + T5 (if manual server/DR) + T6b (server app/state) + T6a (client/user)`. Poor client-side recovery (`T6a` manual) or manual server-side recovery (`T5` / `T6b` manual) can dominate user-visible RTO even when F5 failover completes in **3–16 seconds**.
 
 ## T7 — failback
 
@@ -746,6 +746,8 @@ This is why a 30-second DNS TTL does **not** mean "30-second site failover" and 
 ## T9 — platform/cloud firewall (CFW) recovery
 
 CFW recovery is a separate timing domain from F5 LTM/WAF and application ELB recovery.
+
+The CFW is one logical private-cloud edge/security boundary available in both sites, represented by site-local enforcement paths. ELB/service endpoints sit behind that boundary. This does not establish a stretched physical firewall, shared state, automatic alternate-site routing, or independent failure domains: local and common-mode failures must be validated separately.
 
 No numeric default is assumed because the platform firewall product, HA mode, state synchronization, route convergence and health integration are deployment-specific.
 
@@ -795,6 +797,28 @@ Recommendation:
 
 - application/site readiness must prove reachability through the CFW to the ELB/application, or otherwise consume an authoritative signal that represents that full path;
 - internal service health must also include CFW reachability where internal App A -> B/C traffic traverses the same CFW.
+
+## T10 — private-cloud ELB recovery (Huawei on-premises platform: TBD / measure)
+
+| Scenario | Timing placeholder | Recovery boundary |
+|---|---|---|
+| ELB backend member failure | T10a = detection + member withdrawal + routing convergence: TBD | Same service VIP; no DNS change if healthy capacity remains |
+| ELB instance/HA failure | T10b = HA detection + takeover + VIP/state convergence: TBD | Validate existing connections and NAT/session continuity |
+| Entire ELB service/VIP failure | T10c = service recovery or alternate endpoint readiness: TBD | Add T3/T4 only if published DNS/site selection changes |
+ 
+## T11 — Kubernetes workload/platform recovery (Huawei on-premises platform: TBD / measure)
+
+- T11a: readiness failure, endpoint withdrawal and ingress/ELB propagation — TBD.
+- T11b: worker loss detection, eviction/rescheduling, image pull, storage attach and pod readiness — TBD; these may overlap.
+- T11c: ingress/controller, control-plane or shared storage/network failure — TBD; distinguish surviving data plane from impaired scheduling and total service loss.
+
+## T12 — VM / hypervisor recovery (Huawei on-premises platform: TBD / measure)
+
+- T12a: guest/app failure detection and backend withdrawal — TBD.
+- T12b: host failure detection, HA restart/placement, boot, storage/network and service readiness — TBD.
+- T12c: shared compute/storage/network domain failure and alternate capacity — TBD.
+
+For T9–T12, Cloud Platform and application owners must record configured monitors, actual detection and convergence, surviving capacity, state/session loss, and p50/p95/p99 fault-to-first-success under load. Do not substitute F5 timers for Huawei private-cloud timings. A healthy alternate member may restore service before failed workload replacement; report service restoration separately from redundancy restoration. Compose only stages on the critical recovery path (avoid double-counting overlapping detection, readiness, T6b or DNS). Add T6a for client retry/reconnect/replay and T6b only for additional application/state recovery. A logical two-site CFW boundary does not prove route-back or cross-site state continuity; test local and shared/common-mode failures separately.
 
 # 6. F5 connection mirroring implications
 

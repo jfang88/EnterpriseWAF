@@ -41,7 +41,7 @@ Cross-site dataplane routing is evaluated separately as:
 # 2. Timing shorthand (aligned with `T6a` / `T6b` / `T5` split)
 
 These are modelling categories, not guaranteed SLAs. Measure end-to-end RTO as:
-`Total RTO = Infra / DNS detection & steering (T1/T2/T3/T4/T9) + T6b (server recovery, or T5 if manual) + T6a (client recovery — seconds auto vs. minutes+ manual user steps)`.
+`Total RTO = Infra / DNS detection & steering (T1/T2/T3/T4/T9–T12) + T6b (server recovery, or T5 if manual) + T6a (client recovery — seconds auto vs. minutes+ manual user steps)`.
 
 | Timing ID | Meaning |
 |---|---|
@@ -143,6 +143,21 @@ For W3, distinguish **W3-L2** (two-device tenant LTM pair) from **W3-L3** (three
 | F16 | Shared reserve WAFs exhausted by another tenant | No reserve available; tenant falls back to preferred survivors/site recovery | capacity event; T4/T5 if site move | N/A | N/A | **Critical W3 shared-capacity risk** | N/A unless spare shared |
 
 # 6. Platform firewall, backend and application-platform failures
+
+The CFW is one logical private-cloud edge/security boundary available in both sites, represented by site-local enforcement paths. ELB/service endpoints sit behind that boundary. This does not establish a stretched physical firewall, shared state, automatic alternate-site routing, or independent failure domains: local and common-mode failures must be validated separately.
+
+| Additional failure scenario | Preferred recovery | Timing (Huawei private cloud) |
+|---|---|---|
+| CFW common-mode policy/control-plane failure across sites | Independent recovery/rollback; alternate site only if verified unaffected | T9 — TBD |
+| ELB member or HA instance failure | Local member withdrawal or HA takeover | T10a/T10b — TBD |
+| ELB entire service/VIP failure | Alternate ready service/path; DNS steering if required | T10c + applicable T3/T4 — TBD |
+| Kubernetes pod readiness failure | Remove endpoint; route to ready pods | T11a — TBD |
+| Kubernetes worker loss | Surviving pods first; reschedule and restore redundancy | T11b — TBD |
+| Kubernetes ingress/control-plane/shared dependency loss | Validate surviving data plane and alternate capacity | T11c — TBD |
+| VM guest / host failure | Withdraw failed backend; HA restart if supported | T12a/T12b — TBD |
+| Shared compute/storage/network failure | Restore platform or approved alternate site | T12c — TBD |
+
+See [timing definitions](./analysis_variables_and_f5_assumptions.md) for T9–T12. Add application/client recovery only where needed; distinguish service recovery from redundancy restoration.
 
 For private-cloud applications, model this path explicitly:
 

@@ -181,6 +181,8 @@ Use `All`, `At Least`, or `Require` semantics only after testing the failure beh
 
 # 8. Canonical target health diagram
 
+The CFW is one logical private-cloud edge/security boundary available in both sites, represented by site-local enforcement paths. ELB/service endpoints sit behind that boundary. This does not establish a stretched physical firewall, shared state, automatic alternate-site routing, or independent failure domains: local and common-mode failures must be validated separately.
+
 ```mermaid
 flowchart LR
 
@@ -201,7 +203,7 @@ flowchart LR
     IV1[Internal service VIP / LTM]
     IF1[Internal firewall]
     subgraph S1PC[Site 1 private cloud]
-      CFW1[CFW]
+      CFW1[CFW - Site 1 enforcement]
       ELB1[ELB/service]
       APP1[App readiness]
     end
@@ -218,7 +220,7 @@ flowchart LR
     IV2[Internal service VIP / LTM]
     IF2[Internal firewall]
     subgraph S2PC[Site 2 private cloud]
-      CFW2[CFW]
+      CFW2[CFW - Site 2 enforcement]
       ELB2[ELB/service]
       APP2[App readiness]
     end
@@ -227,6 +229,9 @@ flowchart LR
     IV2 --> IF2 --> CFW2
   end
 
+  CFWLOG[Logical private-cloud edge - both sites]
+  CFWLOG -.- CFW1
+  CFWLOG -.- CFW2
   G1 <-. GTM sync / global state .-> G2
 
   EP -. H3 external L7 .-> EFW1
@@ -281,6 +286,8 @@ TCP 443 works
 Do not make App A globally unhealthy simply because an optional/non-critical App B/C feature is degraded. Otherwise one shared dependency can cause GTM to withdraw several healthy applications and create an avoidable site failover.
 
 # 10. Health action boundaries
+
+Cloud Platform owns validation of T9–T12 (CFW, ELB, Kubernetes and VM recovery). Require measured local and common-mode recovery, readiness propagation, capacity and client-visible results; Huawei on-premises timing is TBD. See [timing definitions](./analysis_variables_and_f5_assumptions.md).
 
 | Failure | Preferred detector | Preferred action |
 |---|---|---|

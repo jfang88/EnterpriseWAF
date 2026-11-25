@@ -273,7 +273,7 @@ bullet_block(
 )
 add_text(
     s,
-    "How to use: Present the plain-English 9-slide Executive Briefing in leadership meetings; use this 17-slide Engineering Reference Appendix for architecture deep-dives, KBs, T1–T9 timings (Slide 16) & Glossary (Slide 17).",
+    "How to use: Present the plain-English 9-slide Executive Briefing in leadership meetings; use this 17-slide Engineering Reference Appendix for architecture deep-dives, KBs, T1–T12 timings (Slide 16) & Glossary (Slide 17).",
     0.55,
     5.42,
     12.22,
@@ -950,7 +950,7 @@ fd_rows = [
     ),
     (
         "5. Internal FW & CFW\n(H4 / T9)",
-        "Member: ~3–10s+T6a\nWhole CFW: ~46–150s",
+        "CFW: TBD (T9)\nDNS move: conditional",
         "Auto HA / R3\n(unbounded if green!)",
         "Separate int-VIP (H4) from ext-VIP (H3); L7 probes MUST cross CFW→ELB→App (no T9C false-green); note X2A cannot bypass local CFW",
         "T6b: expose lightweight /health/ready behind CFW so CFW outage triggers automatic steering; tolerate site failover on CFW loss",
@@ -1076,11 +1076,11 @@ legend_bar(
 )
 footer(s, 15)
 
-# Slide 16 — Appendix A: Recovery Timing Shorthand (T1-T9, incl. T6a/T6b Split)
+# Slide 16 — Appendix A: Recovery Timing Shorthand (T1-T12, incl. T6a/T6b Split)
 s = slide()
 title(
     s,
-    "Appendix A — recovery timing shorthand (T1–T9, incl. T6a / T6b)",
+    "Appendix A — recovery timing shorthand (T1–T12, incl. T6a / T6b)",
     "Planning categories, not vendor SLAs. Measure end-to-end RTO = Infra/DNS detection + T6b (server) + T6a (client) to first successful transaction.",
     tsize=20.0,
 )
@@ -1091,10 +1091,13 @@ rows = [
     ("T4", "GTM state + DNS convergence", "state learning/sync + answer + DNS TTL (30s default) / client re-lookup"),
     ("T5", "Manual server / operational recovery", "minutes to hours — passive-site app startup, manual DB failover/promotion, hung-pool clear, manual rollback (R4)"),
     ("T6a", "Client-side application recovery", "Auto (seconds): retry/backoff, DNS re-lookup, silent re-auth, WS reconnect/replay  |  Poorly architected (minutes+): manual user refresh, re-login, restart"),
-    ("T6b", "Server-side app & state recovery", "Auto (seconds–~2 min): externalized session lookup, DB/service pool reset, Pod/VM warmup, idempotent reconcile (vs. T5 manual startup/DB)"),
+    ("T6b", "Server-side app & state recovery", "Auto (seconds–~2 min): externalized session lookup, DB/service pool reset, app/state readiness, idempotent reconcile (vs. T5 manual startup/DB)"),
     ("T7", "Failback", "controlled return to primary (auto-failback default 60s if enabled; prefer controlled failback)"),
     ("T8", "DNS / cache / existing sockets", "behavior modifier (existing TCP sockets stay pinned until reset/timeout), not a duration"),
-    ("T9", "Cloud Firewall (CFW) recovery", "product/config specific; measure separately from internal firewall (prevent T9C false-green)"),
+    ("T9", "Cloud firewall recovery", "TBD: site-local HA, alternate path and two-site common-mode failure"),
+    ("T10", "Cloud ELB recovery", "TBD: member withdrawal, HA/VIP takeover, entire service loss"),
+    ("T11", "Kubernetes recovery", "TBD: readiness, endpoint withdrawal, worker loss, reschedule"),
+    ("T12", "VM / hypervisor recovery", "TBD: member withdrawal, host HA, restart, storage and readiness"),
 ]
 # y=1.12, headh=0.38, 10 rows * 0.47 = 4.70 => ends at y=6.20 (clean gap before banner at y=6.32!)
 simple_table(
@@ -1104,8 +1107,8 @@ simple_table(
     0.50,
     1.12,
     [0.90, 3.65, 7.80],
-    rowh=0.47,
-    fs=8.3,
+    rowh=0.36,
+    fs=8.0,
     headh=0.38,
     aligns=[PP_ALIGN.CENTER, PP_ALIGN.LEFT, PP_ALIGN.LEFT],
 )
@@ -1143,7 +1146,7 @@ left_terms = [
     ("SNAT / OneConnect", "Source NAT (multi-IP SNAT Pool avoids 65k port cap) • HTTP TCP reuse"),
     ("iQuery / big3d", "F5 protocol & agent sharing LTM/VS health metrics with GTM"),
     ("CFW / ELB / XFF", "Cloud FW / Cloud Load Balancer / X-Forwarded-For client IP header"),
-    ("T1–T4 / T7–T9", "Infra timings: HA (T1), pool (T2), GTM/DNS (T3/T4), failback/cache/CFW"),
+    ("T1–T4 / T7–T12", "Infra timings: HA (T1), pool (T2), GTM/DNS (T3/T4), failback/cache/cloud platform"),
 ]
 right_terms = [
     ("H1 / H2", "Health layers: H1 = Device HA failover • H2 = Local LTM/ELB pool member"),

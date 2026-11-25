@@ -94,10 +94,10 @@
 <!-- Row 4: Private Cloud (badge shifted right so CFW vertical arrows NEVER cross it!) -->
 <rect x="298" y="466" width="436" height="236" rx="18" fill="#ede8ff" stroke="#5c4cd2" stroke-width="2.5"/>
 <rect x="522" y="474" width="194" height="30" rx="8" fill="#5c4cd2"/>
-<text x="619" y="494" text-anchor="middle" class="h" font-size="14">Site 1 private cloud</text>
+<text x="619" y="494" text-anchor="middle" class="h" font-size="14">Private cloud — Site 1</text>
 
 <rect x="316" y="534" width="100" height="50" fill="#dcf5f8" class="b"/>
-<text x="366" y="565" text-anchor="middle" class="tx" font-size="16" font-weight="bold">CFW</text>
+<text x="366" y="565" text-anchor="middle" class="tx" font-size="16" font-weight="bold">CFW edge</text>
 
 <rect x="448" y="534" width="128" height="50" fill="#dcf5f8" class="b"/>
 <text x="512" y="565" text-anchor="middle" class="tx" font-size="15" font-weight="bold">ELB / service</text>
@@ -161,10 +161,10 @@
 <!-- Row 4: Private Cloud (badge shifted right so CFW vertical arrows NEVER cross it!) -->
 <rect x="846" y="466" width="436" height="236" rx="18" fill="#ede8ff" stroke="#5c4cd2" stroke-width="2.5"/>
 <rect x="1070" y="474" width="194" height="30" rx="8" fill="#5c4cd2"/>
-<text x="1167" y="494" text-anchor="middle" class="h" font-size="14">Site 2 private cloud</text>
+<text x="1167" y="494" text-anchor="middle" class="h" font-size="14">Private cloud — Site 2</text>
 
 <rect x="864" y="534" width="100" height="50" fill="#dcf5f8" class="b"/>
-<text x="914" y="565" text-anchor="middle" class="tx" font-size="16" font-weight="bold">CFW</text>
+<text x="914" y="565" text-anchor="middle" class="tx" font-size="16" font-weight="bold">CFW edge</text>
 
 <rect x="996" y="534" width="128" height="50" fill="#dcf5f8" class="b"/>
 <text x="1060" y="565" text-anchor="middle" class="tx" font-size="15" font-weight="bold">ELB / service</text>
@@ -242,7 +242,7 @@
 <!-- Bottom Green Banner -->
 <rect x="36" y="776" width="1540" height="62" rx="12" fill="#ebf8e9" stroke="#5ca452" stroke-width="2"/>
 <text x="806" y="803" text-anchor="middle" class="tx" font-size="15" font-weight="bold" fill="#073b64">Decision owner vs probe origin: GTM owns the DNS/site decision, but the probe must exercise the relevant external (H3) or internal (H4) path.</text>
-<text x="806" y="825" text-anchor="middle" class="sub" font-size="13.5">Health layers: H2 = local member pool • H3 = external VIP • H4 = internal VIP • H6 = independent end-to-end synthetic check (see Slide 6 &amp; Glossary Slide 16).</text>
+<text x="806" y="825" text-anchor="middle" class="sub" font-size="13.5">CFW: logical cloud edge across both sites; ELBs behind site-local enforcement. Shared state and cross-site routing require validation.</text>
 
 <!-- Consistent Deck Footer -->
 <text x="38" y="876" class="sub" font-size="13">End-to-end application delivery summary</text>

@@ -15,7 +15,7 @@ Structure:
     Slide 9: Joint Responsibility Matrix by Fault Domain (Infra vs. App obligations)
 
 Technical details (r2800 hardware specs, BIG-IP 17.5.x -> 21.1.x+ parallel cutover, RACI, F5 KBs,
-OneConnect/CARP/SNAT mechanics, and T1-T9 timings) are placed in PowerPoint Speaker Notes
+OneConnect/CARP/SNAT mechanics, and T1-T12 timings) are placed in PowerPoint Speaker Notes
 so the slides stay plain-English and scannable while preserving full engineering depth.
 """
 
@@ -480,9 +480,9 @@ set_notes(
    - Guardrail 5 (End-to-End Correlation ID): Inject X-Correlation-ID at first L7 hop, log with AWAF Support ID via remote HSL, forward through CFW/ELB/App to cut cross-team triage MTTR.
    - Guardrail 6 (Parallel Zero-Downtime Cutover & RACI): Greenfield r2800 build + per-tenant canary swing + instant 17.5.x rollback ahead of Jan 2029 EoTS.
 
-3. Critical F5 Guardrails & Indicative Timings (T1–T9):
+3. Critical F5 Guardrails & Indicative Timings (T1–T12):
    - Specific Prober Pools (K08433560; avoid K000163083 fallback / K000159606 MAC flap); no duplicate VS monitors (K5431); upgrade BIG-IP DNS before LTM + big3d_install (K25923322).
-   - Local HA (T1): ~3s+ + T6a/T6b; Local pool eject (T2): ~16s + T6a/T6b; Cross-site WAF borrow (X2A): ~16s + T6a/T6b (cannot bypass local CFW); Auto GTM site move (T4): ~46–150s + T6a/T6b; Manual DR (T5): minutes–hours.""",
+   - Local HA (T1): ~3s+ + T6a/T6b; Local pool eject (T2): ~16s + T6a/T6b; Cross-site WAF borrow (X2A): ~16s + T6a/T6b (cannot bypass local CFW); Auto GTM site move (T4): ~46–150s + T6a/T6b; Manual DR (T5): minutes–hours. Huawei private-cloud CFW (T9), ELB (T10), Kubernetes (T11) and VM (T12) timings: TBD / measure; do not reuse F5 timers.""",
 )
 
 
@@ -610,7 +610,8 @@ set_notes(
 
 1. Current-State Rules (Preserve Strictly vs. Target State):
    - External and internal access are PARALLEL paths converging at the private-cloud CFW -> ELB tier, while BIG-IP DNS/GTM is a DNS control plane (NOT an inline data proxy).
-   - Site 1 and Site 2 are independent failure domains. GTM sync shares DNS/health view only — it does NOT sync LTM/WAF/CFW/app config.
+   - CFW is one logical private-cloud edge available in both sites, with site-local enforcement and ELBs behind it. Physical HA, shared state and common-mode risks remain to be validated.
+   - Site 1 and Site 2 are separate infrastructure failure domains; shared cloud services may introduce common-mode risk. GTM sync shares DNS/health view only — it does NOT sync LTM/WAF/CFW/app config.
    - Distinct security/failure boundaries: Edge Firewalls (2 x 2 HA pairs/tenant/site, NetSec) vs. Internal Firewall (NetSec) vs. Private-Cloud CFW (Cloud Platform).
    - Internal users may bypass the external WAF tier; an internal-FW failure impacts internal users only, whereas a CFW failure impacts BOTH external and internal traffic converging on that CFW.
 
@@ -716,7 +717,7 @@ add_text(
 )
 legend_bar(
     s,
-    "Key:  N-2 = Survives 2 simultaneous losses (maint + failure)  •  Tier-1 = Active/Active app (99.95% eligible)  •  OOS = Out of Scope  •  Engineering codes (W1–W4, S1–S2, T1–T9) in Speaker Notes & Appendix",
+    "Key:  N-2 = Survives 2 simultaneous losses (maint + failure)  •  Tier-1 = Active/Active app (99.95% eligible)  •  OOS = Out of Scope  •  Engineering codes (W1–W4, S1–S2, T1–T12) in Speaker Notes & Appendix",
 )
 footer(s, 7)
 set_notes(
@@ -852,7 +853,7 @@ fd_rows = [
     ("2. Network & Edge FW", "Link/peer: 0–10s\nEdge: ~1–3m + App", "Automated", "2×2 HA edge FWs; dual-homed LACP LAGs (no STP); align FW idle timeouts above app pings & keep-alives", "Client: auto retry + jitter & WebSocket reconnect (no manual restart) • Server: tolerate brief drops"),
     ("3. Tenant Load Bal HA", "1 peer: ~3s + App\nBoth: ~1–3m + App", "Auto (HA / Site)\nManual if no remote", "Redundant HA; stop TCP false-greens; fast dead-socket reject; multi-IP Source NAT + XFF + cert auto-renew", "Client: auto reconnect dropped sockets • Server: idempotent writes on resets; read trusted XFF"),
     ("4. WAF Pool (AWAF)", "1–2 WAFs: 0–16s\nTier: ~16s Remote", "Auto (Pool/Borrow)\nManual 403 bypass", "Shared 6-WAF or Dedicated 3-WAF; config-as-code (AS3); remote logs + auto rebuild; 1-node canary", "Client: auto WS reconnect (no WAF mirror reliance) • Server: co-own canary & 403 synthetic checks"),
-    ("5. Int. FW & Cloud FW", "Peer: ~3–10s\nCFW: ~1–3m + App", "Auto HA / Site\n(if no false-green)", "Separate internal VIP health from external; L7 probes MUST cross Cloud FW (remote WAF cannot bypass CFW)", "Server: expose lightweight /health/ready behind Cloud FW so outage triggers automatic site steering"),
+    ("5. Int. FW & Cloud FW", "FW/CFW: TBD\nDNS move: conditional", "Auto HA / Site\n(if no false-green)", "Separate internal VIP health from external; L7 probes MUST cross Cloud FW (remote WAF cannot bypass CFW)", "Server: expose lightweight /health/ready behind Cloud FW so outage triggers automatic site steering"),
     ("6. Cloud ELB / Ingress", "Node: 0–10s\nELB: ~1–3m + App", "Automated", "Own single stateful app-node sticky cookie; inject XFF & X-Correlation-ID if terminating TLS; Slow Start + drain", "Server: expose Pod/VM readiness & graceful shutdown hooks (HTTP 503 / drain) for zero-downtime deploys"),
     ("7. App & Shared Deps", "Node: 0–10s\nApp B1: ~5–16s B2", "Auto (Local/B2)\nManual DB DR", "Stable App B service VIP with fast reject + pre-approved Site 1 → Site 2 fallback routing", "Server: split critical vs optional deps; circuit breakers; external session store; rolling DB/app updates"),
     ("8. Whole Site / DR", "Tier 1: ~1–3m+App\nTier 2: mins–hrs", "Auto (Tier 1 Act/Act)\nManual (Tier 2 DR)", "Size Site 2 LB/WAF, Source NAT, Cloud FW & ELB for 100% 4-tenant DR surge; sync policies & certs", "Client: re-resolve cleanly • Server: replicate state & automate startup/DB failover for Tier 1 99.95%"),
@@ -886,7 +887,7 @@ add_text(
 )
 legend_bar(
     s,
-    "Key:  Tier 1 = Active/Active (99.95% eligible)  •  Tier 2 = Active/Passive Warm DR (99.9–99.5%)  •  XFF = X-Forwarded-For  •  Full RACI, T1–T9 & KBs in Speaker Notes & 17-slide Appendix",
+    "Key:  Tier 1 = Active/Active (99.95% eligible)  •  Tier 2 = Active/Passive Warm DR (99.9–99.5%)  •  XFF = X-Forwarded-For  •  Full RACI, T1–T12 & KBs in Speaker Notes & 17-slide Appendix",
 )
 footer(s, 9)
 set_notes(
@@ -910,7 +911,7 @@ set_notes(
 3. Exact Technical Reference Map (Option 2: Primary Deck + Engineering Reference Appendix):
    - Phase 0 Day 1–30 executable checklist: enterprise-scenarios/phase0_discovery_and_signoff_checklist.md.
    - Full fault-domain matrix & 6 operational guardrails: enterprise-scenarios/future_architecture_improvements.md (§15B, §15C, §15D).
-   - 17-slide Engineering Reference Appendix (Architecture Planes, Health Placement H1–H6, GTM Convergence, App B Cascade, Cross-Site X2A/X2B/XD1, Implementation Sequence, Appendix A T1–T9 with T6a/T6b, Appendix B Glossary): management-artifacts/EnterpriseWAF_Engineering_Reference.pptx / .pdf.
+   - 17-slide Engineering Reference Appendix (Architecture Planes, Health Placement H1–H6, GTM Convergence, App B Cascade, Cross-Site X2A/X2B/XD1, Implementation Sequence, Appendix A T1–T12 with T6a/T6b, Appendix B Glossary): management-artifacts/EnterpriseWAF_Engineering_Reference.pptx / .pdf.
 
 4. Cross-Team Acceptance Gates Before Claiming Tier-1 99.95% & <= 25% Impact Readiness:
    - Gate 1: External (H3) and Internal (H4) VIP L7 readiness contracts + Tier 1/2/3 inventory + RACI signed.

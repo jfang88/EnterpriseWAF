@@ -51,3 +51,16 @@ Phase 1 design lock requires written sign-off on:
 1. **Selected WAF target topology:** **Shared 6-WAF pool (`S1+2`, 20 × `r2800`)** vs. **Dedicated 3-WAF pool (`W1-3`, 20 × `r2800` at 2-tenant F5OS or 40 × `r2800` dedicated)** backed by benchmark #2.1–2.2.
 2. **Signed Joint Responsibility & RACI Matrix** ([future_architecture_improvements.md §15C & §15D](./future_architecture_improvements.md#15c-joint-responsibility--fault-domain-recovery-matrix-infrastructure-vs-application-per-layer)) across **F5/ADC, Network/Security, Cloud Platform, Application Teams, and Security Ops**.
 3. **Approved Tier 1 (99.95%-eligible) vs. Tier 2/3 Application Inventory** and **BIG-IP 17.5.x → `r2800` parallel cutover schedule** (completing well ahead of the **January 1, 2029** 17.5.x End of Technical Support date).
+
+## Cloud Platform discovery and sign-off (T9–T12)
+
+| Audit item | Evidence / required output |
+|---|---|
+| Logical CFW boundary across both sites | Map physical enforcement, tenant contexts, routing/NAT/state, HA and shared policy/control-plane dependencies; prove alternate paths separately |
+| T9 CFW | Measure local HA, complete path loss, false-green and common-mode failure |
+| T10 ELB | Record monitor interval, timeout, thresholds, member withdrawal, VIP HA and service-loss timing |
+| T11 Kubernetes | Record readiness, endpoint propagation, worker loss, ingress/control-plane and pod replacement timings |
+| T12 VM | Record backend withdrawal, hypervisor HA/restart, storage/network dependencies and guest readiness |
+| End-to-end evidence | Fault injection under representative load; p50/p95/p99 transaction restoration, session disruption and redundancy restoration; Cloud Platform/App owner sign-off |
+
+All Huawei on-premises values remain TBD until measured. Use separate F5 and cloud-platform timing terms without double counting.
