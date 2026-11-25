@@ -18,6 +18,14 @@ The key rule is:
 
 > A larger DSC group gives more failover/maintenance targets. It does not automatically make one floating VIP active on every device.
 
+### Canonical `r2800` & topology mapping (`W1-2` vs. `W1-3` vs. `S1+2`)
+
+On the confirmed **F5 rSeries `r2800` pizza-box standard** (`F5OS-A 1.8.0+`, max 2 isolated tenants/box, **single 480 GB NVMe SSD / no RAID-1**, no FPGA, no STP — see [current_architecture_and_invariants.md](./current_architecture_and_invariants.md) and [future_architecture_improvements.md §15A](./future_architecture_improvements.md#15a-platform-rebuild-impact-big-ip-175x-current-vs-confirmed-r2800--big-ip-211x--f5os-a-target)):
+
+- **Tenant LTM tier (default 2-node HA pair per tenant/site):** Remains 2 LTMs/tenant/site (`16` logical LTMs across 4 tenants / 2 sites), consolidatable onto **`8 × r2800`** at 2 isolated LTM tenants/box (`A+B` on pair 1; `C+D` on pair 2) with 1 host reboot affecting at most 2 HA peers (`0%` user outage when peers are healthy).
+- **2 active WAFs/tenant (`W1-2` sub-variant) vs. 3 active WAFs/tenant (`W1-3`):** Moving from 3 to 2 dedicated WAFs/tenant saves 8 WAFs (`32` vs. `40` dedicated units), **but** 1 failure drops tenant WAF capacity by **50%** and leaves **zero local `N-2`** during 4/yr `F5OS-A`/BIG-IP upgrades — making cross-site `X2A` mandatory on single-SSD `r2800`s. **`W1-3`** preserves hard `≤ 25%` tenant isolation + local `N-2` (`20 × r2800` total if heaviest tenant passes the `12 GB` 2-tenant RAM benchmark).
+- **Shared active WAF pool (`S1+2`: `4 + 2 = 6` active WAFs/site):** Lands at the same **`20 × r2800` total** (`8` LTM + `12` full-box `24 GB` WAFs) while the `+2` nodes simultaneously absorb **rolling upgrades + 1 unplanned `r2800` SSD outage + 1-node canary (`≤ 17%` exposure)**, provided Parent/Child policy isolation and declarative canary gates keep blast radius `≤ 25%`.
+
 # 2. Default enterprise LTM model
 
 The default design remains:

@@ -5,13 +5,14 @@ This folder contains the current authoritative EnterpriseWAF architecture and re
 # Start here
 
 1. **[Current architecture and stable invariants](./current_architecture_and_invariants.md)** — authoritative current-state facts, topology, layers, DNS control plane and traffic paths
-2. **[Future architecture improvements](./future_architecture_improvements.md)** — target health-check model, cross-site/dependency improvements and implementation sequence
-3. **[Executive architecture and 99.95% recommendation](./executive_recommendation.md)** — ranked WAF/topology decision
-4. **[Deployment options, resilience and four-tenant cost summary](./deployment_options_resilience_summary.md)** — detailed W1-W4/S1-S2 comparison
-5. **[End-to-end service impact and recoverability](./end_to_end_service_impact_analysis.md)** — user/application failure story
-6. [Maintainability / change-management analysis](./maintainability_change_management_analysis.md)
-7. [Cross-site routing and dependency recovery](./cross_site_routing_and_dependency_recovery.md)
-8. [Common technical failure matrix](./common_failure_matrix.md)
+2. **[Future architecture improvements](./future_architecture_improvements.md)** — target health-check model, cross-site/dependency improvements, six operational guardrails, RACI, and implementation sequence
+3. **[Executive architecture and 99.95% recommendation](./executive_recommendation.md)** — ranked WAF/topology decision (`S1+2` vs. `W1-3`)
+4. **[Deployment options, resilience and four-tenant cost summary](./deployment_options_resilience_summary.md)** — detailed `W1-3`/`W1-2`/`W2–W4`/`S1`/`S1+2`/`S2` comparison
+5. **[Phase 0 (Days 1–30) Discovery, Benchmark & Sign-Off Checklist](./phase0_discovery_and_signoff_checklist.md)** — executable Day 1–30 audit, `r2800` benchmark, App Tiering, and RACI sign-off checklist
+6. **[End-to-end service impact and recoverability](./end_to_end_service_impact_analysis.md)** — user/application failure story
+7. [Maintainability / change-management analysis](./maintainability_change_management_analysis.md)
+8. [Cross-site routing and dependency recovery](./cross_site_routing_and_dependency_recovery.md)
+9. [Common technical failure matrix](./common_failure_matrix.md)
 
 # Current state versus future state
 
@@ -29,6 +30,7 @@ future_architecture_improvements.md
         +--> prober diversity / cross-site visibility
         +--> dependency-local recovery
         +--> cross-site contingency
+        +--> six operational guardrails & RACI (§15D)
 ```
 
 # Document map
@@ -36,8 +38,9 @@ future_architecture_improvements.md
 | File | Type | Purpose |
 |---|---|---|
 | [current_architecture_and_invariants.md](./current_architecture_and_invariants.md) | **Authoritative current state** | Stable facts, topology/boundaries, DNS control plane, external/internal data paths, layer breakdown, diagrams, known unknowns and 99.95 requirement |
-| [future_architecture_improvements.md](./future_architecture_improvements.md) | **Target / to-be architecture** | Layered health-check target, GTM external/internal VIP L7 health, app health contracts, cross-site/dependency improvements |
-| [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md) | **Changeable technical inputs** | W1-W4/S1-S2, F5 timing, routing and product assumptions |
+| [future_architecture_improvements.md](./future_architecture_improvements.md) | **Target / to-be architecture** | Layered health-check target, GTM external/internal VIP L7 health, app health contracts, cross-site/dependency improvements, six operational guardrails & RACI |
+| [phase0_discovery_and_signoff_checklist.md](./phase0_discovery_and_signoff_checklist.md) | **Execution checklist** | Concrete Day 1–30 audit (`tmsh` checks, `r2800` RAM/TPS benchmark, Tier 1/2/3 App inventory, TLS/WAF-as-code, RACI sign-off) |
+| [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md) | **Changeable technical inputs** | `W1-3`/`W1-2`/`W2–W4`/`S1`/`S1+2`/`S2`, F5 timing (`T1–T9`, `T6a`/`T6b`), routing and product assumptions |
 | [executive_recommendation.md](./executive_recommendation.md) | **Executive decision** | Final WAF/topology recommendation and 99.95 potential |
 | [deployment_options_resilience_summary.md](./deployment_options_resilience_summary.md) | **Topology comparison** | N-1/N-2, four-tenant cost, cross-site comparison, application-type resilience |
 | [end_to_end_service_impact_analysis.md](./end_to_end_service_impact_analysis.md) | **Service-impact analysis** | External/internal/dependency outage and recovery outcome |

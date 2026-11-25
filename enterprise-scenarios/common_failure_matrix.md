@@ -16,65 +16,81 @@
 
 Apply the same failure scenarios to each candidate WAF topology without changing the enterprise baseline.
 
-# 1. Topology shorthand
+# 1. Topology shorthand (aligned with canonical options)
 
-| ID | Topology |
-|---|---|
-| **W1** | LTM-fronted scalable independent WAF pool (2..N) |
-| **W2** | WAF HA cluster; W2a without ingress LTM, W2b with LTM |
-| **W3** | Tenant-preferred WAFs plus shared enterprise reserve WAFs |
-| **W4** | Asymmetric: Site 1 WAF HA cluster + extra active/spare WAF; Site 2 WAF HA cluster only |
+| ID | Topology | Confirmed `r2800` & ≤ 25% Impact Note |
+|---|---|---|
+| **W1-3** | Tenant LTM HA → **3** independent active WAFs/tenant/site (`N-2` local) | Hard ≤ 25% tenant isolation; `20 × r2800` @ 2-tenant (`12 GB` RAM gate) or `40 × r2800` dedicated |
+| **W1-2** | Sub-variant: Tenant LTM HA → **2** independent active WAFs/tenant/site (`N-1` only) | Saves 8 WAFs vs. `W1-3`, **but** 1 fault = 50% capacity & 0 local maint `N-2` (needs `X2A` on single-SSD `r2800`) |
+| **W2** | WAF HA/DSC cluster; W2a without ingress LTM, W2b with LTM | 2-device mirroring limit (`K84421441`/21.1); 0 maint `N-2`; needs `X2A` |
+| **W3** | Tenant-preferred WAFs (2/tenant) + 2 shared enterprise reserve WAFs/site | Dedicated normal path; reserve contention/drift risk |
+| **W4** | Asymmetric: Site 1 WAF HA cluster + extra active/spare WAF; Site 2 WAF HA cluster only | Site 2 fragile during DR / maintenance |
+| **S1 / S1+2** | Tenant LTM HA pairs → shared active WAF pool (`4`/site base; **`4 + 2 = 6`/site in `S1+2`**) | **`S1+2` preferred shared target:** `+2` nodes absorb rolling upgrade + single-SSD `r2800` outage + 1-node canary (`≤ 17%`); full `24 GB` RAM @ `20 × r2800` (needs Parent/Child policy & canary gates) |
+| **S2** | Shared LTM + shared WAF (Out of Scope comparison) | Fails ≤ 25% impact cap (100% 4-tenant blast radius) |
 
-**Common site rule:** W1-W3 normally use the same logical WAF topology in both sites. W4 is deliberately asymmetric: Site 1 has a WAF HA cluster plus an extra active/spare WAF, while Site 2 has only the WAF HA cluster. GTM/LTM roles remain similar per site.
+**Common site rule:** `W1-3`, `W1-2`, `W2`, `W3`, and `S1`/`S1+2` use symmetric WAF topologies across both sites. `W4` is deliberately asymmetric. Confirmed target hardware is **F5 rSeries `r2800` pizza boxes only** (`F5OS-A 1.8.0+`, max 2 tenants/box, single 480 GB NVMe SSD / no RAID-1, no FPGA, no STP — dual-homed LACP LAGs required).
 
 Cross-site dataplane routing is evaluated separately as:
 
 - **X1** local-only
-- **X2A** surviving local LTM borrows a remote WAF
+- **X2A** surviving local LTM borrows a remote WAF (requires multi-IP `SNAT Pool` + `XFF` / `Trust XFF`)
 - **X2B** remote front-end routes back to the healthy primary-site application
 - **X2C** conventional full application/site failover
 - **XD1** App A uses remote App B as dependency fallback
 
-# 2. Timing shorthand
+# 2. Timing shorthand (aligned with `T6a` / `T6b` / `T5` split)
 
-These are modelling categories, not guaranteed SLAs.
+These are modelling categories, not guaranteed SLAs. Measure end-to-end RTO as:
+`Total RTO = Infra / DNS detection & steering (T1/T2/T3/T4/T9) + T6b (server recovery, or T5 if manual) + T6a (client recovery — seconds auto vs. minutes+ manual user steps)`.
 
 | Timing ID | Meaning |
 |---|---|
-| **T1 — HA peer failover** | roughly 3+ seconds peer-loss detection under common/default-style BIG-IP HA behavior, plus traffic-group/network convergence; validate in production design |
-| **T2 — local pool-member health** | often up to the configured LTM monitor timeout; many monitor types default around 5s interval / 16s timeout |
-| **T3 — direct GTM monitor** | BIG-IP DNS direct HTTP/HTTPS/TCP monitoring commonly defaults around 30s interval / 120s timeout unless tuned |
-| **T4 — DNS/site convergence** | health detection + GTM decision + residual DNS TTL/cache + client re-resolution/retry + alternate-site readiness. F5 GTM A-record pool TTL default is 30s; direct GTM monitor defaults can be 30s/120s |
-| **T5 — warm/cold/manual** | operator/startup/configuration dependent; may be minutes or longer |
-| **T6 — application recovery** | application-specific retry/reconnect/session/state/replay behavior; can dominate RTO even after infrastructure is healthy |
-| **T7 — failback** | controlled restoration to preferred device/site; auto-failback delay is configurable and commonly modelled around 60s when enabled |
+| **T1 — HA peer failover** | roughly 3+ seconds peer-loss detection (`Failover.NetTimeoutSec=3`) + traffic-group/network convergence; validate in production design |
+| **T2 — local pool-member health** | often up to the configured LTM monitor timeout (commonly 5s interval / 16s timeout); set `Action On Service Down = Reject` (`K15095`) |
+| **T3 — direct GTM monitor** | BIG-IP DNS direct HTTP/HTTPS/TCP monitoring commonly defaults around 30s interval / 120s timeout unless tuned (LTM+iQuery faster) |
+| **T4 — DNS/site convergence** | health detection + GTM decision/sync + residual DNS TTL/cache (`30s` default) + client re-resolution/retry + alternate-site readiness |
+| **T5 — manual server / operational recovery** | **minutes to hours** — passive-site app startup, manual DB failover/promotion, clearing hung server pools, or manual config rollback (`R4`); rapidly burns the 262.8 min/yr 99.95% budget |
+| **T6a — client-side application recovery** | **Automated (seconds):** retry with exponential backoff/**jitter**, DNS re-resolution, silent re-auth, WebSocket reconnect/resubscribe/replay. **Poorly architected (minutes+):** forces manual user hard-refresh, re-login, or client restart even after a 3–16s infra failover |
+| **T6b — server-side application & state recovery** | **Automated (seconds to ~1–2 min):** externalized/replicated session lookup, DB/service connection-pool reset, Pod/VM warmup, idempotent transaction reconciliation (vs. `T5` manual startup/DB) |
+| **T7 — failback** | controlled restoration to preferred device/site; auto-failback delay is configurable (~60s default if enabled; prefer controlled failback) |
 | **T8 — DNS/cache/connection behavior** | behavior modifier rather than a fixed duration: cached DNS, existing TCP/WebSocket and application connection pools recover differently |
-| **T9 — CFW recovery** | platform/cloud firewall HA/context recovery; product/configuration specific and must be measured; full-context failure may force T4/T5/T6 |
+| **T9 — CFW recovery** | platform/cloud firewall HA/context recovery; product/configuration specific and must be measured; full-context failure forces `T4`/`T5`/`T6a`/`T6b` (and cannot be bypassed by `X2A`) |
 
 ## 2.1 Validated numeric planning windows
 
-Use these explicit planning calculations where applicable:
+Use these explicit planning calculations where applicable (where `T6` appears in detailed rows below, account for both **`T6a` client** and **`T6b` server**):
 
 | Recovery pattern | Planning timing |
 |---|---|
-| BIG-IP HA peer/member takeover | **~3s+** peer-loss detection plus traffic-group/network convergence and T6 for affected flows |
-| LTM withdraws one failed pool/WAF member | **up to ~16s + T6** with common 5s/16s monitor defaults; no DNS term if VIP is unchanged |
-| One CFW HA member fails | **Product-specific / measured**; target seconds-scale local HA + T6 if connection state is lost; no DNS term if path/VIP remains stable |
-| Whole CFW context fails and through-path health withdraws the site | **~46s + T6** illustrative fast-health case or **up to ~150s + T6** direct-GTM-default case; add T5 if alternate app not ready |
+| BIG-IP HA peer/member takeover | **~3s+** peer-loss detection plus traffic-group/network convergence and `T6a`/`T6b` for affected flows |
+| LTM withdraws one failed pool/WAF member (`r2800` SSD/host reboot) | **0s (planned drain) to ~16s + `T6a`/`T6b`** with common 5s/16s monitor defaults; no DNS term if VIP is unchanged |
+| One CFW HA member fails | **Product-specific / measured**; target seconds-scale local HA + `T6a`/`T6b` if connection state is lost; no DNS term if path/VIP remains stable |
+| Whole CFW context fails and through-path health withdraws the site | **~46s + `T6a`/`T6b`** illustrative fast-health case or **up to ~150s + `T6a`/`T6b`** direct-GTM-default case; add `T5` if alternate app not ready |
 | CFW false-green (front-end healthy, app unreachable through CFW) | **Potentially unbounded** until through-path readiness or operator detects the failure |
-| X2A remote WAF behind surviving local LTM | **~16s-class + T6**, assuming remote member already healthy/policy-ready **and the target-site CFW/ELB/app path is healthy**; no DNS term |
-| GTM site move using fast LTM-health-informed state | illustrative **~16s health + up to 30s residual TTL = ~46s + T6**, plus unmeasured iQuery/propagation |
-| GTM site move using default direct GTM monitor | **up to ~120s health + up to 30s residual TTL = ~150s + T6** |
-| Manual passive-site startup | **T5 + ~46–150s + T6** depending health model; T5 may dominate |
-| App B local-preferred -> B2 through stable LTM service VIP | **~16s-class + App A retry T6** |
-| App B1 -> B2 through DNS/GTM | **~46–150s + T6**, plus application-specific DNS/connection-pool caching |
+| X2A remote WAF behind surviving local LTM | **~16s-class + `T6a`/`T6b`**, assuming remote member already healthy/policy-ready, multi-IP `SNAT Pool` + `XFF` active, **and target-site CFW/ELB/app path is healthy**; no DNS term |
+| GTM site move using fast LTM-health-informed state | illustrative **~16s health + up to 30s residual TTL = ~46s + `T6a`/`T6b`**, plus unmeasured iQuery/propagation |
+| GTM site move using default direct GTM monitor | **up to ~120s health + up to 30s residual TTL = ~150s + `T6a`/`T6b`** |
+| Manual passive-site startup / DB promotion (Tier 2 Warm DR) | **`T5` (mins–hrs) + ~46–150s + `T6a`**; `T5` dominates and breaks combined 99.95% if triggered repeatedly |
+| App B local-preferred -> B2 through stable LTM service VIP (`XD1`) | **~16s-class + App A retry (`T6a`/`T6b`)** |
+| App B1 -> B2 through DNS/GTM | **~46–150s + `T6a`/`T6b`**, plus application-specific DNS/connection-pool caching |
+
+## 2.2 Operational common-mode failure modes (Guardrails in `future_architecture_improvements.md §15D`)
+
+In addition to hardware/link faults (`F00`–`F40+`), test and guard against four high-impact operational failure modes that defeat 99.95% even when hardware is healthy:
+
+| ID | Operational Failure Mode | Why Health Checks May Miss It | Required Mitigation (`§15D`) |
+|---|---|---|---|
+| **OP1** | **Expired TLS / partner mTLS certificate** | VIP TCP port stays up while all TLS handshakes fail (100% outage) | Automated PKI/CLM or BIG-IP 21.1 ACMEv2 renewal + 30/14/7-day expiry alerts + `H6` TLS checks |
+| **OP2** | **WAF false-positive `403 Blocked` push** | `/health/ready` and LTM/GTM probes stay **green** while real users are blocked | Declarative config-as-code (AS3/Declarative WAF), 1-node canary (`≤ 17–25%`) + 7-day staging, business-transaction `H6` synthetics, fast-path emergency `403` bypass runbook |
+| **OP3** | **`SNAT` port exhaustion (`01010201`) or `r2800` CPU retry storm** | Single-IP `SNAT Automap` caps at ~65k ports/IP (`K7820`); `T6a` reconnect surge without jitter saturates 8-vCPU `r2800` / `App B` | Multi-IP `SNAT Pools` + `01010201` alerting; mandatory `T6a` exponential backoff + **jitter**; LTM/WAF rate limits & `App B` circuit breakers |
+| **OP4** | **Cross-team triage delay (no correlation ID)** | Multi-hop failures across NetSec/F5/Cloud/App burn 30–60+ min MTTR | Unified `X-Correlation-ID` + AWAF Support ID via remote HSL + shared health/SLO dashboard |
 
 Important:
 
 - a 30s DNS TTL does not migrate an existing TCP/WebSocket connection;
 - clients with cached old answers can continue to select the failed VIP until the remaining TTL expires;
 - applications can retain addresses/connections beyond authoritative TTL;
-- after LTM marks a member down, new traffic uses healthy members, but established connections on the failed member can still reset/hang until client/application recovery.
+- after LTM marks a member down, new traffic uses healthy members, but established connections on the failed member can still reset/hang until `Action On Service Down = Reject` + `T6a` client recovery fires.
 
 # 3. Control-plane, namespace and ingress failures
 

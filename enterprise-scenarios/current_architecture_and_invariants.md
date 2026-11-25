@@ -369,7 +369,15 @@ Every relevant failure scenario must distinguish:
 | **Non-Web / Layer-4 (`AT4`)** | **Invariant:** Some non-HTTP/TCP/L4 applications bypass the external WAF tier | Performance (L4) + `FastL4` (`K09948701`), symmetric L4 hashing, `Action=Reject`, avoid SNAT (or pin SNAT IP) for legacy IP-ACL/multi-channel protocols (e.g., passive FTP `K15249`) | Protocol-native reconnect, DNS/service re-resolution, and safe transaction replay |
 | **Health Checks & Recovery** | **Invariant:** Faults occur at every layer; device/port green does not equal business availability | Place health checks and recovery at the exact right layer (`H1` HA, `H2` local LTM/ELB member, `H3`/`H4` GTM external/internal L7 VIP, `H5` App B dependency, `H6` synthetic SLO) | Own and version the L7 readiness contract (`/health/ready`, status, receive string, `Receive Disable` maintenance semantics, critical vs. non-critical dependencies) |
 
-**Current persistence, SNAT, header-injection, and throughput-profile baseline (`unknown / validate`):** The exact deployed TLS termination point per app, `XFF`/ELB header injection config, sticky-session ownership across LTM/WAF/ELB, SNAT vs. inline routing, TCP optimization profiles (`f5-tcp-wan`/`f5-tcp-lan`), `OneConnect`, and `FastL4` settings have not yet been audited across all four tenants and must be inventoried in Phase 0. Target-state implementation design is documented in [future_architecture_improvements.md](./future_architecture_improvements.md).
+**Current persistence, SNAT, header-injection, certificate, and operational baseline (`unknown / validate in Phase 0`):** The following items are **not assumed** as deployed facts and must be inventoried in [phase0_discovery_and_signoff_checklist.md](./phase0_discovery_and_signoff_checklist.md) before locking target designs:
+- exact TLS termination point per app (LTM vs. WAF vs. Cloud ELB), partner **mTLS client-certificate** requirements, and current certificate renewal/expiry automation;
+- `XFF`/ELB header injection config, sticky-session ownership across LTM/WAF/ELB, SNAT vs. inline routing, TCP optimization profiles (`f5-tcp-wan`/`f5-tcp-lan`), `OneConnect`, and `FastL4` settings per `AT1`–`AT4` app;
+- current WAF policy deployment model (manual GUI vs. declarative config-as-code / AS3 / BIG-IQ) and emergency false-positive bypass runbooks;
+- peak throughput baselines per tenant (HTTP RPS, TLS handshake TPS, AWAF CPU/RAM footprint, concurrent WebSockets) needed to size software-only `r2800` (no FPGA, 8 vCPU);
+- cross-layer request correlation ID propagation across `LTM → WAF → CFW → ELB → App`;
+- application-by-application **Active/Active vs. Active/Passive (manual `T5` DR)** inventory to determine which applications are eligible for a 99.95% SLO.
+
+Target-state implementation design is documented in [future_architecture_improvements.md](./future_architecture_improvements.md).
 
 # 11. Current availability requirement, 25% impact threshold, and reporting rule
 
