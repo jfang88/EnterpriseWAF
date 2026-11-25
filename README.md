@@ -70,8 +70,10 @@ The design must avoid both:
 
 Version-controlled management outputs are under [management-artifacts/](./management-artifacts/):
 
-- [PowerPoint management summary](./management-artifacts/EnterpriseWAF_Management_Summary.pptx)
-- [PDF management summary](./management-artifacts/EnterpriseWAF_Management_Summary.pdf)
+- [Executive & Tech-Lead Discussion Deck (PPTX — 9 slides + Speaker Notes)](./management-artifacts/EnterpriseWAF_Discussion_Deck.pptx) — 3 executive theme slides + 6 tech-lead discussion slides (`r2800`, F5 KBs & timings in Speaker Notes)
+- [Executive & Tech-Lead Discussion Deck (PDF)](./management-artifacts/EnterpriseWAF_Discussion_Deck.pdf)
+- [Long-Form Management Summary (PPTX — 17 slides)](./management-artifacts/EnterpriseWAF_Management_Summary.pptx) — full reference deck
+- [Long-Form Management Summary (PDF)](./management-artifacts/EnterpriseWAF_Management_Summary.pdf)
 - [End-to-end topology diagram](./management-artifacts/diagrams/EnterpriseWAF_End_to_End_Topology.svg)
 - [WAF topology options visual diagram](./management-artifacts/diagrams/EnterpriseWAF_Topology_Options.svg)
 

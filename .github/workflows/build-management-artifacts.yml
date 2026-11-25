@@ -41,13 +41,16 @@ jobs:
         run: |
           python management-artifacts/source/build_management_deck.py
           python management-artifacts/source/replace_management_slides.py
+          python management-artifacts/source/build_discussion_deck.py
+          rm -rf management-artifacts/.build management-artifacts/.build_discussion
 
       - name: Export PDF
         run: |
           libreoffice --headless --nologo --nolockcheck \
             --convert-to pdf \
             --outdir management-artifacts \
-            management-artifacts/EnterpriseWAF_Management_Summary.pptx
+            management-artifacts/EnterpriseWAF_Management_Summary.pptx \
+            management-artifacts/EnterpriseWAF_Discussion_Deck.pptx
 
       - name: Render version-controlled diagrams
         run: |
@@ -78,6 +81,8 @@ jobs:
           git add \
             management-artifacts/EnterpriseWAF_Management_Summary.pptx \
             management-artifacts/EnterpriseWAF_Management_Summary.pdf \
+            management-artifacts/EnterpriseWAF_Discussion_Deck.pptx \
+            management-artifacts/EnterpriseWAF_Discussion_Deck.pdf \
             management-artifacts/diagrams/EnterpriseWAF_Architecture_Planes.png \
             management-artifacts/diagrams/EnterpriseWAF_End_to_End_Topology.png \
             management-artifacts/diagrams/EnterpriseWAF_Target_Health_Monitoring.png \
