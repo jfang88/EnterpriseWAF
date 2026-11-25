@@ -118,10 +118,10 @@
 <!-- Site 1 Private Cloud -->
 <rect x="566" y="454" width="428" height="274" rx="18" fill="#ede8ff" stroke="#5c4cd2" stroke-width="2.5"/>
 <rect x="752" y="462" width="228" height="32" rx="8" fill="#5c4cd2"/>
-<text x="866" y="484" text-anchor="middle" class="h" font-size="15">Site 1 private cloud</text>
+<text x="866" y="484" text-anchor="middle" class="h" font-size="15">Private cloud — Site 1</text>
 
 <rect x="586" y="514" width="114" height="54" fill="#dcf5f8" class="b"/>
-<text x="643" y="547" text-anchor="middle" class="t" font-size="17" font-weight="bold">CFW</text>
+<text x="643" y="547" text-anchor="middle" class="t" font-size="17" font-weight="bold">CFW edge</text>
 
 <rect x="748" y="514" width="190" height="54" fill="#dcf5f8" class="b"/>
 <text x="843" y="547" text-anchor="middle" class="t" font-size="16" font-weight="bold">ELB / service</text>
@@ -178,10 +178,10 @@
 <!-- Site 2 Private Cloud -->
 <rect x="1118" y="454" width="428" height="274" rx="18" fill="#ede8ff" stroke="#5c4cd2" stroke-width="2.5"/>
 <rect x="1132" y="462" width="228" height="32" rx="8" fill="#5c4cd2"/>
-<text x="1246" y="484" text-anchor="middle" class="h" font-size="15">Site 2 private cloud</text>
+<text x="1246" y="484" text-anchor="middle" class="h" font-size="15">Private cloud — Site 2</text>
 
 <rect x="1392" y="514" width="134" height="54" fill="#dcf5f8" class="b"/>
-<text x="1459" y="547" text-anchor="middle" class="t" font-size="17" font-weight="bold">CFW</text>
+<text x="1459" y="547" text-anchor="middle" class="t" font-size="17" font-weight="bold">CFW edge</text>
 
 <rect x="1142" y="514" width="196" height="54" fill="#dcf5f8" class="b"/>
 <text x="1240" y="547" text-anchor="middle" class="t" font-size="16" font-weight="bold">ELB / service</text>
@@ -234,7 +234,7 @@
 <!-- Bottom Yellow Callout -->
 <rect x="35" y="786" width="1530" height="58" rx="12" fill="#fff7dc" stroke="#e2bf50" stroke-width="2"/>
 <text x="800" y="811" text-anchor="middle" class="t" font-size="14" font-weight="bold" fill="#073b64">Current-state unknown to validate: TCP/port vs L7 monitor depth • external/internal VIP checks • iQuery • cross-site probing • intervals/timeouts • app readiness</text>
-<text x="800" y="833" text-anchor="middle" class="sub" font-size="13">Do not draw target health-check probes or X2A/X2B/XD1 contingency paths as deployed current state until validated.</text>
+<text x="800" y="833" text-anchor="middle" class="sub" font-size="13">CFW is one logical cloud edge across both sites; local paths shown separately. Cross-site routing and state continuity are not implied.</text>
 
 <!-- Consistent Deck Footer -->
 <text x="48" y="876" class="sub" font-size="13">End-to-end application delivery summary</text>
