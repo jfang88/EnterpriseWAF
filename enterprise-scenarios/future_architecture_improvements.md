@@ -452,7 +452,7 @@ SNAT must be an explicit per-tier and per-application-class decision rather than
 
 ## 15C. Joint responsibility & fault-domain recovery matrix (Infrastructure vs. Application per layer)
 
-End-to-end 99.95% availability is achieved only when **each fault domain has clear recovery ownership, explicit automation boundaries, and matching infrastructure and application controls**:
+End-to-end 99.95% availability is achieved only when **each fault domain has clear recovery ownership, explicit automation boundaries, and matching infrastructure and application controls**. Where `T6` appears below, measure **both** **`T6a` (client-side recovery: automated retry/reconnect in seconds vs. manual user refresh/re-login/restart in minutes+ if poorly architected)** and **`T6b` (server-side app/state recovery: automated session/pool/warmup in seconds–2 min vs. `T5` manual app/DB startup in minutes–hours)**:
 
 | Fault Domain / Layer | Longest Expected Outage / Recovery | Auto vs. Manual | Specific Infrastructure Obligations | Specific Application Obligations |
 |---|---|---|---|---|

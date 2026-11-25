@@ -699,32 +699,28 @@ These are calculations from documented defaults, **not F5 SLAs**:
 
 A manual passive-site application startup can therefore dominate the total RTO even when GTM detects failure quickly.
 
-## T5 — warm/cold/manual recovery
+## T5 — warm/cold/manual server-side & operational recovery
 
-Use T5 where recovery depends on:
+Use **T5** where recovery depends on **manual operator action or slow warm/cold server-side startup**, including:
 
-- operator action;
-- application or service startup;
-- loading configuration/policy onto a spare;
-- network/routing repair;
-- rollback from a bad change;
-- other warm/cold activation steps.
+- passive-site application or service startup;
+- manual database failover, promotion, or data/transaction reconciliation;
+- manual clearing of hung server thread/connection pools or operator restarts;
+- loading configuration/policy onto a spare or rolling back a bad change;
+- network/routing repair.
 
-T5 is intentionally not assigned a fixed F5 product time. It may be minutes or longer and must be measured from the actual operational procedure.
+**Expectation:** `T5` has no fixed F5 product duration — it is typically **minutes to hours** and must be measured from the actual operational runbook. Any routine failure or planned change that triggers `T5` rapidly consumes the **99.95% (`4h 22m 48s / year`)** combined budget.
 
-## T6 — application recovery
+## T6 — application recovery (`T6a` client-side vs. `T6b` server-side)
 
-Use T6 for application-specific recovery after the infrastructure path is available, including:
+**T6** measures application-specific recovery *after* the network/LTM/WAF/ELB infrastructure path is restored. Always separate **`T6a` (client-side)** from **`T6b` (server-side)** — and explicitly flag when poor architecture forces **manual user or operator steps**:
 
-- request retry;
-- reconnect/re-resolution;
-- re-authentication;
-- session/state restoration;
-- subscription restoration;
-- sequence/gap detection;
-- replay/reconciliation.
+| Sub-Code | Scope | Automated / Well-Architected (Seconds — Supports 99.95%) | Poorly Architected / Manual (Minutes to Hours — Breaches 99.95%) |
+|---|---|---|---|
+| **`T6a` — Client-Side Recovery** | Browser SPA, thick desktop client, mobile app, partner API/WebSocket client | Automated retry with backoff/jitter (`AT1`/`AT2`), DNS re-resolution, silent token refresh, WebSocket reconnect + resubscribe + sequence-gap replay (`AT3`) — **typically seconds** | **Manual user steps required:** hard browser refresh, re-login, restarting a desktop client or partner job, or re-entering lost form/transaction work — **minutes+ (human-speed outage)** |
+| **`T6b` — Server-Side App & State Recovery** | Backend service tier, session store, caches, message queues, DB connections | Externalized/replicated session store (Redis/DB), clean DB/service connection-pool reset, Pod/VM warmup, idempotent transaction reconciliation — **typically seconds to ~1–2 min** | **Escalates to `T5` manual server-side recovery:** passive-site app startup, manual DB failover/promotion, manual restart of hung pools, or manual data reconciliation — **minutes to hours** |
 
-T6 can dominate user-visible RTO even when F5 failover has already completed.
+**Rule:** Total user-visible RTO is `Infrastructure Recovery (T1–T4 / T9) + T5 (if manual server/DR) + T6b (server app/state) + T6a (client/user)`. Poor client-side recovery (`T6a` manual) or manual server-side recovery (`T5` / `T6b` manual) can dominate user-visible RTO even when F5 failover completes in **3–16 seconds**.
 
 ## T7 — failback
 

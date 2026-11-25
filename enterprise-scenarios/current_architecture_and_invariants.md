@@ -401,6 +401,11 @@ The preferred service RTO measure is:
 
 not simply "device green" or "WAF recovered".
 
+Always account separately for:
+- **`T6a` (client-side recovery):** automated client retry/reconnect/re-auth/replay (seconds) vs. **manual user steps** (browser refresh, re-login, client restart, re-entering work — minutes+ if the client is poorly architected);
+- **`T6b` (server-side application & state recovery):** automated session/state lookup, pool reset, warmup, and transaction reconciliation (seconds to ~1–2 min);
+- **`T5` (manual server-side / operational recovery):** passive-site startup, manual DB failover/promotion, or manual reconciliation (minutes to hours).
+
 # 12. Current ownership / scope constraints
 
 The current WAF study does **not** assume:
