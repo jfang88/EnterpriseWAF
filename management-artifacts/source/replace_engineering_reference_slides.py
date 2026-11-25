@@ -3,7 +3,7 @@ import subprocess
 from pptx import Presentation
 
 ROOT = Path(__file__).resolve().parents[1]
-PPTX = ROOT / "EnterpriseWAF_Management_Summary.pptx"
+PPTX = ROOT / "EnterpriseWAF_Engineering_Reference.pptx"
 DIAGRAMS = ROOT / "diagrams"
 BUILD = ROOT / ".build"
 BUILD.mkdir(exist_ok=True)

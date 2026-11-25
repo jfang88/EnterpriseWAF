@@ -9,7 +9,7 @@ from pptx.oxml import parse_xml
 from pptx.oxml.ns import nsdecls
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "EnterpriseWAF_Management_Summary.pptx"
+OUT = ROOT / "EnterpriseWAF_Engineering_Reference.pptx"
 prs = Presentation()
 prs.slide_width = Inches(13.333)
 prs.slide_height = Inches(7.5)
@@ -121,7 +121,7 @@ def title(s, t, st=None, tsize=22):
 
 
 def footer(s, n):
-    add_text(s, "End-to-end application delivery summary", 0.48, 7.20, 4.2, 0.18, 7.8, False, SLATE, radius=False)
+    add_text(s, "End-to-end application delivery — engineering reference appendix", 0.48, 7.20, 5.5, 0.18, 7.8, False, SLATE, radius=False)
     add_text(s, f"Nov 2026  •  {n}", 11.55, 7.20, 1.25, 0.18, 7.8, False, SLATE, PP_ALIGN.RIGHT, radius=False)
 
 
@@ -192,7 +192,7 @@ def simple_table(s, headers, rows, x, y, colw, rowh=0.46, fs=9.2, headh=None, al
         yy += rowh
 
 
-# Slide 1 — Engineering Reference Appendix Overview (Paired with 9-Slide Discussion Deck)
+# Slide 1 — Engineering Reference Appendix Overview (Paired with 9-Slide Executive Briefing)
 s = slide()
 add_text(
     s,
@@ -210,7 +210,7 @@ add_text(
 )
 add_text(
     s,
-    "Detailed technical companion to the 9-slide Discussion Deck • BIG-IP 17.5.x → r2800 (21.1.x+) • Tier-1 99.95% & ≤ 25% impact",
+    "Detailed technical companion to the 9-slide Executive Briefing • BIG-IP 17.5.x → r2800 (21.1.x+) • Tier-1 99.95% & ≤ 25% impact",
     0.52,
     1.14,
     12.30,
@@ -273,7 +273,7 @@ bullet_block(
 )
 add_text(
     s,
-    "How to use: Present the plain-English 9-slide Discussion Deck in leadership meetings; use this 17-slide Engineering Reference Appendix for architecture deep-dives, KBs, T1–T9 timings (Slide 16) & Glossary (Slide 17).",
+    "How to use: Present the plain-English 9-slide Executive Briefing in leadership meetings; use this 17-slide Engineering Reference Appendix for architecture deep-dives, KBs, T1–T9 timings (Slide 16) & Glossary (Slide 17).",
     0.55,
     5.42,
     12.22,

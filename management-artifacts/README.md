@@ -4,8 +4,8 @@ This directory contains the current, version-controlled management outputs deriv
 
 # Stable filenames
 
-- **Primary Presentation Deck:** [EnterpriseWAF_Discussion_Deck.pptx](./EnterpriseWAF_Discussion_Deck.pptx) ([PDF](./EnterpriseWAF_Discussion_Deck.pdf)) — **9-slide Executive & Tech-Lead Discussion Deck** written in plain English (3 executive theme slides + 6 tech-lead discussion slides; `r2800` specs, F5 KBs, RACI, and `T1`–`T9` details in PowerPoint Speaker Notes)
-- **Engineering Reference Appendix:** [EnterpriseWAF_Management_Summary.pptx](./EnterpriseWAF_Management_Summary.pptx) ([PDF](./EnterpriseWAF_Management_Summary.pdf)) — **17-slide Engineering Reference Appendix** (full on-slide technical tables, architecture planes, GTM convergence, App B cascade, cross-site patterns, `T1`–`T9` timing shorthand, and acronym glossary)
+- **Primary Presentation Deck:** [EnterpriseWAF_Executive_Briefing.pptx](./EnterpriseWAF_Executive_Briefing.pptx) ([PDF](./EnterpriseWAF_Executive_Briefing.pdf)) — **9-slide Executive Briefing & Tech-Lead Discussion** written in plain English (3 executive theme slides + 6 tech-lead discussion slides; `r2800` specs, F5 KBs, RACI, and `T1`–`T9` details in PowerPoint Speaker Notes)
+- **Engineering Reference Appendix:** [EnterpriseWAF_Engineering_Reference.pptx](./EnterpriseWAF_Engineering_Reference.pptx) ([PDF](./EnterpriseWAF_Engineering_Reference.pdf)) — **17-slide Engineering Reference Appendix** (full on-slide technical tables, architecture planes, GTM convergence, App B cascade, cross-site patterns, `T1`–`T9` timing shorthand, and acronym glossary)
 - [diagrams/EnterpriseWAF_Architecture_Planes.svg](./diagrams/EnterpriseWAF_Architecture_Planes.svg) — architecture planes / parallel-path model
 - [diagrams/EnterpriseWAF_End_to_End_Topology.svg](./diagrams/EnterpriseWAF_End_to_End_Topology.svg) — **current-state** editable topology
 - [diagrams/EnterpriseWAF_Target_Health_Monitoring.svg](./diagrams/EnterpriseWAF_Target_Health_Monitoring.svg) — **target-state** editable health-monitoring topology
@@ -34,9 +34,9 @@ The decks must keep current-state and target-state diagrams on different slides.
 
 # Reproducible generation
 
-- `source/build_discussion_deck.py` generates the primary **9-slide Executive & Tech-Lead Discussion Deck** (`EnterpriseWAF_Discussion_Deck.pptx`) in plain English with full Speaker Notes and embeds the 3 core authoritative SVGs directly.
-- `source/build_management_deck.py` generates the base **17-slide Engineering Reference Appendix** (`EnterpriseWAF_Management_Summary.pptx`).
-- `source/replace_management_slides.py` inserts Slides 3, 4, 5, 6, and 9 of the engineering reference appendix from the five authoritative SVG diagrams (`EnterpriseWAF_Architecture_Planes.svg`, `EnterpriseWAF_End_to_End_Topology.svg`, `EnterpriseWAF_Target_Health_Monitoring.svg`, `EnterpriseWAF_Health_Check_Placement.svg`, and `EnterpriseWAF_Topology_Options.svg`).
+- `source/build_executive_briefing.py` generates the primary **9-slide Executive Briefing & Tech-Lead Discussion** (`EnterpriseWAF_Executive_Briefing.pptx`) in plain English with full Speaker Notes and embeds the 3 core authoritative SVGs directly.
+- `source/build_engineering_reference.py` generates the base **17-slide Engineering Reference Appendix** (`EnterpriseWAF_Engineering_Reference.pptx`).
+- `source/replace_engineering_reference_slides.py` inserts Slides 3, 4, 5, 6, and 9 of the engineering reference appendix from the five authoritative SVG diagrams (`EnterpriseWAF_Architecture_Planes.svg`, `EnterpriseWAF_End_to_End_Topology.svg`, `EnterpriseWAF_Target_Health_Monitoring.svg`, `EnterpriseWAF_Health_Check_Placement.svg`, and `EnterpriseWAF_Topology_Options.svg`).
 - `.github/workflows/build-management-artifacts.yml` regenerates both PowerPoint decks, both PDFs, and the PNG diagrams when the architecture source changes on `main`.
 
 The automated generated-artifact commit uses the same stable filenames.
@@ -45,7 +45,7 @@ The automated generated-artifact commit uses the same stable filenames.
 
 Do **not** present the architecture as one linear L0-L7 stack. External and internal access are parallel paths that converge at the private-cloud service tier, while DNS/GTM and health/observability are control planes.
 
-## Primary Presentation: Executive & Tech-Lead Discussion Deck (9 slides + Speaker Notes)
+## Primary Presentation: Executive Briefing & Tech-Lead Discussion (9 slides + Speaker Notes)
 
 Designed as the **single live presentation deck** for mixed **Technical Leadership + Tech Lead** discussions, using full plain-English names rather than cryptic shorthand codes (all `r2800` upgrade/hardware details, F5 KBs, RACI, and `T1`–`T9` formulas live in PowerPoint Speaker Notes):
 
@@ -59,7 +59,7 @@ Designed as the **single live presentation deck** for mixed **Technical Leadersh
 8. **Discussion 5 (Tech Leads):** End-to-end sticky sessions, client-IP headers, SNAT & throughput by application class;
 9. **Discussion 6 (Tech Leads):** Joint responsibility matrix by fault domain (Infra vs. App obligations + client/server recovery risk).
 
-## Engineering Reference Appendix (17 slides)
+## Engineering Reference Appendix (`EnterpriseWAF_Engineering_Reference`, 17 slides)
 
 Use as the detailed **Engineering Reference Appendix** for architecture deep-dives and code lookups (not a separate executive pitch):
 
