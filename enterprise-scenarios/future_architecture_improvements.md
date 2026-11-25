@@ -466,48 +466,112 @@ End-to-end 99.95% availability is achieved only when **each fault domain has cle
 | **8. Application & Shared Dependencies (`App A/D → B → C`, `H5`)** | 1 App instance: **0s–~10s** (`R0`/`R1`). Shared `App B1` loss: **~5–16s + `T6`** (`R2` with `XD1` B1→B2) or **multi-app site cascade (`R3`/`R4`)** without `XD1` | **Automated** (`R0`/`R1` instance; `R2` with `XD1` B1→B2); **Manual (`R4`)** if DB/app state requires manual reconciliation | Provide stable `App B` service VIP (`H5`) with `Action=Reject` (`K15095`) and pre-approved cross-site `B1→B2` routing/FW rules (`XD1`) | Separate critical vs. non-critical deps in `/health/ready` (no false-red cascades); bounded timeouts, circuit breakers, bulkheads, idempotency; **externalized/replicated session store** (`AT2`); WS reconnect/replay (`AT3`); zero-downtime rolling App/DB schema updates (4/yr) |
 | **9. Whole Site Loss / DR (`X2C`)** | Active/Active automated DR: **~46–150s + `T6`** (`R3`). Active/Passive warm/manual DR: **minutes to hours (`T5 + T4 + T6`, `R4`)** | **Automated (`R3`)** only for active/active apps; **Manual (`R4`)** where passive-site startup/DB promotion is required | Size Site 2 `r2800` LTM/WAF (`S1+2` or `W1-3`), SNAT Pools, CFW, and ELB for **100% aggregate 4-tenant DR surge**; keep Site 2 WAF policies/certs synced & tested | Replicate state/data across sites within RPO; automate passive-site startup & DB failover where 99.95% is required (offline manual DR burns the annual 262.8-min budget quickly) |
 
+## 15D. Six essential operational & architectural guardrails (Target State)
+
+Beyond topology and layered health checks, six operational guardrails are required so that real-world incidents (expired certificates, false-positive WAF blocks, retry storms, unachievable legacy-DB SLAs, slow cross-team triage, or risky hardware cutovers) do not silently defeat the 99.95% target.
+
+### 1. TLS, certificate lifecycle & partner mTLS architecture
+
+- **Why it is critical:** A single missed wildcard or partner certificate renewal causes a 100% outage across every dependent service — wiping out the entire `262.8 min/year` availability budget in one incident.
+- **Target controls:**
+  - Automate certificate issuance, renewal, and rotation via enterprise PKI/CLM (e.g., Venafi/CyberArk or **BIG-IP 21.1.x+ native ACMEv2** where applicable) with mandatory 30/14/7-day expiry alerting.
+  - Define an explicit **TLS & mTLS termination contract** per application: identify where server TLS terminates (LTM, WAF, or Cloud ELB), where **partner mTLS client certificates** are validated (typically LTM or WAF before forwarding identity headers, unless pass-through to ELB is required), and verify `XFF` injection aligns with that exact termination hop.
+  - In shared WAF pools (**`S1+2`**), keep per-tenant private keys and SSL profiles strictly isolated by tenant/partition and synchronized via declarative automation — never manual ad-hoc uploads across 12 boxes.
+
+### 2. WAF false-positive outage prevention & declarative config-as-code
+
+- **Why it is critical:** A misconfigured WAF signature or policy push that returns HTTP `403 Blocked` to legitimate partner traffic causes a **100% business outage while L4/L7 infrastructure health checks remain green** (another form of false-green!). Manual GUI edits across 12–24 WAFs guarantee configuration drift.
+- **Target controls:**
+  - **Declarative config-as-code:** Manage LTM virtual servers, pools, SNAT pools, and AWAF policies via **Git-backed CI/CD** (F5 **AS3** + **Declarative WAF** / `BIG-IQ` / `F5OS-A` API + `cloud-init`), eliminating manual per-box GUI edits and enabling deterministic rollback in seconds.
+  - **1-node canary + 7-day staging (`K82512024`):** Deploy signature and policy updates to **1 canary WAF node first** (`≤ 17%` exposure in `S1+2`, `≤ 8%` in `W1-3`) in Transparent/Staging mode before phased fleet promotion.
+  - **Emergency false-positive mitigation runbook:** Maintain a pre-approved, fast-path procedure (per-URI / per-signature exception or rapid Git revert) with clear on-call authority so a blocking false positive is mitigated in minutes, not hours.
+  - **Business-transaction `H6` synthetics:** Synthetic probes must verify real end-to-end business HTTP `200` responses (not only `/health/ready`), alerting immediately on spikes in WAF `403`/Support-ID blocks.
+
+### 3. `r2800` performance sizing (no FPGA / 8 vCPU) & retry-storm protection
+
+- **Why it is critical:** Confirmed `r2800` pizza boxes have **no FPGA** and **8 vCPUs / 24 GB RAM total** (shared across L4/L7 forwarding, TLS handshakes, and AWAF inspection). Furthermore, well-intentioned **`T6a` automated client retries/reconnects** can trigger a **thundering herd / self-DDoS** during a failover if thousands of clients reconnect simultaneously without jitter.
+- **Target controls:**
+  - **Mandatory Phase 0 capacity benchmark:** Measure per-tenant peak **HTTP RPS, TLS handshake TPS, AWAF CPU/RAM footprint, and concurrent WebSocket connections** on `r2800` (validating both `4 vCPU / 12 GB` 2-tenant slice vs. `8 vCPU / 24 GB` full-box) sized for **`K + 2` degraded capacity** AND **100% single-site DR surge**.
+  - **Client retry-storm rules (`T6a`):** Application teams MUST enforce **exponential backoff + randomized jitter + bounded retry caps** on HTTP retries (`AT1`/`AT2`) and WebSocket reconnects (`AT3`).
+  - **Infrastructure surge protection:** Configure per-tenant rate limits / TPS caps and AWAF DoS profiles on LTM/WAF, plus circuit breakers and connection-pool limits on `App A/B/C/D` so one partner retry storm cannot saturate shared `S1+2` WAFs or `App B`.
+
+### 4. Application tiering & 99.95% SLO eligibility matrix
+
+Upgrading the F5/WAF infrastructure alone **cannot** give an Active/Passive application with manual database failover a 99.95% SLO. Applications must be explicitly tiered so leadership sets honest SLO commitments:
+
+| Application Tier | Required Architecture & Recovery Posture | Realistic SLO Target | Infrastructure + App Requirement |
+|---|---|---|---|
+| **Tier 1 — Mission-Critical (99.95% Eligible)** | **Active/Active across Site 1 & Site 2**, automated **`T6a`** client recovery (seconds), automated **`T6b`** server/state recovery (seconds–2 min), zero-downtime rolling app/DB changes, automated `H3/H4/H5/H6` health | **99.95%** (`≤ 4h 23m / yr` combined managed + unmanaged) | Eligible for full 99.95% commitment only after passing Phase 6 fault-injection gates |
+| **Tier 2 — Business-Important (Warm DR)** | Resilient local HA (`R0/R1` on F5/WAF/ELB), **Active/Passive** across sites requiring scripted/manual **`T5`** startup or DB promotion (`R4`) | **99.9% to 99.5%** (or 99.95% *excluding* whole-site DR, explicitly disclosed) | Local component faults stay seconds-scale; whole-site DR is minutes–hours (`T5`) and must not be sold as 99.95% combined |
+| **Tier 3 — Standard / Legacy** | Single-site or manual-restart apps, or poorly architected clients requiring manual user refresh/re-login (`T6a` manual) | **Best-effort / < 99.5%** | Infrastructure remains resilient, but app/client recovery governs user-perceived availability |
+
+### 5. End-to-end observability & cross-layer request correlation (MTTR reduction)
+
+- **Why it is critical:** During a multi-hop outage across 4 partner teams (NetSec, F5/ADC, Cloud Platform, Application), slow triage and finger-pointing routinely burn 30–60 minutes of the 262-minute annual budget.
+- **Target controls:**
+  - **Unified Request Correlation ID:** Inject `X-Correlation-ID` / `X-Request-ID` at the first L7 hop (LTM/WAF) if absent, log it alongside the **AWAF Support ID** via remote **HSL**, preserve it across `CFW → ELB → App`, and echo it in error responses so any failed transaction can be traced end-to-end in seconds.
+  - **Single Shared Health & Incident View:** Correlate GTM wide-IP status, LTM/WAF pool member state, AWAF block rates, `SNAT` port utilization (`01010201` alerts), CFW drop counters, ELB `5xx`s, and `H6` synthetic SLO probes in one cross-team observability dashboard.
+
+### 6. Zero-downtime migration / cutover plan (`BIG-IP 17.5.x` → `r2800` `21.1.x+`) & formal RACI
+
+- **Why it is critical:** Current **BIG-IP 17.5.x reaches End of Technical Support on January 1, 2029** (`K15643`). Replacing legacy hardware in place risks multi-hour maintenance outages; cutover must be parallel and reversible.
+- **Parallel zero-downtime cutover pattern:**
+  1. **Greenfield parallel build:** Rack, dual-home via LACP LAG (no STP), and provision new `r2800` (`F5OS-A 1.8.0+` + BIG-IP 21.1.x+) appliances in Site 2 and Site 1 alongside existing 17.5.x devices using `platform-migrate validate` + `cloud-init` + declarative AS3/WAF pipelines.
+  2. **Pre-cutover validation:** Validate `H3`/`H4` L7 monitors, `XFF`/ELB headers, `SNAT` pools, TLS/mTLS certs, and `r2800` load/TPS benchmarks on non-production / shadow VIPs.
+  3. **Phased canary cutover (1 tenant, 1 site at a time):** Swing traffic per tenant via GTM/LTM weighted canary or staged pool transition (`≤ 25%` blast radius per wave), monitor `H6` business synthetics and WAF Support IDs for a soak period, and keep legacy 17.5.x warm for instant DNS/LTM rollback until sign-off.
+  4. **Decommission:** Retire legacy 17.5.x pairs only after both sites pass full fault-injection and failover acceptance tests.
+- **Cross-team RACI matrix (target governance):**
+
+| Domain / Decision | F5 / ADC Team | Network / Security | Cloud Platform | Application Teams | Security Ops (WAF) |
+|---|---|---|---|---|---|
+| **GTM / LTM / `r2800` lifecycle, `SNAT` pools & `X2A`/`X2B` F5 config** | **R / A** | C | C | I | C |
+| **Edge FW, Internal FW, LACP LAGs & `X2A`/`XD1` routing/FW rules** | C | **R / A** | C | I | C |
+| **Private-Cloud CFW, Cloud ELB sticky cookie & ELB `XFF` injection** | C | C | **R / A** | C | I |
+| **`/health/ready` contract, App Tiering, `T6a`/`T6b` automation & DB DR** | C | I | C | **R / A** | I |
+| **WAF Parent/Child policies, canary sign-off & emergency `403` bypass** | C | I | I | C | **R / A** |
+| **TLS/mTLS certificate lifecycle & expiry automation** | **R** (F5 VIPs) | C | **R** (ELB) | **A** (App/Partner) | C |
+| **End-to-end `H6` synthetics, correlation IDs & 99.95% SLO reporting** | **R** | C | **R** | **R** | C *(Joint **A**)* |
+
+*(R = Responsible, A = Accountable, C = Consulted, I = Informed.)*
+
 # 16. Implementation sequence
 
-## Phase 0 - inventory current state
+## Phase 0 - inventory current state (Days 1–30)
 
-Confirm:
+Execute the concrete audit and sign-off checklist in [phase0_discovery_and_signoff_checklist.md](./phase0_discovery_and_signoff_checklist.md) to confirm:
 
 - current GTM monitor types, targets and aliases (including NAT `Address`/`Translation` mappings per `K14707`);
-- current external and internal wide-IP/pool structure;
-- current delegated internal namespaces;
-- iQuery/LTM integration and TCP 4353 firewall rules;
-- GTM prober pools / probe sources / availability requirements;
-- cross-site probing behavior;
-- monitor intervals/timeouts;
+- current external and internal wide-IP/pool structure and delegated internal namespaces;
+- iQuery/LTM integration, TCP 4353 firewall rules, GTM prober pools, cross-site probing, and monitor intervals/timeouts;
 - LTM `Action On Service Down` and VS `Immediate Action On Service Down` settings;
-- current persistence/sticky-session ownership across LTM/WAF/ELB, SNAT vs. inline routing, `OneConnect`/`FastL4`/`f5-tcp-wan`/`f5-tcp-lan` profiles, and `XFF` trust settings per `AT1`–`AT4` application;
-- application readiness endpoints;
-- independent synthetic monitoring;
-- **AWAF memory/CPU benchmark on `r2800`** (`4 vCPU / 12 GB` 2-tenant slice vs. `8 vCPU / 24 GB` full-box) and switch MC-LAG/LACP readiness (no STP on `r2800`).
+- current TLS/mTLS termination points, certificate renewal automation, persistence/sticky-session ownership across LTM/WAF/ELB, SNAT vs. inline routing, `OneConnect`/`FastL4`/`f5-tcp-wan`/`f5-tcp-lan` profiles, and `XFF` trust settings per `AT1`–`AT4` application;
+- application readiness endpoints, **Active/Active vs. Active/Passive (Tier 1/2/3)** classification, and independent `H6` synthetic monitoring;
+- **AWAF RAM + `r2800` CPU/TLS-TPS/RPS/WS benchmark** (`4 vCPU / 12 GB` 2-tenant slice vs. `8 vCPU / 24 GB` full-box) and switch MC-LAG/LACP readiness (no STP on `r2800`);
+- formal **RACI sign-off** across F5/ADC, Network/Security, Cloud Platform, Application, and Security Ops teams.
 
 ## Phase 1 - define application health contracts
 
-Prioritize critical externally/internal published endpoints and shared dependencies, plus per-application sticky-session ownership (`AT2`), WebSocket profile rules (`AT3`), and SNAT/`XFF` contracts.
+Prioritize critical externally/internal published endpoints and shared dependencies, plus per-application Tier 1/2/3 SLO eligibility, sticky-session ownership (`AT2`), WebSocket profile rules (`AT3`), TLS/mTLS + `XFF`/SNAT contracts, and `T6a`/`T6b` recovery obligations.
 
 ## Phase 2 - implement Layer-7 published-endpoint health
 
-Implement GTM-authoritative external and internal endpoint health using the best available representative probe source, direct L7 monitors and/or LTM+iQuery.
+Implement GTM-authoritative external and internal endpoint health using the best available representative probe source, direct L7 monitors and/or LTM+iQuery, plus declarative config-as-code pipelines and `X-Correlation-ID` logging.
 
 ## Phase 3 - improve prober diversity and global visibility
 
-Test application failure, WAF failure, CFW failure, site failure and inter-site network partition.
+Test application failure, WAF failure, false-positive WAF block mitigation, CFW failure, site failure and inter-site network partition.
 
 ## Phase 4 - dependency-local recovery
 
 Pilot B1 -> B2 where state/data/business semantics allow it.
 
-## Phase 5 - `r2800` rebuild & cross-site WAF/front-end contingency
+## Phase 5 - parallel `r2800` rebuild & cross-site WAF/front-end contingency
 
-Execute parallel `r2800` (`F5OS-A 1.8.0+` + BIG-IP 21.1.x+) rebuild with `platform-migrate validate` and `cloud-init`, apply standardized multi-layer TCP/OneConnect/CARP/SNAT-Pool/XFF profiles, and pilot X2A/X2B only after routing, NAT/SNAT, stateful firewall, capacity and ownership are agreed.
+Execute **parallel greenfield `r2800` (`F5OS-A 1.8.0+` + BIG-IP 21.1.x+) rebuild** with `platform-migrate validate`, `cloud-init`, automated cert lifecycle, declarative AS3/WAF pipelines, and phased per-tenant canary cutover (keeping legacy 17.5.x warm for rollback), then pilot `X2A`/`X2B` only after routing, NAT/SNAT, stateful firewall, capacity and ownership are agreed.
 
 ## Phase 6 - prove the 99.95% design
 
-Measure p50/p95/p99 fault-to-successful-business-transaction time and peak throughput/SNAT-port utilization for external, internal, stateful/WebSocket (`AT1`–`AT4`), and dependency scenarios, including planned maintenance (4 changes/yr per major stack) plus a second failure.
+Measure p50/p95/p99 fault-to-successful-business-transaction time (`Infra + T6b + T6a`) and peak throughput/SNAT-port/retry-storm resilience for external, internal, stateful/WebSocket (`AT1`–`AT4`), and dependency scenarios, including planned maintenance (4 changes/yr per major stack) plus a second failure.
 
 # 17. Acceptance gates
 
@@ -516,16 +580,16 @@ Before calling the target health and delivery architecture ready:
 1. external and internal endpoint health are modelled separately where their paths differ;
 2. every GTM steering signal has a documented **probe origin and traversed path**;
 3. Layer-7 monitors prove application readiness rather than simple TCP reachability;
-4. application teams own the health contract;
+4. application teams own the health contract, **Tier 1/2/3 SLO eligibility**, and automated **`T6a`/`T6b`** recovery (with retry jitter);
 5. one failed member remains a local recovery event;
 6. GTM does not advertise a site whose required endpoint path is unusable;
 7. inter-site link failure alone does not withdraw a healthy local site;
 8. GTM/prober/synchronization convergence is measured;
 9. internal delegated-name behavior and external DNS behavior are tested separately;
 10. App A/B/C/D dependency cascades are tested;
-11. independent synthetic monitoring measures the user/business outcome;
-12. multi-layer persistence (`CARP`/ELB cookie), `OneConnect` (excluded from `AT3` WebSockets), **SNAT Pool sizing + `XFF`/`Trust XFF`**, and peak throughput under `K + 2` (`N-2`) degraded capacity are load-tested and verified;
-13. planned maintenance (including `F5OS-A` host reboots on `r2800`), rollback and failback are tested within the combined managed + unmanaged 99.95% objective.
+11. independent `H6` synthetic monitoring validates real business transactions (catching WAF false-positive `403`s) and `X-Correlation-ID` traces requests end-to-end;
+12. multi-layer persistence (`CARP`/ELB cookie), `OneConnect` (excluded from `AT3` WebSockets), **SNAT Pool sizing + `XFF`/`Trust XFF`**, automated TLS/mTLS certificate rotation, and peak `r2800` throughput/TPS under `K + 2` degraded capacity + retry storms are load-tested and verified;
+13. declarative config-as-code, 1-node canary staging (`≤ 25%` impact), emergency WAF bypass, planned maintenance (including `F5OS-A` host reboots on `r2800`), parallel cutover rollback, and failback are tested within the combined managed + unmanaged 99.95% objective.
 
 # 18. F5 official documentation reference summary
 

@@ -56,6 +56,12 @@ Cross-site routing adds new dependencies:
 
 It should therefore be a controlled contingency path, not an uncontrolled any-to-any normal path.
 
+### Canonical alignment notes (`r2800`, `SNAT`/`XFF`, `S1+2`/`W1-2`, `T6a`/`T6b`)
+
+- **Multi-IP `SNAT Pool` + `XFF` mandatory for `X2A`/`X2B`:** Never rely on single-IP `SNAT Automap` (~65k port cap/IP, `K7820`) for cross-site route-back; use a sized **multi-IP SNAT Pool** to guarantee stateful-firewall return symmetry across sites (`K95573163`), inject `X-Forwarded-For` (`XFF`) at the first L7 TLS terminator, and enable `Trust XFF` (`K4816`) on the remote AWAF so client-IP visibility is preserved.
+- **Role across `r2800` topologies:** Because confirmed **`r2800`** pizza boxes have a **single 480 GB NVMe SSD (no RAID-1)** and undergo `F5OS-A` host reboots during 4/yr upgrades, **`X2A` is mandatory** if deploying 2-WAF designs (**`W1-2`** or **`W2b`**) that lack local maintenance `N-2`. In **`S1+2` (`4+2=6` shared WAFs/site)** or **`W1-3` (`3` dedicated WAFs/tenant)**, `X2A` remains valuable tier-loss contingency while 1–2 WAF failures stay local.
+- **Recovery timing & retry storms:** Account separately for **`T6a` (client auto retry/reconnect with mandatory jitter — avoiding manual user refresh and preventing retry-storm self-DDoS against the borrowed remote WAF or `App B2`)** and **`T6b` (server-side state/session lookup)**, plus `X-Correlation-ID` logging across sites.
+
 ## 3. Pattern X2A - local LTM survives; borrow remote WAF
 
 Normal:

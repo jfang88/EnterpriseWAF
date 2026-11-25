@@ -9,9 +9,10 @@ The current analysis covers a two-site, four-tenant extranet application-deliver
 Use these documents in this order:
 
 1. [Current architecture and stable invariants](./enterprise-scenarios/current_architecture_and_invariants.md)
-2. [Future architecture improvements / target health model](./enterprise-scenarios/future_architecture_improvements.md)
+2. [Future architecture improvements / target health model & six guardrails](./enterprise-scenarios/future_architecture_improvements.md)
 3. [Executive architecture and 99.95% recommendation](./enterprise-scenarios/executive_recommendation.md)
 4. [Deployment options, resilience and four-tenant cost summary](./enterprise-scenarios/deployment_options_resilience_summary.md)
+5. [Phase 0 (Days 1–30) Discovery, Benchmark & Sign-Off Checklist](./enterprise-scenarios/phase0_discovery_and_signoff_checklist.md)
 
 The complete document map is in [enterprise-scenarios/README.md](./enterprise-scenarios/README.md).
 
@@ -70,10 +71,8 @@ The design must avoid both:
 
 Version-controlled management outputs are under [management-artifacts/](./management-artifacts/):
 
-- [Executive & Tech-Lead Discussion Deck (PPTX — 9 slides + Speaker Notes)](./management-artifacts/EnterpriseWAF_Discussion_Deck.pptx) — 3 executive theme slides + 6 tech-lead discussion slides (`r2800`, F5 KBs & timings in Speaker Notes)
-- [Executive & Tech-Lead Discussion Deck (PDF)](./management-artifacts/EnterpriseWAF_Discussion_Deck.pdf)
-- [Long-Form Management Summary (PPTX — 17 slides)](./management-artifacts/EnterpriseWAF_Management_Summary.pptx) — full reference deck
-- [Long-Form Management Summary (PDF)](./management-artifacts/EnterpriseWAF_Management_Summary.pdf)
+- **Primary Presentation Deck:** [Executive & Tech-Lead Discussion Deck (PPTX — 9 slides + Speaker Notes)](./management-artifacts/EnterpriseWAF_Discussion_Deck.pptx) ([PDF](./management-artifacts/EnterpriseWAF_Discussion_Deck.pdf)) — plain-English executive briefing (3 core theme slides) + 6 tech-lead discussion slides (`r2800`, F5 KBs, RACI & `T1`–`T9` details in Speaker Notes)
+- **Engineering Reference Appendix:** [Long-Form Engineering Reference Deck (PPTX — 17 slides)](./management-artifacts/EnterpriseWAF_Management_Summary.pptx) ([PDF](./management-artifacts/EnterpriseWAF_Management_Summary.pdf)) — complete technical appendix (architecture planes, GTM convergence, App B cascade, cross-site patterns, `T1`–`T9` timing shorthand, full acronym glossary)
 - [End-to-end topology diagram](./management-artifacts/diagrams/EnterpriseWAF_End_to_End_Topology.svg)
 - [WAF topology options visual diagram](./management-artifacts/diagrams/EnterpriseWAF_Topology_Options.svg)
 

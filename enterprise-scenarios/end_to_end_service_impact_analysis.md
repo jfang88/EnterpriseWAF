@@ -32,6 +32,16 @@ Every infrastructure failure must therefore be translated into:
 - application-code/state requirements;
 - residual risk after infrastructure recovery.
 
+## 1.1 Canonical alignment (current baseline & target rules)
+
+Read every scenario in this document with these authoritative rules from [current_architecture_and_invariants.md](./current_architecture_and_invariants.md), [future_architecture_improvements.md](./future_architecture_improvements.md), and [analysis_variables_and_f5_assumptions.md](./analysis_variables_and_f5_assumptions.md):
+
+- **Explicit `T6a` vs. `T6b` vs. `T5` user-outcome split:** Where `T6` appears below, separate **`T6a` (client-side recovery:** automated retry with backoff/jitter, DNS re-lookup, WebSocket reconnect/replay in **seconds** vs. **manual user refresh/re-login/restart in minutes+** if poorly architected) from **`T6b` (server-side automated state/session/pool recovery in seconds–~2 min)** and **`T5` (manual server startup / DB promotion in minutes–hours)**.
+- **Application Tiering & 99.95% SLO eligibility:** Only **Tier 1** apps (Active/Active across sites + automated `T6a`/`T6b` + rolling changes) are eligible for a combined managed + unmanaged **99.95%** (`4h 22m 48s / yr`) commitment. **Tier 2** Active/Passive warm-DR apps incur `T5` on site loss and realistically target **99.9%–99.5%**.
+- **Shortlisted topologies & `≤ 25%` impact cap:** Preferred target options on the confirmed **`r2800` pizza-box standard** (single SSD, no FPGA, no STP, max 2 tenants/box on `F5OS-A 1.8.0+`) are **Shared 6-WAF pool (`S1+2`: 4+2 active WAFs/site for rolling + SSD outage + ≤ 17% canary)** vs. **Dedicated 3-WAF pool (`W1-3`: hard ≤ 25% tenant isolation)**. The **2-WAF sub-variant (`W1-2`)** loses local maintenance `N-2` and requires `X2A`.
+- **Client-IP (`XFF`/ELB) & SNAT Pool invariants:** First L7 TLS terminator (LTM, WAF, or **Cloud ELB** if terminating TLS) strips untrusted `XFF` and injects real client IP; multi-IP `SNAT Pools` avoid single-IP 65k port exhaustion (`K7820`).
+- **Silent-outage operational guardrails (`§15D`):** Expired TLS/mTLS certs, **WAF false-positive `403` blocks** (where health checks stay green!), and **`T6a` retry storms without jitter** must be tested alongside hardware faults using business-transaction `H6` synthetics and `X-Correlation-ID` tracing.
+
 ---
 
 # 2. End-to-end service paths

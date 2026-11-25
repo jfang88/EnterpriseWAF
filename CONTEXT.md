@@ -110,6 +110,7 @@ Use topic-specific documents as needed, including:
 - `enterprise-scenarios/maintainability_change_management_analysis.md`
 - `enterprise-scenarios/executive_recommendation.md`
 - `enterprise-scenarios/deployment_options_resilience_summary.md`
+- `enterprise-scenarios/phase0_discovery_and_signoff_checklist.md`
 - `waf_websocket_resilience_cloud_patterns.md`
 
 The repository `README.md` and `enterprise-scenarios/README.md` provide the full document map.

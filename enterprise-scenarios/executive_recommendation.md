@@ -487,21 +487,21 @@ This is the **cleanest high-confidence 99.95 architecture** among the compared W
 - **W4:** strong Site 1 but asymmetric Site 2 makes it harder to operate and prove consistently.
 - **shared LTM + shared WAF:** attractive cost, but too large a common-mode tenant blast radius for the default critical-service recommendation.
 
-# 12. Decision gates before final approval
+# 12. Decision gates & six operational guardrails before final approval
 
-Before selecting S1 or dedicated W1, prove:
+Before selecting **Shared 6-WAF (`S1+2`)** or **Dedicated 3-WAF (`W1-3`)**, execute [phase0_discovery_and_signoff_checklist.md](./phase0_discovery_and_signoff_checklist.md) and prove:
 
-1. peak and failure-mode WAF throughput;
-2. N-1 and N-2 capacity;
-3. one-WAF and two-WAF fault injection;
+1. peak and failure-mode **`r2800` AWAF RAM (`12 GB` vs. `24 GB`), CPU, HTTP RPS, TLS TPS, and WebSocket** throughput (no FPGA, 8 vCPU);
+2. `K + 2` (`N-2`) degraded capacity and **100% Site 2 aggregate DR surge**;
+3. one-WAF and two-WAF fault injection (plus 1-node canary staging `≤ 25%` impact);
 4. one-LTM failure and full LTM-pair recovery;
-5. CFW HA and complete CFW-path failure;
-6. cross-site WAF route-back;
-7. App A -> B remote fallback;
-8. Site 2 aggregate DR capacity;
-9. WAF bad-policy rollback/canary;
-10. stateless/stateful/WebSocket/non-web recovery;
-11. actual end-to-end p95/p99 fault-to-successful-transaction times;
-12. planned maintenance with one additional injected failure.
+5. CFW HA and complete CFW-path failure (zero `T9C` false-green);
+6. cross-site WAF route-back (`X2A`) and `App A -> B` remote fallback (`XD1`);
+7. WAF false-positive `403` mitigation, **declarative config-as-code** (AS3 / Declarative WAF / `cloud-init`), and business-transaction `H6` synthetics;
+8. **automated TLS/mTLS certificate lifecycle** and `XFF` / Cloud ELB header alignment;
+9. **end-to-end `X-Correlation-ID` observability** (with AWAF Support ID) and **retry-storm jitter/rate-limiting** under failover;
+10. stateless/stateful/WebSocket/non-web recovery (`AT1`–`AT4`), measuring **`T6a` (client auto vs. manual user steps)** + **`T6b` (server auto)** vs. **`T5` (manual startup/DB)**;
+11. **Tier 1 (Active/Active → 99.95% eligible) vs. Tier 2/3 (Active/Passive warm DR → 99.9%/99.5%)** application classification and **signed cross-team RACI**;
+12. **parallel greenfield `17.5.x → r2800 (21.1.x+)` cutover + instant rollback** (ahead of Jan 2029 EoTS) and planned maintenance with one additional injected failure.
 
-Only after those tests should the design be described as meeting 99.95 rather than merely having **high 99.95 potential**.
+See [future_architecture_improvements.md §15D](./future_architecture_improvements.md#15d-six-essential-operational--architectural-guardrails-target-state) for the full guardrail specifications and RACI matrix. Only after those tests pass should a **Tier 1** service be described as meeting 99.95% rather than merely having **high 99.95% potential**.

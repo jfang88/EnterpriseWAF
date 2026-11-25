@@ -192,16 +192,16 @@ def simple_table(s, headers, rows, x, y, colw, rowh=0.46, fs=9.2, headh=None, al
         yy += rowh
 
 
-# Slide 1 — Executive Summary (Joint Responsibility • End-to-End Application Delivery)
+# Slide 1 — Engineering Reference Appendix Overview (Paired with 9-Slide Discussion Deck)
 s = slide()
 add_text(
     s,
-    "Resilient End-to-End Application Delivery",
+    "Engineering Reference Appendix — Resilient App Delivery",
     0.5,
     0.42,
     12.3,
     0.62,
-    28,
+    25.5,
     True,
     WHITE,
     PP_ALIGN.LEFT,
@@ -210,23 +210,23 @@ add_text(
 )
 add_text(
     s,
-    "Joint responsibility across Infra & App teams • Phase 1 focus: WAF tier • BIG-IP 17.5.x → r2800 (21.1.x+) • 99.95% & ≤ 25% impact",
+    "Detailed technical companion to the 9-slide Discussion Deck • BIG-IP 17.5.x → r2800 (21.1.x+) • Tier-1 99.95% & ≤ 25% impact",
     0.52,
     1.14,
     12.30,
     0.42,
-    12.4,
+    12.0,
     False,
     NAVY,
     radius=False,
 )
 bullet_block(
     s,
-    "Joint responsibility & scope",
+    "Joint responsibility & App Tiering",
     [
-        "Infrastructure teams deliver resilient, rolling-upgradeable tiers, deterministic SNAT/XFF headers, and layer-accurate health steering.",
-        "App teams build failure-tolerant apps (T6a client retry/WS reconnect + T6b externalized state) and own L7 readiness contracts.",
-        "99.95% (managed + unmanaged) & potential ≤ 25% impact cap: evaluate S1+2 (6/site, 24 GB) vs. W1-3 (both 20 r2800s on rebuild).",
+        "Infrastructure teams deliver resilient, rolling-upgradeable tiers, deterministic SNAT/XFF/Correlation-ID headers, automated TLS certs & config-as-code.",
+        "App teams deliver Tier 1 Active/Active architecture (T6a client auto-retry + jitter, T6b externalized state) and own L7 readiness contracts.",
+        "99.95% (managed + unmanaged, Tier 1 eligible) & ≤ 25% impact cap: evaluate S1+2 (6/site, 24 GB) vs. W1-3 (both 20 r2800s on rebuild).",
     ],
     0.55,
     1.80,
@@ -235,7 +235,7 @@ bullet_block(
     GREEN,
     MID,
     NAVY,
-    9.7,
+    9.4,
 )
 bullet_block(
     s,
@@ -252,15 +252,15 @@ bullet_block(
     CYAN,
     MID,
     NAVY,
-    9.7,
+    9.4,
 )
 bullet_block(
     s,
-    "Key management risks to close",
+    "Key technical & operational risks",
     [
-        "Current BIG-IP 17.5.x GTM monitor depth, NAT Translation maps (K14707), TLS termination/XFF & SNAT baselines remain to validate.",
-        "Port-up / TCP handshake checks (K40554304) show false green while Cloud FW, ELB, or the application is broken.",
-        "2-WAF designs (W1-2/W2b) lose local N-2 during 4/yr upgrades; S1+2 needs Parent/Child canary gates to stay ≤ 25% impact.",
+        "Phase 0 checklist: validate current 17.5.x GTM monitors, NAT maps (K14707), TLS/mTLS cert automation, XFF/SNAT & r2800 RAM/TPS.",
+        "TCP port-up checks (K40554304), expired certs & WAF false-positive 403 blocks cause 100% outages while ports look green.",
+        "2-WAF designs (W1-2/W2b) lose local N-2 during 4/yr upgrades; S1+2 needs declarative AS3 + 1-node canary gates to stay ≤ 25%.",
     ],
     8.85,
     1.80,
@@ -269,16 +269,16 @@ bullet_block(
     PALEYELLOW,
     ORANGE,
     NAVY,
-    9.7,
+    9.4,
 )
 add_text(
     s,
-    "Key decision: audit current 17.5.x health/SNAT/XFF baselines, sign joint Infra + App contracts per fault domain (Slide 14), and choose S1+2 vs. W1-3 on the confirmed r2800 standard (Glossary on Slide 17).",
+    "How to use: Present the plain-English 9-slide Discussion Deck in leadership meetings; use this 17-slide Engineering Reference Appendix for architecture deep-dives, KBs, T1–T9 timings (Slide 16) & Glossary (Slide 17).",
     0.55,
     5.42,
     12.22,
     0.76,
-    11.2,
+    10.4,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -1016,54 +1016,54 @@ legend_bar(
 )
 footer(s, 14)
 
-# Slide 15 — End-to-End Implementation Sequence & Cross-Team Gates
+# Slide 15 — End-to-End Implementation Sequence, 6 Guardrails & Cross-Team Gates
 s = slide()
 title(
     s,
-    "End-to-end implementation sequence (Phase 1: WAF & F5 tier)",
-    "Start with F5/WAF & GTM validation we own directly, while aligning Network/Security, Cloud Platform, and App teams on contracts.",
+    "Implementation sequence, six guardrails & acceptance gates",
+    "Execute Phase 0 checklist first, lock RACI + Tier 1/2/3 SLO eligibility, and cut over via parallel r2800 build ahead of Jan 2029 EoTS.",
 )
 phases = [
-    ("0", "Inventory monitors,\nSNAT/XFF, probers &\nr2800 AWAF RAM"),
-    ("1", "Phase 1: S1+2/W1-3\ndesign + app L7\ncontracts"),
-    ("2", "Implement ext +\nint L7 VIP health\n(F5 + NetSec)"),
-    ("3", "Add Specific\nProber Pools &\nH6 synthetics"),
-    ("4", "Pilot App B1→B2\nXD1 recovery\n(App + Cloud)"),
-    ("5", "Execute r2800\n21.1.x+ rebuild &\nX2A/X2B"),
+    ("0", "Phase 0 checklist:\nmonitors, certs, XFF &\nr2800 RAM/TPS"),
+    ("1", "Lock S1+2/W1-3,\nTier 1/2/3 SLOs &\ncross-team RACI"),
+    ("2", "Ext + int L7 VIP\nhealth, AS3 code &\nX-Correlation-ID"),
+    ("3", "Specific Prober\nPools & business\nH6 synthetics"),
+    ("4", "Pilot App B1→B2\nXD1 recovery &\nretry jitter"),
+    ("5", "Parallel r2800\ncanary cutover\n+ instant rollback"),
     ("6", "Fault-inject &\nprove 99.95% &\n≤25% impact"),
 ]
 for i, (n, t) in enumerate(phases):
     x = 0.45 + i * 1.82
     add_text(s, n, x + 0.56, 1.18, 0.36, 0.34, 10.5, True, WHITE, PP_ALIGN.CENTER, TEAL, TEAL)
-    add_text(s, t, x, 1.58, 1.48, 1.02, 8.3, True, DARK, PP_ALIGN.CENTER, LIGHT, MID)
+    add_text(s, t, x, 1.58, 1.48, 1.02, 8.2, True, DARK, PP_ALIGN.CENTER, LIGHT, MID)
     if i < 6:
         arrow(s, x + 1.52, 2.09, x + 1.78, 2.09, TEAL, width=2.0)
 
 checks = [
-    "external + internal VIP health contracts signed with App/NetSec",
-    "1 WAF or backend failure stays local R0/R1 (Action=Reject)",
-    "GTM never advertises a broken required service path",
-    "inter-site link loss never withdraws a healthy local site",
-    "GTM / prober / sync convergence + T6a/T6b measured end-to-end",
-    "App A / B / C / D cascade & XD1 fallback tested with App teams",
-    "AT1–AT4 sticky, XFF/ELB headers, SNAT Pool & no-OneConnect WS",
-    "managed maintenance + extra failure + 1-node canary ≤ 25% tested",
-    "r2800 LACP LAG (no STP), HSL logs & platform-migrate validated",
+    "Ext/int L7 contracts, Tier 1/2/3 list & RACI signed",
+    "1 WAF/node failure stays local R0/R1 (Action=Reject)",
+    "Automated TLS/mTLS cert renewal + 30/14/7d alerts",
+    "Inter-site link loss never withdraws a healthy local site",
+    "Business H6 synthetics catch WAF 403s + X-Correlation-ID",
+    "App A/B/C/D cascade, XD1 & T6a retry-storm jitter tested",
+    "AT1–AT4 sticky, XFF/ELB, SNAT Pool & no-OneConnect WS",
+    "Declarative AS3/WAF + 1-node canary ≤ 25% + 403 runbook",
+    "Parallel r2800 LACP (no STP), HSL, cloud-init & rollback",
 ]
-add_text(s, "Cross-team acceptance gates before claiming 99.95% readiness", 0.55, 2.90, 7.5, 0.38, 12.5, True, NAVY, radius=False)
+add_text(s, "Cross-team acceptance gates & six operational guardrails (§15D) before claiming Tier-1 99.95%", 0.55, 2.90, 11.5, 0.38, 12.0, True, NAVY, radius=False)
 for i, ch in enumerate(checks):
     x = 0.55 + (i % 3) * 4.12
     y = 3.40 + (i // 3) * 0.76
     add_text(s, "✓", x, y, 0.30, 0.34, 11, True, TEAL, PP_ALIGN.CENTER, radius=False)
-    add_text(s, ch, x + 0.32, y, 3.65, 0.54, 8.8, False, DARK, radius=False)
+    add_text(s, ch, x + 0.32, y, 3.65, 0.54, 8.7, False, DARK, radius=False)
 add_text(
     s,
-    "Managed-change safety is part of the 99.95% SLO: never change both sites together; upgrade BIG-IP DNS before LTM (big3d_install); drain one node at a time; verify T6a/T6b automation & preserve rollback.",
+    "Managed-change & cutover safety: never change both sites together; upgrade BIG-IP DNS before LTM (big3d_install); cut over 17.5.x → r2800 in parallel (1 tenant/site at a time) keeping 17.5.x warm for instant rollback.",
     0.55,
     5.96,
     12.25,
     0.72,
-    9.6,
+    9.4,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -1072,7 +1072,7 @@ add_text(
 )
 legend_bar(
     s,
-    "Key:  S1+2/W1-3 = Target WAF tiers  •  H6 = External synthetic SLO  •  XD1/X2A/X2B = Cross-site R2 patterns  •  R0/R1 = Local recovery  •  T6a/T6b = Client/Server app recovery  •  AT1–AT4 = App classes  •  LACP/STP = L2 link agg/Spanning Tree",
+    "Key:  S1+2/W1-3 = Target WAF tiers  •  H6 = Business synthetic SLO  •  XD1 = App B1→B2  •  AS3 = Declarative F5 config-as-code  •  T6a = Client recovery  •  AT1–AT4 = App classes  •  LACP/STP = L2 link agg/Spanning Tree",
 )
 footer(s, 15)
 
