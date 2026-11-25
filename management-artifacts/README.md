@@ -4,8 +4,8 @@ This directory contains the current, version-controlled management outputs deriv
 
 # Stable filenames
 
-- **Primary Presentation Deck:** [EnterpriseWAF_Executive_Briefing.pptx](./EnterpriseWAF_Executive_Briefing.pptx) ([PDF](./EnterpriseWAF_Executive_Briefing.pdf)) — **9-slide Executive Briefing & Tech-Lead Discussion** written in plain English (3 executive theme slides + 6 tech-lead discussion slides; `r2800` specs, F5 KBs, RACI, and `T1`–`T9` details in PowerPoint Speaker Notes)
-- **Engineering Reference Appendix:** [EnterpriseWAF_Engineering_Reference.pptx](./EnterpriseWAF_Engineering_Reference.pptx) ([PDF](./EnterpriseWAF_Engineering_Reference.pdf)) — **17-slide Engineering Reference Appendix** (full on-slide technical tables, architecture planes, GTM convergence, App B cascade, cross-site patterns, `T1`–`T9` timing shorthand, and acronym glossary)
+- **Primary Presentation Deck:** [EnterpriseWAF_Executive_Briefing.pptx](./EnterpriseWAF_Executive_Briefing.pptx) ([PDF](./EnterpriseWAF_Executive_Briefing.pdf)) — **9-slide Executive Briefing & Tech-Lead Discussion** written in plain English (3 executive theme slides + 6 tech-lead discussion slides; `r2800` specs, F5 KBs, RACI, and `T1`–`T12` details in PowerPoint Speaker Notes)
+- **Engineering Reference Appendix:** [EnterpriseWAF_Engineering_Reference.pptx](./EnterpriseWAF_Engineering_Reference.pptx) ([PDF](./EnterpriseWAF_Engineering_Reference.pdf)) — **17-slide Engineering Reference Appendix** (full on-slide technical tables, architecture planes, GTM convergence, App B cascade, cross-site patterns, `T1`–`T12` timing shorthand, and acronym glossary)
 - [diagrams/EnterpriseWAF_Architecture_Planes.svg](./diagrams/EnterpriseWAF_Architecture_Planes.svg) — architecture planes / parallel-path model
 - [diagrams/EnterpriseWAF_End_to_End_Topology.svg](./diagrams/EnterpriseWAF_End_to_End_Topology.svg) — **current-state** editable topology
 - [diagrams/EnterpriseWAF_Target_Health_Monitoring.svg](./diagrams/EnterpriseWAF_Target_Health_Monitoring.svg) — **target-state** editable health-monitoring topology
@@ -47,7 +47,7 @@ Do **not** present the architecture as one linear L0-L7 stack. External and inte
 
 ## Primary Presentation: Executive Briefing & Tech-Lead Discussion (9 slides + Speaker Notes)
 
-Designed as the **single live presentation deck** for mixed **Technical Leadership + Tech Lead** discussions, using full plain-English names rather than cryptic shorthand codes (all `r2800` upgrade/hardware details, F5 KBs, RACI, and `T1`–`T9` formulas live in PowerPoint Speaker Notes):
+Designed as the **single live presentation deck** for mixed **Technical Leadership + Tech Lead** discussions, using full plain-English names rather than cryptic shorthand codes (all `r2800` upgrade/hardware details, F5 KBs, RACI, and `T1`–`T12` formulas live in PowerPoint Speaker Notes):
 
 1. **Theme 1 (Executive):** Joint responsibility for 99.95% availability (Tier 1 eligible), ≤ 25% blast radius & 4 changes/yr;
 2. **Theme 2 (Executive):** Layered health checks, proportional recovery & operational guardrails (certs, WAF-as-code, retry jitter, observability);
@@ -78,7 +78,7 @@ Use as the detailed **Engineering Reference Appendix** for architecture deep-div
 13. **four-tenant topology variant scorecard (25% impact, 99.95%, longest outage, auto/manual)**;
 14. **joint responsibility & fault-domain recovery matrix (Infra vs. App per layer)**;
 15. end-to-end implementation sequence, six operational guardrails & cross-team acceptance gates;
-16. Appendix A — recovery timing shorthand (`T1`–`T9`, including `T6a` client vs. `T6b` server split);
+16. Appendix A — recovery timing shorthand (`T1`–`T12`, including `T6a` client vs. `T6b` server split);
 17. **Appendix B — executive glossary of acronyms and shorthand codes**.
 
 # Health-check management rule
@@ -116,3 +116,5 @@ Current-state diagrams must **not** imply the following are already implemented 
 - S1 as the deployed WAF topology.
 
 Target-state diagrams can show those improvements when clearly labelled target/to-be.
+
+Cloud Platform boundary: CFW is one logical private-cloud edge available at both sites, with ELBs behind site-local enforcement. Huawei on-premises recovery timings (T9 CFW, T10 ELB, T11 Kubernetes, T12 VM) are TBD pending deployment-specific evidence.
