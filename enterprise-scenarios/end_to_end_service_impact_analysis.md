@@ -88,6 +88,8 @@ Read every scenario in this document with these authoritative rules from [curren
 
 ## Internal firewall boundary
 
+The CFW is one logical private-cloud edge/security boundary available in both sites, represented by site-local enforcement paths. ELB/service endpoints sit behind that boundary. This does not establish a stretched physical firewall, shared state, automatic alternate-site routing, or independent failure domains: local and common-mode failures must be validated separately.
+
 Internal users, desktops, internal enterprise DNS and the internal LTM/service VIP are outside the private cloud. Private-cloud access crosses a distinct **internal firewall** before the **private-cloud CFW**. These must be analysed as separate failure domains: an internal-firewall outage can isolate internal users from otherwise healthy private-cloud applications while external/extranet access may remain healthy; a CFW outage can affect both external and internal paths after they reach the private-cloud boundary.
 
 The external and internal namespaces are separate. A DNS/GTM problem can therefore affect:
@@ -261,6 +263,10 @@ healthy member Y
 ```
 
 DNS should not be part of recovery. LTM health withdrawal and client retry are the relevant timing terms.
+
+### 4.3a Cloud-platform timing placeholders
+
+Use T9 (CFW), T10 (ELB), T11 (Kubernetes), T12 (VM/hypervisor), all TBD/measure for deployed Huawei private cloud. Separate local member withdrawal, tier/service loss, and shared two-site common-mode failures. Measure first successful transaction and restoration of redundancy independently. Only add DNS convergence when the published endpoint changes. See [timing definitions](./analysis_variables_and_f5_assumptions.md).
 
 ### 4.4 CFW changes the preferred recovery target
 
