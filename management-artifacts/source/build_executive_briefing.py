@@ -1,22 +1,22 @@
-"""Build the concise Executive & Tech-Lead Discussion Deck (9 slides + full Speaker Notes).
+"""Build the primary 9-slide Executive Briefing & Tech-Lead Discussion Deck (+ full Speaker Notes).
 
 Structure:
-  Part 1 — Core Themes in 3 Slides (for Technical Leadership / Management):
-    Slide 1: Theme 1 — Joint Responsibility for 99.95% Availability & <= 25% Impact
-    Slide 2: Theme 2 — Layered Health Checks & Proportional Recovery
-    Slide 3: Theme 3 — WAF Topology Decision (S1+2 vs. W1-3) & 90-Day Roadmap
+  Part 1 — Core Themes in 3 Slides (Plain-English Executive Briefing):
+    Slide 1: Theme 1 — Joint Responsibility for Tier-1 99.95% Availability & <= 25% Impact
+    Slide 2: Theme 2 — Layered Health Checks, Proportional Recovery & Operational Guardrails
+    Slide 3: Theme 3 — WAF Topology Shortlist (Shared 6-WAF vs. Dedicated 3-WAF) & 90-Day Plan
 
   Part 2 — Tech-Lead Deep-Dive Discussion Slides (Slides 4-9):
     Slide 4: Current-State End-to-End Topology (authoritative SVG + tech-lead notes)
     Slide 5: Target Layered Health Monitoring (authoritative SVG + tech-lead notes)
     Slide 6: Visual WAF Topology Options (authoritative SVG + r2800 rebuild notes)
-    Slide 7: Topology Variant Scorecard (<= 25% impact, 99.95%, longest outage, auto/manual)
-    Slide 8: End-to-End Path Consistency — Sticky Sessions, Client-IP Headers, SNAT & Throughput
+    Slide 7: Plain-English Topology Variant Scorecard (<= 25% impact, 99.95%, longest outage, auto/manual)
+    Slide 8: End-to-End Path Consistency — Sticky Sessions, Client-IP Headers, Source NAT & Speed
     Slide 9: Joint Responsibility Matrix by Fault Domain (Infra vs. App obligations)
 
-Technical details (r2800 hardware specs, BIG-IP 17.5.x -> 21.1.x+ migration, F5 KBs,
+Technical details (r2800 hardware specs, BIG-IP 17.5.x -> 21.1.x+ parallel cutover, RACI, F5 KBs,
 OneConnect/CARP/SNAT mechanics, and T1-T9 timings) are placed in PowerPoint Speaker Notes
-so the slides stay clean and scannable while preserving full engineering depth.
+so the slides stay plain-English and scannable while preserving full engineering depth.
 """
 
 from pathlib import Path
@@ -34,7 +34,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DIAGRAMS = ROOT / "diagrams"
 BUILD = ROOT / ".build_discussion"
 BUILD.mkdir(exist_ok=True)
-OUT = ROOT / "EnterpriseWAF_Discussion_Deck.pptx"
+OUT = ROOT / "EnterpriseWAF_Executive_Briefing.pptx"
 
 prs = Presentation()
 prs.slide_width = Inches(13.333)
@@ -157,7 +157,7 @@ def footer(s, n, total=9, bg_bar=False):
         add_text(s, "", 0.0, 7.08, 13.333, 0.42, 8.0, False, SLATE, fill=BG_SVG, radius=False)
     add_text(
         s,
-        "End-to-end application delivery — executive & tech-lead discussion  •  Hardware (r2800), F5 KBs & timings in Speaker Notes",
+        "End-to-end application delivery — executive briefing & tech-lead discussion  •  Hardware (r2800), F5 KBs & timings in Speaker Notes",
         0.45,
         7.19,
         9.8,
@@ -910,7 +910,7 @@ set_notes(
 3. Exact Technical Reference Map (Option 2: Primary Deck + Engineering Reference Appendix):
    - Phase 0 Day 1–30 executable checklist: enterprise-scenarios/phase0_discovery_and_signoff_checklist.md.
    - Full fault-domain matrix & 6 operational guardrails: enterprise-scenarios/future_architecture_improvements.md (§15B, §15C, §15D).
-   - 17-slide Engineering Reference Appendix (Architecture Planes, Health Placement H1–H6, GTM Convergence, App B Cascade, Cross-Site X2A/X2B/XD1, Implementation Sequence, Appendix A T1–T9 with T6a/T6b, Appendix B Glossary): management-artifacts/EnterpriseWAF_Management_Summary.pptx / .pdf.
+   - 17-slide Engineering Reference Appendix (Architecture Planes, Health Placement H1–H6, GTM Convergence, App B Cascade, Cross-Site X2A/X2B/XD1, Implementation Sequence, Appendix A T1–T9 with T6a/T6b, Appendix B Glossary): management-artifacts/EnterpriseWAF_Engineering_Reference.pptx / .pdf.
 
 4. Cross-Team Acceptance Gates Before Claiming Tier-1 99.95% & <= 25% Impact Readiness:
    - Gate 1: External (H3) and Internal (H4) VIP L7 readiness contracts + Tier 1/2/3 inventory + RACI signed.

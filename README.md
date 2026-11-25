@@ -71,8 +71,8 @@ The design must avoid both:
 
 Version-controlled management outputs are under [management-artifacts/](./management-artifacts/):
 
-- **Primary Presentation Deck:** [Executive & Tech-Lead Discussion Deck (PPTX — 9 slides + Speaker Notes)](./management-artifacts/EnterpriseWAF_Discussion_Deck.pptx) ([PDF](./management-artifacts/EnterpriseWAF_Discussion_Deck.pdf)) — plain-English executive briefing (3 core theme slides) + 6 tech-lead discussion slides (`r2800`, F5 KBs, RACI & `T1`–`T9` details in Speaker Notes)
-- **Engineering Reference Appendix:** [Long-Form Engineering Reference Deck (PPTX — 17 slides)](./management-artifacts/EnterpriseWAF_Management_Summary.pptx) ([PDF](./management-artifacts/EnterpriseWAF_Management_Summary.pdf)) — complete technical appendix (architecture planes, GTM convergence, App B cascade, cross-site patterns, `T1`–`T9` timing shorthand, full acronym glossary)
+- **Primary Presentation Deck:** [Executive Briefing & Tech-Lead Discussion (PPTX — 9 slides + Speaker Notes)](./management-artifacts/EnterpriseWAF_Executive_Briefing.pptx) ([PDF](./management-artifacts/EnterpriseWAF_Executive_Briefing.pdf)) — plain-English executive briefing (3 core theme slides) + 6 tech-lead discussion slides (`r2800`, F5 KBs, RACI & `T1`–`T9` details in Speaker Notes)
+- **Engineering Reference Appendix:** [Engineering Reference Deck (PPTX — 17 slides)](./management-artifacts/EnterpriseWAF_Engineering_Reference.pptx) ([PDF](./management-artifacts/EnterpriseWAF_Engineering_Reference.pdf)) — complete technical appendix (architecture planes, GTM convergence, App B cascade, cross-site patterns, `T1`–`T9` timing shorthand, full acronym glossary)
 - [End-to-end topology diagram](./management-artifacts/diagrams/EnterpriseWAF_End_to_End_Topology.svg)
 - [WAF topology options visual diagram](./management-artifacts/diagrams/EnterpriseWAF_Topology_Options.svg)
 

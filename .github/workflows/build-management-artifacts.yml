@@ -39,9 +39,9 @@ jobs:
 
       - name: Build PowerPoint
         run: |
-          python management-artifacts/source/build_management_deck.py
-          python management-artifacts/source/replace_management_slides.py
-          python management-artifacts/source/build_discussion_deck.py
+          python management-artifacts/source/build_engineering_reference.py
+          python management-artifacts/source/replace_engineering_reference_slides.py
+          python management-artifacts/source/build_executive_briefing.py
           rm -rf management-artifacts/.build management-artifacts/.build_discussion
 
       - name: Export PDF
@@ -49,29 +49,29 @@ jobs:
           libreoffice --headless --nologo --nolockcheck \
             --convert-to pdf \
             --outdir management-artifacts \
-            management-artifacts/EnterpriseWAF_Management_Summary.pptx \
-            management-artifacts/EnterpriseWAF_Discussion_Deck.pptx
+            management-artifacts/EnterpriseWAF_Engineering_Reference.pptx \
+            management-artifacts/EnterpriseWAF_Executive_Briefing.pptx
 
       - name: Render version-controlled diagrams
         run: |
           mkdir -p management-artifacts/diagrams
           pdftoppm -png -r 150 -f 3 -singlefile \
-            management-artifacts/EnterpriseWAF_Management_Summary.pdf \
+            management-artifacts/EnterpriseWAF_Engineering_Reference.pdf \
             management-artifacts/diagrams/EnterpriseWAF_Architecture_Planes
           pdftoppm -png -r 150 -f 4 -singlefile \
-            management-artifacts/EnterpriseWAF_Management_Summary.pdf \
+            management-artifacts/EnterpriseWAF_Engineering_Reference.pdf \
             management-artifacts/diagrams/EnterpriseWAF_End_to_End_Topology
           pdftoppm -png -r 150 -f 5 -singlefile \
-            management-artifacts/EnterpriseWAF_Management_Summary.pdf \
+            management-artifacts/EnterpriseWAF_Engineering_Reference.pdf \
             management-artifacts/diagrams/EnterpriseWAF_Target_Health_Monitoring
           pdftoppm -png -r 150 -f 6 -singlefile \
-            management-artifacts/EnterpriseWAF_Management_Summary.pdf \
+            management-artifacts/EnterpriseWAF_Engineering_Reference.pdf \
             management-artifacts/diagrams/EnterpriseWAF_Health_Check_Placement
           pdftoppm -png -r 150 -f 7 -singlefile \
-            management-artifacts/EnterpriseWAF_Management_Summary.pdf \
+            management-artifacts/EnterpriseWAF_Engineering_Reference.pdf \
             management-artifacts/diagrams/GTM_Health_and_Convergence
           pdftoppm -png -r 150 -f 9 -singlefile \
-            management-artifacts/EnterpriseWAF_Management_Summary.pdf \
+            management-artifacts/EnterpriseWAF_Engineering_Reference.pdf \
             management-artifacts/diagrams/EnterpriseWAF_Topology_Options
 
       - name: Commit generated artifacts
@@ -79,10 +79,10 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add \
-            management-artifacts/EnterpriseWAF_Management_Summary.pptx \
-            management-artifacts/EnterpriseWAF_Management_Summary.pdf \
-            management-artifacts/EnterpriseWAF_Discussion_Deck.pptx \
-            management-artifacts/EnterpriseWAF_Discussion_Deck.pdf \
+            management-artifacts/EnterpriseWAF_Executive_Briefing.pptx \
+            management-artifacts/EnterpriseWAF_Executive_Briefing.pdf \
+            management-artifacts/EnterpriseWAF_Engineering_Reference.pptx \
+            management-artifacts/EnterpriseWAF_Engineering_Reference.pdf \
             management-artifacts/diagrams/EnterpriseWAF_Architecture_Planes.png \
             management-artifacts/diagrams/EnterpriseWAF_End_to_End_Topology.png \
             management-artifacts/diagrams/EnterpriseWAF_Target_Health_Monitoring.png \
