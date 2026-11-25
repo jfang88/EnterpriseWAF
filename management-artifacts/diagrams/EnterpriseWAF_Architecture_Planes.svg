@@ -155,7 +155,7 @@
 
 <!-- Bottom Callout -->
 <rect x="55" y="750" width="1490" height="60" rx="12" fill="#ebf8e9" stroke="#5ca452" stroke-width="2"/>
-<text x="800" y="786" text-anchor="middle" class="tx" font-size="15.5" font-weight="bold" fill="#073b64">End-to-end delivery spans Network/Security (firewalls), F5/ADC (GTM/LTM/WAF — initial focus), Cloud Platform (CFW/ELB), and Application teams.</text>
+<text x="800" y="786" text-anchor="middle" class="tx" font-size="15.5" font-weight="bold" fill="#073b64">CFW is the logical private-cloud edge across both sites; ELB sits behind it. Physical HA, shared state and alternate routing are not implied.</text>
 
 <!-- Consistent Deck Footer -->
 <text x="58" y="874" class="sub" font-size="13">End-to-end application delivery summary</text>
