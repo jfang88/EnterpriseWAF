@@ -20,7 +20,7 @@
 
 <!-- Title & Legend -->
 <text x="36" y="44" class="tx" font-size="29" font-weight="bold" fill="#073b64">End-to-end target layered health-monitoring architecture</text>
-<text x="38" y="70" class="sub" font-size="15">BIG-IP DNS (GTM) owns site/DNS decisions; probes exercise the actual external (H3) or internal (H4) path (BIG-IP 17.5.x / 21.1.x+).</text>
+<text x="38" y="70" class="sub" font-size="15">BIG-IP DNS (GTM) owns site/DNS decisions; L7 probes traverse the logical CFW edge → site-local ELB → App (BIG-IP 17.5.x / 21.1.x+).</text>
 
 <rect x="1095" y="18" width="475" height="36" rx="9" fill="#ffffff" stroke="#d9e6ef" stroke-width="1.5"/>
 <line x1="1112" y1="36" x2="1146" y2="36" stroke="#073b64" stroke-width="2.6" marker-end="url(#navyArrow)"/>
@@ -71,60 +71,51 @@
 <text x="516" y="225" text-anchor="middle" class="sub" font-size="12.5">2 devices per HA pair • NAT Translation to LTM (K14707)</text>
 
 <!-- Row 2: LTM -> WAF (left) | GTM (right, facing Site 2 GTM!) -->
-<rect x="300" y="258" width="112" height="56" fill="#dcf5f8" class="b"/>
-<text x="356" y="283" text-anchor="middle" class="tx" font-size="14.5" font-weight="bold">Tenant LTM</text>
-<text x="356" y="302" text-anchor="middle" class="sub" font-size="11.5">local delivery</text>
+<rect x="300" y="256" width="112" height="54" fill="#dcf5f8" class="b"/>
+<text x="356" y="280" text-anchor="middle" class="tx" font-size="14.5" font-weight="bold">Tenant LTM</text>
+<text x="356" y="299" text-anchor="middle" class="sub" font-size="11.5">local delivery</text>
 
-<rect x="434" y="258" width="84" height="56" fill="#ccefed" class="b"/>
-<text x="476" y="292" text-anchor="middle" class="tx" font-size="15" font-weight="bold">WAF</text>
+<rect x="434" y="256" width="84" height="54" fill="#ccefed" class="b"/>
+<text x="476" y="289" text-anchor="middle" class="tx" font-size="15" font-weight="bold">WAF</text>
 
-<rect x="576" y="258" width="156" height="56" fill="#dff5c1" class="b"/>
-<text x="654" y="283" text-anchor="middle" class="tx" font-size="14.5" font-weight="bold">GTM / DNS cluster</text>
-<text x="654" y="302" text-anchor="middle" class="sub" font-size="11.5">decision plane</text>
+<rect x="576" y="256" width="156" height="54" fill="#dff5c1" class="b"/>
+<text x="654" y="280" text-anchor="middle" class="tx" font-size="14.5" font-weight="bold">GTM / DNS cluster</text>
+<text x="654" y="299" text-anchor="middle" class="sub" font-size="11.5">decision plane</text>
 
-<!-- Row 3: Internal VIP -> Internal FW -->
-<rect x="300" y="370" width="154" height="58" fill="#dcf5f8" class="b"/>
-<text x="377" y="394" text-anchor="middle" class="tx" font-size="13.5" font-weight="bold">Internal VIP / LTM</text>
-<text x="377" y="414" text-anchor="middle" class="sub" font-size="11.5">internal endpoint</text>
+<!-- Row 3: Internal VIP -> Internal FW (raised slightly for clean H4 corridor above logical CFW!) -->
+<rect x="300" y="364" width="154" height="52" fill="#dcf5f8" class="b"/>
+<text x="377" y="386" text-anchor="middle" class="tx" font-size="13.5" font-weight="bold">Internal VIP / LTM</text>
+<text x="377" y="405" text-anchor="middle" class="sub" font-size="11.5">internal endpoint</text>
 
-<rect x="524" y="370" width="208" height="58" fill="#dcf5f8" class="b"/>
-<text x="628" y="394" text-anchor="middle" class="tx" font-size="14" font-weight="bold">Internal firewall</text>
-<text x="628" y="414" text-anchor="middle" class="sub" font-size="11.5">enterprise ↔ private cloud</text>
+<rect x="524" y="364" width="208" height="52" fill="#dcf5f8" class="b"/>
+<text x="628" y="386" text-anchor="middle" class="tx" font-size="14" font-weight="bold">Internal firewall</text>
+<text x="628" y="405" text-anchor="middle" class="sub" font-size="11.5">enterprise ↔ private cloud</text>
 
-<!-- Row 4: Private Cloud (badge shifted right so CFW vertical arrows NEVER cross it!) -->
-<rect x="298" y="466" width="436" height="236" rx="18" fill="#ede8ff" stroke="#5c4cd2" stroke-width="2.5"/>
-<rect x="522" y="474" width="194" height="30" rx="8" fill="#5c4cd2"/>
-<text x="619" y="494" text-anchor="middle" class="h" font-size="14">Private cloud — Site 1</text>
+<!-- Row 5: Site 1 Private Cloud (underneath spanning Logical CFW Edge!) -->
+<rect x="298" y="544" width="436" height="168" rx="16" fill="#ede8ff" stroke="#5c4cd2" stroke-width="2.2"/>
+<rect x="530" y="552" width="188" height="26" rx="8" fill="#5c4cd2"/>
+<text x="624" y="570" text-anchor="middle" class="h" font-size="13.5">Private cloud — Site 1</text>
 
-<rect x="316" y="534" width="100" height="50" fill="#dcf5f8" class="b"/>
-<text x="366" y="565" text-anchor="middle" class="tx" font-size="16" font-weight="bold">CFW edge</text>
+<rect x="316" y="564" width="152" height="46" fill="#dcf5f8" class="b"/>
+<text x="392" y="593" text-anchor="middle" class="tx" font-size="15" font-weight="bold">ELB / service</text>
 
-<rect x="448" y="534" width="128" height="50" fill="#dcf5f8" class="b"/>
-<text x="512" y="565" text-anchor="middle" class="tx" font-size="15" font-weight="bold">ELB / service</text>
+<rect x="526" y="588" width="184" height="44" fill="#dff5c1" class="b"/>
+<text x="618" y="615" text-anchor="middle" class="tx" font-size="14.5" font-weight="bold">App ready (K8s / VM)</text>
 
-<rect x="608" y="534" width="108" height="50" fill="#dff5c1" class="b"/>
-<text x="662" y="565" text-anchor="middle" class="tx" font-size="15" font-weight="bold">App ready</text>
+<rect x="374" y="652" width="284" height="42" fill="#ebf8e9" stroke="#5ca452" stroke-width="2" rx="10"/>
+<text x="516" y="678" text-anchor="middle" class="tx" font-size="13.5" font-weight="bold">H2 local member health (LTM + ELB)</text>
 
-<rect x="376" y="632" width="280" height="44" fill="#ebf8e9" stroke="#5ca452" stroke-width="2" rx="10"/>
-<text x="516" y="659" text-anchor="middle" class="tx" font-size="13.5" font-weight="bold">H2 local member health (LTM + ELB)</text>
+<!-- Site 1 Internal Data & DNS Flows -->
+<path d="M356 236 V253" class="flow"/>
+<path d="M654 236 V253" class="dns"/>
+<path d="M412 283 H431" class="flow"/>
+<path d="M454 390 H521" class="flow"/>
+<path d="M468 587 H498 V610 H523" class="flow"/>
 
-<!-- Site 1 Internal Data & DNS Flows (ZERO crossings of boxes or banners!) -->
-<path d="M356 236 V255" class="flow"/>
-<path d="M654 236 V255" class="dns"/>
-<path d="M412 286 H431" class="flow"/>
-<!-- WAF drops cleanly through open chute between Internal VIP (454) and Internal FW (524), enters CFW top -->
-<path d="M476 314 V448 H350 V531" class="flow"/>
-<!-- Internal VIP -> Internal FW -> CFW (enters CFW top-right cleanly, misses Private Cloud pill!) -->
-<path d="M454 399 H521" class="flow"/>
-<path d="M628 428 V456 H386 V531" class="flow"/>
-<!-- CFW -> ELB -> App ready -->
-<path d="M416 559 H445" class="flow"/>
-<path d="M576 559 H605" class="flow"/>
-
-<!-- Site 1 iQuery signals (cleanly spaced below Internal DNS dashed line!) -->
-<path d="M356 314 V341 H632 V317" class="health"/>
-<path d="M377 370 V349 H656 V317" class="health"/>
-<text x="574" y="363" text-anchor="middle" class="tx" font-size="11.5" font-weight="bold" fill="#0f8b8d">iQuery / local VS health</text>
+<!-- Site 1 iQuery signals -->
+<path d="M356 310 V336 H632 V313" class="health"/>
+<path d="M377 364 V344 H656 V313" class="health"/>
+<text x="574" y="357" text-anchor="middle" class="tx" font-size="11.5" font-weight="bold" fill="#0f8b8d">iQuery / local VS health</text>
 
 <!-- ================= SITE 2 — DR / SECONDARY ================= -->
 <rect x="830" y="128" width="468" height="596" rx="16" fill="#ffffff" stroke="#073b64" stroke-width="2"/>
@@ -138,79 +129,96 @@
 <text x="1064" y="225" text-anchor="middle" class="sub" font-size="12.5">2 devices per HA pair • NAT Translation to LTM (K14707)</text>
 
 <!-- Row 2: GTM (left, facing Site 1 GTM!) | LTM -> WAF (right) -->
-<rect x="848" y="258" width="156" height="56" fill="#dff5c1" class="b"/>
-<text x="926" y="283" text-anchor="middle" class="tx" font-size="14.5" font-weight="bold">GTM / DNS cluster</text>
-<text x="926" y="302" text-anchor="middle" class="sub" font-size="11.5">decision plane</text>
+<rect x="848" y="256" width="156" height="54" fill="#dff5c1" class="b"/>
+<text x="926" y="280" text-anchor="middle" class="tx" font-size="14.5" font-weight="bold">GTM / DNS cluster</text>
+<text x="926" y="299" text-anchor="middle" class="sub" font-size="11.5">decision plane</text>
 
-<rect x="1062" y="258" width="112" height="56" fill="#dcf5f8" class="b"/>
-<text x="1118" y="283" text-anchor="middle" class="tx" font-size="14.5" font-weight="bold">Tenant LTM</text>
-<text x="1118" y="302" text-anchor="middle" class="sub" font-size="11.5">local delivery</text>
+<rect x="1062" y="256" width="112" height="54" fill="#dcf5f8" class="b"/>
+<text x="1118" y="280" text-anchor="middle" class="tx" font-size="14.5" font-weight="bold">Tenant LTM</text>
+<text x="1118" y="299" text-anchor="middle" class="sub" font-size="11.5">local delivery</text>
 
-<rect x="1196" y="258" width="84" height="56" fill="#ccefed" class="b"/>
-<text x="1238" y="292" text-anchor="middle" class="tx" font-size="15" font-weight="bold">WAF</text>
+<rect x="1196" y="256" width="84" height="54" fill="#ccefed" class="b"/>
+<text x="1238" y="289" text-anchor="middle" class="tx" font-size="15" font-weight="bold">WAF</text>
 
 <!-- Row 3: Internal VIP -> Internal FW -->
-<rect x="848" y="370" width="154" height="58" fill="#dcf5f8" class="b"/>
-<text x="925" y="394" text-anchor="middle" class="tx" font-size="13.5" font-weight="bold">Internal VIP / LTM</text>
-<text x="925" y="414" text-anchor="middle" class="sub" font-size="11.5">internal endpoint</text>
+<rect x="848" y="364" width="154" height="52" fill="#dcf5f8" class="b"/>
+<text x="925" y="386" text-anchor="middle" class="tx" font-size="13.5" font-weight="bold">Internal VIP / LTM</text>
+<text x="925" y="405" text-anchor="middle" class="sub" font-size="11.5">internal endpoint</text>
 
-<rect x="1062" y="370" width="218" height="58" fill="#dcf5f8" class="b"/>
-<text x="1171" y="394" text-anchor="middle" class="tx" font-size="14" font-weight="bold">Internal firewall</text>
-<text x="1171" y="414" text-anchor="middle" class="sub" font-size="11.5">enterprise ↔ private cloud</text>
+<rect x="1062" y="364" width="218" height="52" fill="#dcf5f8" class="b"/>
+<text x="1171" y="386" text-anchor="middle" class="tx" font-size="14" font-weight="bold">Internal firewall</text>
+<text x="1171" y="405" text-anchor="middle" class="sub" font-size="11.5">enterprise ↔ private cloud</text>
 
-<!-- Row 4: Private Cloud (badge shifted right so CFW vertical arrows NEVER cross it!) -->
-<rect x="846" y="466" width="436" height="236" rx="18" fill="#ede8ff" stroke="#5c4cd2" stroke-width="2.5"/>
-<rect x="1070" y="474" width="194" height="30" rx="8" fill="#5c4cd2"/>
-<text x="1167" y="494" text-anchor="middle" class="h" font-size="14">Private cloud — Site 2</text>
+<!-- Row 5: Site 2 Private Cloud (underneath spanning Logical CFW Edge!) -->
+<rect x="846" y="544" width="436" height="168" rx="16" fill="#ede8ff" stroke="#5c4cd2" stroke-width="2.2"/>
+<rect x="862" y="552" width="188" height="26" rx="8" fill="#5c4cd2"/>
+<text x="956" y="570" text-anchor="middle" class="h" font-size="13.5">Private cloud — Site 2</text>
 
-<rect x="864" y="534" width="100" height="50" fill="#dcf5f8" class="b"/>
-<text x="914" y="565" text-anchor="middle" class="tx" font-size="16" font-weight="bold">CFW edge</text>
+<rect x="1112" y="564" width="152" height="46" fill="#dcf5f8" class="b"/>
+<text x="1188" y="593" text-anchor="middle" class="tx" font-size="15" font-weight="bold">ELB / service</text>
 
-<rect x="996" y="534" width="128" height="50" fill="#dcf5f8" class="b"/>
-<text x="1060" y="565" text-anchor="middle" class="tx" font-size="15" font-weight="bold">ELB / service</text>
+<rect x="870" y="588" width="184" height="44" fill="#dff5c1" class="b"/>
+<text x="962" y="615" text-anchor="middle" class="tx" font-size="14.5" font-weight="bold">App ready (K8s / VM)</text>
 
-<rect x="1156" y="534" width="108" height="50" fill="#dff5c1" class="b"/>
-<text x="1210" y="565" text-anchor="middle" class="tx" font-size="15" font-weight="bold">App ready</text>
+<rect x="922" y="652" width="284" height="42" fill="#ebf8e9" stroke="#5ca452" stroke-width="2" rx="10"/>
+<text x="1064" y="678" text-anchor="middle" class="tx" font-size="13.5" font-weight="bold">H2 local member health (LTM + ELB)</text>
 
-<rect x="924" y="632" width="280" height="44" fill="#ebf8e9" stroke="#5ca452" stroke-width="2" rx="10"/>
-<text x="1064" y="659" text-anchor="middle" class="tx" font-size="13.5" font-weight="bold">H2 local member health (LTM + ELB)</text>
+<!-- Site 2 Internal Data & DNS Flows -->
+<path d="M926 236 V253" class="dns"/>
+<path d="M1118 236 V253" class="flow"/>
+<path d="M1174 283 H1193" class="flow"/>
+<path d="M1002 390 H1059" class="flow"/>
+<path d="M1112 587 H1082 V610 H1057" class="flow"/>
 
-<!-- Site 2 Internal Data & DNS Flows (ZERO box/banner collisions!) -->
-<path d="M926 236 V255" class="dns"/>
-<path d="M1118 236 V255" class="flow"/>
-<path d="M1174 286 H1193" class="flow"/>
-<path d="M1238 314 V358 H1290 V452 H902 V531" class="flow"/>
-<path d="M1002 399 H1059" class="flow"/>
-<path d="M1171 428 V458 H928 V531" class="flow"/>
-<path d="M964 559 H993" class="flow"/>
-<path d="M1124 559 H1153" class="flow"/>
+<!-- Site 2 iQuery signals -->
+<path d="M1118 310 V336 H948 V313" class="health"/>
+<path d="M925 364 V313" class="health"/>
+<text x="1050" y="355" text-anchor="middle" class="tx" font-size="11.5" font-weight="bold" fill="#0f8b8d">iQuery / local VS health</text>
 
-<!-- Site 2 iQuery signals (External LTM + Internal LTM -> GTM in clean y=341 corridor!) -->
-<path d="M1118 314 V341 H948 V317" class="health"/>
-<path d="M925 370 V317" class="health"/>
-<text x="1050" y="361" text-anchor="middle" class="tx" font-size="11.5" font-weight="bold" fill="#0f8b8d">iQuery / local VS health</text>
+<!-- ================= SPANNING LOGICAL PRIVATE-CLOUD CFW EDGE (BRIDGES SITE 1 & SITE 2!) ================= -->
+<rect x="298" y="470" width="984" height="60" rx="14" fill="#d8f2f7" stroke="#5c4cd2" stroke-width="2.6" stroke-dasharray="9 5"/>
+<rect x="514" y="456" width="552" height="24" rx="8" fill="#5c4cd2"/>
+<text x="790" y="473" text-anchor="middle" class="h" font-size="13">Logical Private-Cloud CFW Edge (Available Across Site 1 &amp; Site 2)</text>
+
+<rect x="316" y="486" width="152" height="36" fill="#ffffff" class="b"/>
+<text x="392" y="510" text-anchor="middle" class="tx" font-size="14" font-weight="bold">Site 1 CFW entry</text>
+
+<text x="790" y="509" text-anchor="middle" class="tx" font-size="12" font-weight="bold" fill="#3f358c">One logical CFW  •  Physical HA, state sync &amp; common-mode risk: TBD (T9)</text>
+
+<rect x="1112" y="486" width="152" height="36" fill="#ffffff" class="b"/>
+<text x="1188" y="510" text-anchor="middle" class="tx" font-size="14" font-weight="bold">Site 2 CFW entry</text>
+
+<!-- WAF & Internal FW -> Spanning Logical CFW -> Site-local ELB drops (clean orthogonal paths!) -->
+<path d="M476 310 V446 H374 V483" class="flow"/>
+<path d="M628 416 V450 H410 V483" class="flow"/>
+<path d="M392 522 V561" class="flow"/>
+
+<path d="M1238 310 V352 H1288 V446 H1206 V483" class="flow"/>
+<path d="M1171 416 V483" class="flow"/>
+<path d="M1188 522 V561" class="flow"/>
 
 <!-- ================= CROSS-SITE & LEFT-TO-SITE CHANNELS (ZERO COLLISIONS!) ================= -->
 <!-- GTM Sync right across the clean Site 1 <-> Site 2 gap! -->
-<path d="M735 286 H845" class="sync"/>
-<text x="790" y="274" text-anchor="middle" class="tx" font-size="12" font-weight="bold" fill="#0f8b8d">GTM sync</text>
+<path d="M735 283 H845" class="sync"/>
+<text x="790" y="271" text-anchor="middle" class="tx" font-size="12" font-weight="bold" fill="#0f8b8d">GTM sync</text>
 
-<!-- External DNS query -> Site 1 Edge FW (horizontal, then Edge FW -> GTM below; zero header/text crossings!) -->
+<!-- External DNS query -> Site 1 Edge FW -->
 <path d="M222 197 H297" class="dns"/>
 
-<!-- H3 external-side prober -> Site 1 Edge FW & Site 2 Edge FW (top corridor y=102 + middle gap x=790, zero header crossings!) -->
+<!-- H3 external-side prober -> Site 1 Edge FW & Site 2 Edge FW (top corridor y=102 + middle gap x=790) -->
 <path d="M222 298 H264 V221 H297" class="health"/>
 <path d="M264 221 V102 H790 V209 H845" class="health"/>
 <text x="530" y="95" text-anchor="middle" class="tx" font-size="12.5" font-weight="bold" fill="#0f8b8d">H3 external L7 (Site 1 &amp; Site 2 external VIPs)</text>
 
-<!-- Internal DNS delegated name -> Site 1 GTM (clean corridor y=326, separated from iQuery y=341) -->
-<path d="M222 501 H248 V326 H554 V286 H573" class="dns"/>
+<!-- Internal DNS delegated name -> Site 1 GTM (clean corridor y=322) -->
+<path d="M222 501 H248 V322 H554 V283 H573" class="dns"/>
 <text x="130" y="388" text-anchor="middle" class="tx" font-size="12" font-weight="bold" fill="#d17714">delegated internal names → GTM</text>
 
-<!-- H4 internal-side prober -> Site 1 Internal VIP & Site 2 Internal VIP (bottom outer corridor y=752!) -->
-<path d="M222 590 H264 V399 H297" class="health"/>
-<path d="M264 590 V752 H790 V399 H845" class="health"/>
-<text x="530" y="746" text-anchor="middle" class="tx" font-size="12.5" font-weight="bold" fill="#0f8b8d">H4 internal L7 (Site 1 &amp; Site 2 internal VIPs — outside private cloud)</text>
+<!-- H4 internal-side prober -> Site 1 Internal VIP & Site 2 Internal VIP (clean corridor y=430 ABOVE logical CFW!) -->
+<path d="M222 590 H264 V390 H297" class="health"/>
+<path d="M264 430 H790 V390 H845" class="health"/>
+<rect x="648" y="419" width="230" height="20" rx="5" fill="#f8fafc"/>
+<text x="763" y="433" text-anchor="middle" class="tx" font-size="11.5" font-weight="bold" fill="#0f8b8d">H4 internal L7 (outside private cloud)</text>
 
 <!-- ================= RIGHT COLUMN: CONTRACTS & SYNTHETICS ================= -->
 <rect x="1322" y="128" width="254" height="316" rx="14" fill="#ebf8e9" stroke="#073b64" stroke-width="2"/>
@@ -235,16 +243,16 @@
 <text x="1338" y="588" class="tx" font-size="13">• Internal user-like transaction</text>
 <text x="1338" y="616" class="tx" font-size="13">• API / business transaction</text>
 <text x="1338" y="648" class="sub" font-size="12">Measures real 99.95% availability</text>
-<text x="1338" y="668" class="sub" font-size="12">(SLO) &amp; validates failover; not</text>
-<text x="1338" y="686" class="sub" font-size="12">normally sole DNS trigger.</text>
+<text x="1338" y="668" class="sub" font-size="12">(SLO) &amp; validates failover; catches</text>
+<text x="1338" y="686" class="sub" font-size="12">WAF 403 blocks &amp; expired certs.</text>
 <text x="1338" y="710" class="tx" font-size="11.5" font-weight="bold" fill="#0f8b8d">Use Specific Prober Pools (K08433560)</text>
 
 <!-- Bottom Green Banner -->
 <rect x="36" y="776" width="1540" height="62" rx="12" fill="#ebf8e9" stroke="#5ca452" stroke-width="2"/>
-<text x="806" y="803" text-anchor="middle" class="tx" font-size="15" font-weight="bold" fill="#073b64">Decision owner vs probe origin: GTM owns the DNS/site decision, but the probe must exercise the relevant external (H3) or internal (H4) path.</text>
-<text x="806" y="825" text-anchor="middle" class="sub" font-size="13.5">CFW: logical cloud edge across both sites; ELBs behind site-local enforcement. Shared state and cross-site routing require validation.</text>
+<text x="806" y="803" text-anchor="middle" class="tx" font-size="15" font-weight="bold" fill="#073b64">Decision owner vs probe origin: GTM owns the DNS/site decision, but probes must cross the logical CFW → local ELB → App (K8s/VM) path.</text>
+<text x="806" y="825" text-anchor="middle" class="sub" font-size="13.5">Huawei private-cloud timings — CFW (T9), ELB (T10), K8s (T11) &amp; VM (T12) — remain TBD until measured; do not assume cross-site CFW state sync.</text>
 
 <!-- Consistent Deck Footer -->
-<text x="38" y="876" class="sub" font-size="13">End-to-end application delivery summary</text>
+<text x="38" y="876" class="sub" font-size="13">End-to-end application delivery — architecture diagram</text>
 <text x="1572" y="876" text-anchor="end" class="sub" font-size="13">Nov 2026  •  5</text>
 </svg>

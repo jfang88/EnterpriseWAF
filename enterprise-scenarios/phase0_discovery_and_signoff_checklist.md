@@ -52,15 +52,18 @@ Phase 1 design lock requires written sign-off on:
 2. **Signed Joint Responsibility & RACI Matrix** ([future_architecture_improvements.md §15C & §15D](./future_architecture_improvements.md#15c-joint-responsibility--fault-domain-recovery-matrix-infrastructure-vs-application-per-layer)) across **F5/ADC, Network/Security, Cloud Platform, Application Teams, and Security Ops**.
 3. **Approved Tier 1 (99.95%-eligible) vs. Tier 2/3 Application Inventory** and **BIG-IP 17.5.x → `r2800` parallel cutover schedule** (completing well ahead of the **January 1, 2029** 17.5.x End of Technical Support date).
 
-## Cloud Platform discovery and sign-off (T9–T12)
+---
 
-| Audit item | Evidence / required output |
-|---|---|
-| Logical CFW boundary across both sites | Map physical enforcement, tenant contexts, routing/NAT/state, HA and shared policy/control-plane dependencies; prove alternate paths separately |
-| T9 CFW | Measure local HA, complete path loss, false-green and common-mode failure |
-| T10 ELB | Record monitor interval, timeout, thresholds, member withdrawal, VIP HA and service-loss timing |
-| T11 Kubernetes | Record readiness, endpoint propagation, worker loss, ingress/control-plane and pod replacement timings |
-| T12 VM | Record backend withdrawal, hypervisor HA/restart, storage/network dependencies and guest readiness |
-| End-to-end evidence | Fault injection under representative load; p50/p95/p99 transaction restoration, session disruption and redundancy restoration; Cloud Platform/App owner sign-off |
+## 5. Cloud Platform Discovery & Recovery Placeholders (`T9`–`T12` — Huawei On-Premises Cloud)
 
-All Huawei on-premises values remain TBD until measured. Use separate F5 and cloud-platform timing terms without double counting.
+Do **not** reuse F5 timers (`T1`–`T4`) for Huawei private-cloud tiers. Cloud Platform and Application owners must fill in **Measured Timing (`p50/p95/p99`)** and verify **Expected Behaviour** during Phase 0 fault injection:
+
+| # | Layer / Code | Failure Scope to Inject | Measured Timing (`TBD`) | Expected Behaviour to Confirm | Owner | Status |
+|---|---|---|---|---|---|---|
+| 5.1 | **Logical CFW Boundary** | Physical enforcement across Site 1 & Site 2 | `N/A (topology map)` | Map physical HA pairs, tenant contexts, routing/NAT/state sync, and any shared control-plane common-mode failure risk across both sites | Cloud + NetSec | `[ ]` |
+| 5.2 | **Cloud Firewall (`T9A/B/C`)** | 1 HA member (`T9A`), local path loss (`T9B`), false-green (`T9C`) | `TBD (p50/p95/p99)` | Confirm `T9A` session survival vs. reset (`+T6a`), `T9B` GTM withdrawal via through-path L7 probe (zero `T9C` false-green), and two-site common-mode risk | Cloud + F5 | `[ ]` |
+| 5.3 | **Cloud ELB / Ingress (`T10a/b/c`)** | 1 backend target (`T10a`), ELB HA/VIP takeover (`T10b`), full ELB loss (`T10c`) | `TBD (p50/p95/p99)` | Record probe interval × threshold, target withdrawal time, sticky/WebSocket behaviour on HA takeover, `XFF` header injection & `Slow Start` drain | Cloud + App | `[ ]` |
+| 5.4 | **Kubernetes Pod & Worker (`T11a/b/c`)** | Pod crash/roll (`T11a`), worker-node loss (`T11b`), Ingress/CNI/control-plane (`T11c`) | `TBD (p50/p95/p99)` | Confirm `preStop` + `PDB` zero-drop rollouts, Endpoint→ELB withdrawal timing, worker eviction + image pull + PVC attach + warmup (separate service vs. redundancy restoration) | Cloud + App | `[ ]` |
+| 5.5 | **VM & Hypervisor (`T12a/b/c`)** | Single VM crash (`T12a`), host HA restart (`T12b`), shared cluster/storage (`T12c`) | `TBD (p50/p95/p99)` | Confirm anti-affinity across physical hosts, ELB withdrawal timing, host HA restart + OS boot + storage re-attach + app warmup vs. manual `T5` rebuild | Cloud + App | `[ ]` |
+
+All Huawei on-premises values remain **`TBD`** until measured under representative load. Separate **service restoration** (surviving peers absorb traffic) from **redundancy restoration** (failed Pod/VM replaced), and compose only critical-path stages without double counting.

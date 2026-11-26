@@ -1,4 +1,4 @@
-"""Build the primary 9-slide Executive Briefing & Tech-Lead Discussion Deck (+ full Speaker Notes).
+"""Build the primary 10-slide Executive Briefing & Tech-Lead Discussion Deck (+ full Speaker Notes).
 
 Structure:
   Part 1 — Core Themes in 3 Slides (Plain-English Executive Briefing):
@@ -6,13 +6,14 @@ Structure:
     Slide 2: Theme 2 — Layered Health Checks, Proportional Recovery & Operational Guardrails
     Slide 3: Theme 3 — WAF Topology Shortlist (Shared 6-WAF vs. Dedicated 3-WAF) & 90-Day Plan
 
-  Part 2 — Tech-Lead Deep-Dive Discussion Slides (Slides 4-9):
-    Slide 4: Current-State End-to-End Topology (authoritative SVG + tech-lead notes)
-    Slide 5: Target Layered Health Monitoring (authoritative SVG + tech-lead notes)
+  Part 2 — Tech-Lead Deep-Dive Discussion Slides (Slides 4-10):
+    Slide 4: Current-State End-to-End Topology (authoritative SVG with spanning logical CFW + notes)
+    Slide 5: Target Layered Health Monitoring (authoritative SVG with spanning logical CFW + notes)
     Slide 6: Visual WAF Topology Options (authoritative SVG + r2800 rebuild notes)
     Slide 7: Plain-English Topology Variant Scorecard (<= 25% impact, 99.95%, longest outage, auto/manual)
     Slide 8: End-to-End Path Consistency — Sticky Sessions, Client-IP Headers, Source NAT & Speed
     Slide 9: Joint Responsibility Matrix by Fault Domain (Infra vs. App obligations)
+    Slide 10: Private-Cloud Platform Recovery Placeholders — CFW, ELB, Kubernetes & VM (T9–T12)
 
 Technical details (r2800 hardware specs, BIG-IP 17.5.x -> 21.1.x+ parallel cutover, RACI, F5 KBs,
 OneConnect/CARP/SNAT mechanics, and T1-T12 timings) are placed in PowerPoint Speaker Notes
@@ -152,7 +153,7 @@ def header(s, badge_text, t, st, badge_fill=TEAL, tsize=22):
         add_text(s, st, 0.45, 0.92, 12.43, 0.30, 10.6, False, SLATE, radius=False, margin_x=0.02, margin_y=0.02)
 
 
-def footer(s, n, total=9, bg_bar=False):
+def footer(s, n, total=10, bg_bar=False):
     if bg_bar:
         add_text(s, "", 0.0, 7.08, 13.333, 0.42, 8.0, False, SLATE, fill=BG_SVG, radius=False)
     add_text(
@@ -359,7 +360,7 @@ add_text(
 )
 legend_bar(
     s,
-    "Reference: Engineering codes (T6a/T6b/T5, H1–H6, AT1–AT4, F5 KBs), App Tiering & RACI matrix are in Speaker Notes and the 17-slide Engineering Reference Appendix.",
+    "Reference: Engineering codes (T1–T12, T6a/T6b/T5, H1–H6, AT1–AT4, F5 KBs), App Tiering & RACI matrix are in Speaker Notes and the 18-slide Engineering Reference Appendix.",
 )
 footer(s, 1)
 set_notes(
@@ -673,7 +674,7 @@ set_notes(
 s = new_slide()
 header(
     s,
-    "TECH-LEAD DISCUSSION • 4 OF 6",
+    "TECH-LEAD DISCUSSION • 4 OF 7",
     "Topology variant scorecard: 25% impact, 99.95% & recovery",
     "4-tenant / 2-site Load Balancer + WAF comparison (excludes DNS & Firewalls). Exact timing codes & r2800 sizing formulas in Speaker Notes.",
     badge_fill=NAVY,
@@ -746,7 +747,7 @@ set_notes(
 s = new_slide()
 header(
     s,
-    "TECH-LEAD DISCUSSION • 5 OF 6",
+    "TECH-LEAD DISCUSSION • 5 OF 7",
     "Consistent path: sticky sessions, client-IP headers, Source NAT & speed",
     "Align every hop (Network/FW → Load Balancer → WAF → Cloud FW/ELB → App) so traffic runs fast in steady state and recovers cleanly.",
     badge_fill=NAVY,
@@ -842,20 +843,20 @@ set_notes(
 s = new_slide()
 header(
     s,
-    "TECH-LEAD DISCUSSION • 6 OF 6",
+    "TECH-LEAD DISCUSSION • 6 OF 7",
     "Joint responsibility matrix: infra & app obligations per fault domain",
-    "Clear ownership, expected outage duration (Client vs. Server recovery), and automation boundaries across every layer.",
+    "Clear ownership, expected outage duration (F5 measured vs. Huawei Cloud TBD on Slide 10), and automation boundaries across every layer.",
     badge_fill=NAVY,
-    tsize=20.2,
+    tsize=20.0,
 )
 fd_rows = [
     ("1. Global DNS (GTM)", "Node: 0–3s\nSite: ~1–3m + App", "Automated", "Dual-site DNS; zone-pinned probers; separate ext/int VIP L7 checks; 30s TTL; upgrade DNS first", "Client: respect DNS TTLs & re-resolve on error • Server: own & version /health/ready contract"),
     ("2. Network & Edge FW", "Link/peer: 0–10s\nEdge: ~1–3m + App", "Automated", "2×2 HA edge FWs; dual-homed LACP LAGs (no STP); align FW idle timeouts above app pings & keep-alives", "Client: auto retry + jitter & WebSocket reconnect (no manual restart) • Server: tolerate brief drops"),
     ("3. Tenant Load Bal HA", "1 peer: ~3s + App\nBoth: ~1–3m + App", "Auto (HA / Site)\nManual if no remote", "Redundant HA; stop TCP false-greens; fast dead-socket reject; multi-IP Source NAT + XFF + cert auto-renew", "Client: auto reconnect dropped sockets • Server: idempotent writes on resets; read trusted XFF"),
     ("4. WAF Pool (AWAF)", "1–2 WAFs: 0–16s\nTier: ~16s Remote", "Auto (Pool/Borrow)\nManual 403 bypass", "Shared 6-WAF or Dedicated 3-WAF; config-as-code (AS3); remote logs + auto rebuild; 1-node canary", "Client: auto WS reconnect (no WAF mirror reliance) • Server: co-own canary & 403 synthetic checks"),
-    ("5. Int. FW & Cloud FW", "FW/CFW: TBD\nDNS move: conditional", "Auto HA / Site\n(if no false-green)", "Separate internal VIP health from external; L7 probes MUST cross Cloud FW (remote WAF cannot bypass CFW)", "Server: expose lightweight /health/ready behind Cloud FW so outage triggers automatic site steering"),
-    ("6. Cloud ELB / Ingress", "Node: 0–10s\nELB: ~1–3m + App", "Automated", "Own single stateful app-node sticky cookie; inject XFF & X-Correlation-ID if terminating TLS; Slow Start + drain", "Server: expose Pod/VM readiness & graceful shutdown hooks (HTTP 503 / drain) for zero-downtime deploys"),
-    ("7. App & Shared Deps", "Node: 0–10s\nApp B1: ~5–16s B2", "Auto (Local/B2)\nManual DB DR", "Stable App B service VIP with fast reject + pre-approved Site 1 → Site 2 fallback routing", "Server: split critical vs optional deps; circuit breakers; external session store; rolling DB/app updates"),
+    ("5. Int. FW & Cloud FW", "Int FW: ~3–10s\nCFW: TBD (Slide 10)", "Auto HA / Site\n(if no false-green)", "Separate internal VIP health from external; L7 probes MUST cross logical CFW (remote WAF cannot bypass CFW)", "Server: expose lightweight /health/ready behind Cloud FW so outage triggers automatic site steering"),
+    ("6. Cloud ELB / Ingress", "Target / HA / Loss:\nTBD (Slide 10)", "Automated\n(measure T10)", "Own single stateful app-node sticky cookie; inject XFF & X-Correlation-ID if terminating TLS; Slow Start + drain", "Server: expose Pod/VM readiness & graceful shutdown hooks (HTTP 503 / drain) for zero-downtime deploys"),
+    ("7. K8s / VM & Deps", "Pod/Node/VM: TBD\nApp B1: ~5–16s B2", "Auto (Local/B2)\nManual DB/Storage", "Enforce multi-node K8s & multi-host VM anti-affinity; stable App B VIP + pre-approved Site 1→2 fallback", "Server: PDB + preStop drain; split critical vs optional deps; circuit breakers; external sessions; rolling DB"),
     ("8. Whole Site / DR", "Tier 1: ~1–3m+App\nTier 2: mins–hrs", "Auto (Tier 1 Act/Act)\nManual (Tier 2 DR)", "Size Site 2 LB/WAF, Source NAT, Cloud FW & ELB for 100% 4-tenant DR surge; sync policies & certs", "Client: re-resolve cleanly • Server: replicate state & automate startup/DB failover for Tier 1 99.95%"),
 ]
 # y=1.24, headh=0.38, 8 rows * 0.56 = 4.48 => ends at y=6.10 (clean gap before banner at y=6.18!)
@@ -887,7 +888,7 @@ add_text(
 )
 legend_bar(
     s,
-    "Key:  Tier 1 = Active/Active (99.95% eligible)  •  Tier 2 = Active/Passive Warm DR (99.9–99.5%)  •  XFF = X-Forwarded-For  •  Full RACI, T1–T12 & KBs in Speaker Notes & 17-slide Appendix",
+    "Key:  Tier 1 = Active/Active (99.95% eligible)  •  Tier 2 = Active/Passive Warm DR (99.9–99.5%)  •  TBD = Huawei Cloud timings on Slide 10  •  Full RACI, T1–T12 & KBs in Speaker Notes & 18-slide Appendix",
 )
 footer(s, 9)
 set_notes(
@@ -902,7 +903,7 @@ set_notes(
 2. Cross-Team RACI Matrix (future_architecture_improvements.md §15D):
    - GTM / LTM / r2800 lifecycle, SNAT pools & X2A/X2B F5 config: F5/ADC = R/A; NetSec/Cloud/SecOps = C; App = I.
    - Edge FW, Internal FW, LACP LAGs & X2A/XD1 routing/FW rules: NetSec = R/A; F5/Cloud/SecOps = C; App = I.
-   - Private-Cloud CFW, Cloud ELB sticky cookie & ELB XFF injection: Cloud Platform = R/A; F5/NetSec/App = C; SecOps = I.
+   - Private-Cloud CFW, Cloud ELB sticky cookie, ELB XFF injection & T9–T12 measurements: Cloud Platform = R/A; F5/NetSec/App = C; SecOps = I.
    - /health/ready contract, Tier 1/2/3 classification, T6a/T6b automation & DB DR: Application Teams = R/A; F5/Cloud = C.
    - WAF Parent/Child policies, declarative config-as-code, canary sign-off & emergency 403 bypass: Security Ops = R/A; F5/App = C.
    - TLS/mTLS certificate lifecycle & expiry automation: F5/Cloud = R (per hop); App/Partner Owner = A.
@@ -911,15 +912,113 @@ set_notes(
 3. Exact Technical Reference Map (Option 2: Primary Deck + Engineering Reference Appendix):
    - Phase 0 Day 1–30 executable checklist: enterprise-scenarios/phase0_discovery_and_signoff_checklist.md.
    - Full fault-domain matrix & 6 operational guardrails: enterprise-scenarios/future_architecture_improvements.md (§15B, §15C, §15D).
-   - 17-slide Engineering Reference Appendix (Architecture Planes, Health Placement H1–H6, GTM Convergence, App B Cascade, Cross-Site X2A/X2B/XD1, Implementation Sequence, Appendix A T1–T12 with T6a/T6b, Appendix B Glossary): management-artifacts/EnterpriseWAF_Engineering_Reference.pptx / .pdf.
+   - 18-slide Engineering Reference Appendix (Architecture Planes, Health Placement H1–H6, GTM Convergence, App B Cascade, Cross-Site X2A/X2B/XD1, Implementation Sequence, Appendix A T1–T12, Appendix B Cloud Platform T9–T12 Placeholders, Appendix C Glossary): management-artifacts/EnterpriseWAF_Engineering_Reference.pptx / .pdf.""",
+)
 
-4. Cross-Team Acceptance Gates Before Claiming Tier-1 99.95% & <= 25% Impact Readiness:
-   - Gate 1: External (H3) and Internal (H4) VIP L7 readiness contracts + Tier 1/2/3 inventory + RACI signed.
-   - Gate 2: Single WAF / backend failure stays local R0/R1 (Action=Reject K15095; VS Immediate Action=Reject K40554304).
-   - Gate 3: Inter-site link loss alone never withdraws a healthy local site; business-transaction H6 synthetics catch WAF 403 blocks & cert expiry.
-   - Gate 4: AT1–AT4 sticky sessions, XFF/ELB headers, multi-IP SNAT Pool sizing, NO OneConnect on WS (K000151124), automated certs & X-Correlation-ID verified under load.
-   - Gate 5: Rolling upgrade (incl. r2800 F5OS-A host reboot) + injected 2nd node failure + 1-node canary (<= 25%) + retry-storm jitter test passed (GTM upgraded first + big3d_install K25923322).
-   - Gate 6: Parallel greenfield r2800 cutover (LACP LAG / no STP K000152319, remote HSL, cloud-init, declarative AS3/WAF, platform-migrate validate K82540512) + instant rollback validated ahead of Jan 2029 17.5.x EoTS.""",
+
+# Slide 10 — Discussion 7: Private-Cloud Platform Recovery Placeholders (CFW, ELB, Kubernetes & VM)
+s = new_slide()
+header(
+    s,
+    "TECH-LEAD DISCUSSION • 7 OF 7",
+    "Private-cloud platform recovery: CFW, ELB, Kubernetes & VM",
+    "Huawei private-cloud timings remain TBD until measured — do NOT substitute F5 timers. Expected behaviour & Phase 0 validation gates:",
+    badge_fill=NAVY,
+    tsize=20.2,
+)
+cloud_rows = [
+    (
+        "Cloud Firewall\n(Logical CFW\nEdge • T9)",
+        "• Single HA member failover\n• Site-local CFW path loss\n• Two-site logical common-mode or false-green",
+        "TBD — measure\n(p50 / p95 / p99)\nHuawei Cloud",
+        "HA member: Automated — new flows continue; verify if in-flight TCP/WS survive state sync or reset (+Client retry). Local path loss: local app unreachable (remote WAF cannot bypass CFW) → Global DNS site move if L7 probes cross CFW (else unbounded false-green).",
+        "Map physical HA pairs, state sync & shared control-plane blast radius across Site 1 & Site 2; verify L7 probes traverse CFW.",
+    ),
+    (
+        "Cloud ELB /\nIngress\n(T10)",
+        "• Single backend target eject\n• ELB instance HA / VIP takeover\n• Whole local ELB service loss",
+        "TBD — measure\n(p50 / p95 / p99)\nHuawei Cloud",
+        "Target eject: Automated (no DNS TTL); in-flight on failed target resets (+Client retry) & sticky cookie re-pins to healthy node. ELB HA: VIP stays up; verify TCP/WS persistence vs. reset. Whole ELB loss: triggers DNS site move ONLY if L7 probes cross ELB.",
+        "Record probe interval × threshold, target withdrawal time, sticky/WS HA failover behaviour, XFF injection & Slow Start drain.",
+    ),
+    (
+        "Kubernetes\nPod & Worker\nNode (T11)",
+        "• Single Pod crash / rolling deploy\n• Worker-node loss & reschedule\n• Ingress / CNI / control-plane loss",
+        "TBD — measure\nService vs.\nRedundancy",
+        "Pod crash/deploy: Automated — surviving Pods serve traffic (preStop + PDB keeps rolling deploys zero-drop). Worker-node loss: service restores once ELB/Endpoints eject dead Pods (requires multi-node anti-affinity); redundancy restores after eviction + image pull + PVC attach + warmup.",
+        "Measure Endpoint→ELB propagation, node-eviction timer, PVC detach/attach & warmup; enforce multi-node anti-affinity + PDB.",
+    ),
+    (
+        "VM &\nHypervisor\nHost (T12)",
+        "• Single VM crash behind ELB\n• Hypervisor host HA restart\n• Shared cluster / storage / rebuild",
+        "TBD — measure\nService vs.\nRedundancy",
+        "Single VM crash: Automated ELB eject (surviving VMs on other hosts absorb traffic). Host HA loss: Automated HA restarts VM on healthy host (minutes for OS boot + storage attach + app warmup + Slow Start). Cluster/storage loss: DNS site move (Tier 1) or manual DR/rebuild (Tier 2).",
+        "Enforce VM anti-affinity across physical hosts; measure host HA detection, OS boot, storage re-attach & guest readiness.",
+    ),
+]
+# y=1.24, headh=0.38, 4 rows * 1.08 = 4.32 => ends at y=5.94 (clean gap before banner at y=6.04!)
+simple_table(
+    s,
+    [
+        "Platform Layer",
+        "Failure Scenarios",
+        "Measured Timing",
+        "Expected Behaviour (In-Flight vs. New Traffic & Auto / Manual)",
+        "Phase 0 Validation Gate (Cloud + App)",
+    ],
+    cloud_rows,
+    0.38,
+    1.24,
+    [1.48, 2.26, 1.32, 4.41, 3.10],
+    rowh=1.08,
+    fs=7.7,
+    headh=0.38,
+    aligns=[PP_ALIGN.CENTER, PP_ALIGN.LEFT, PP_ALIGN.CENTER, PP_ALIGN.LEFT, PP_ALIGN.LEFT],
+)
+add_text(
+    s,
+    "Measurement Rule: Separate SERVICE restoration (surviving peers absorb traffic) from REDUNDANCY restoration (failed Pod/VM replaced). Compose only critical-path stages without double-counting, then add Client (T6a) & Server (T6b) recovery.",
+    0.38,
+    6.04,
+    12.57,
+    0.66,
+    8.5,
+    True,
+    NAVY,
+    PP_ALIGN.CENTER,
+    PALEYELLOW,
+    GOLD,
+)
+legend_bar(
+    s,
+    "Key:  TBD = To Be Measured on Huawei Private Cloud (Phase 0 Checklist §5)  •  PDB = PodDisruptionBudget  •  PVC = Persistent Volume Claim  •  T9–T12 sub-codes in Engineering Reference Slides 16–17",
+)
+footer(s, 10)
+set_notes(
+    s,
+    """SPEAKER NOTES — SLIDE 10 (TECH-LEAD DISCUSSION 7: PRIVATE-CLOUD PLATFORM RECOVERY PLACEHOLDERS T9–T12)
+
+1. Why These Placeholders Matter (Do Not Invent or Reuse F5 Timers):
+   - F5 timings (T1 ~3s HA, T2 ~16s pool, T4 ~46–150s GTM/DNS) apply ONLY to the F5 BIG-IP layer.
+   - Huawei on-premises private-cloud tiers (CFW T9, Cloud ELB T10, Kubernetes T11, VM/Hypervisor T12) have completely separate health probes, state-sync mechanics, eviction timers, and HA restart characteristics — all MUST be measured under representative load in Phase 0 (enterprise-scenarios/phase0_discovery_and_signoff_checklist.md §5).
+
+2. Exact Engineering Sub-Codes (analysis_variables_and_f5_assumptions.md & future_architecture_improvements.md §15C.1):
+   - T9 (Logical CFW Edge across Site 1 & Site 2):
+     * T9A: 1 CFW HA member fails -> new flows continue; validate whether active TCP/WS connections survive state sync or reset (+T6a).
+     * T9B: Entire local CFW enforcement path fails -> local app unreachable (X2A remote WAF CANNOT bypass CFW) -> requires GTM R3 site move.
+     * T9C: CFW false-green (monitoring stops at WAF) -> unbounded outage; ALSO test two-site shared control-plane common-mode failure risk.
+   - T10 (Cloud ELB / Ingress):
+     * T10a: Backend target withdrawal (probe interval x unhealthy threshold + routing propagation); sticky cookie re-pins to healthy node.
+     * T10b: ELB instance HA / VIP takeover; validate existing TCP/WS/sticky survival vs. reset.
+     * T10c: Whole local ELB service loss -> triggers GTM R3 site move only if H3/H4 L7 probes cross ELB.
+   - T11 (Kubernetes Pod & Worker Node):
+     * T11a: Single Pod crash / rolling deploy (readiness probe + Endpoints/kube-proxy/ELB withdrawal; preStop + PDB keeps deploys R0).
+     * T11b: Worker-node failure (node-not-ready timeout + taint eviction + reschedule + image pull + PVC detach/attach + pod warmup). Service restores when Endpoints/ELB eject dead Pods (requires multi-node anti-affinity!); redundancy restores minutes later after rescheduling.
+     * T11c: Ingress controller, CNI, control-plane, or shared storage failure (distinguish surviving data plane from full outage).
+   - T12 (VM & Hypervisor Host):
+     * T12a: Guest/app crash behind ELB (ELB health check withdrawal; surviving VMs on other hosts absorb traffic).
+     * T12b: Hypervisor host failure -> HA detection + placement + OS boot + storage/network attach + app warmup + ELB Slow Start (requires multi-host anti-affinity so service stays up during minutes-scale VM restart).
+     * T12c: Shared compute/storage failure or manual VM rebuild (R3 site move for Tier-1 Active/Active; manual T5 for Tier-2 Warm DR).""",
 )
 
 prs.save(OUT)

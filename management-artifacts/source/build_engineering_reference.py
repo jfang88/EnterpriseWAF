@@ -192,7 +192,7 @@ def simple_table(s, headers, rows, x, y, colw, rowh=0.46, fs=9.2, headh=None, al
         yy += rowh
 
 
-# Slide 1 — Engineering Reference Appendix Overview (Paired with 9-Slide Executive Briefing)
+# Slide 1 — Engineering Reference Appendix Overview (Paired with 10-Slide Executive Briefing)
 s = slide()
 add_text(
     s,
@@ -210,7 +210,7 @@ add_text(
 )
 add_text(
     s,
-    "Detailed technical companion to the 9-slide Executive Briefing • BIG-IP 17.5.x → r2800 (21.1.x+) • Tier-1 99.95% & ≤ 25% impact",
+    "Detailed technical companion to the 10-slide Executive Briefing • BIG-IP 17.5.x → r2800 (21.1.x+) • Tier-1 99.95% & ≤ 25% impact",
     0.52,
     1.14,
     12.30,
@@ -258,7 +258,7 @@ bullet_block(
     s,
     "Key technical & operational risks",
     [
-        "Phase 0 checklist: validate current 17.5.x GTM monitors, NAT maps (K14707), TLS/mTLS cert automation, XFF/SNAT & r2800 RAM/TPS.",
+        "Phase 0 checklist: validate current 17.5.x GTM monitors, NAT maps (K14707), TLS/mTLS certs, r2800 RAM/TPS & Huawei Cloud T9–T12.",
         "TCP port-up checks (K40554304), expired certs & WAF false-positive 403 blocks cause 100% outages while ports look green.",
         "2-WAF designs (W1-2/W2b) lose local N-2 during 4/yr upgrades; S1+2 needs declarative AS3 + 1-node canary gates to stay ≤ 25%.",
     ],
@@ -273,12 +273,12 @@ bullet_block(
 )
 add_text(
     s,
-    "How to use: Present the plain-English 9-slide Executive Briefing in leadership meetings; use this 17-slide Engineering Reference Appendix for architecture deep-dives, KBs, T1–T12 timings (Slide 16) & Glossary (Slide 17).",
+    "How to use: Present the plain-English 10-slide Executive Briefing in leadership meetings; use this 18-slide Engineering Reference Appendix for architecture deep-dives, KBs, T1–T12 & Cloud placeholders (Slides 16–17) & Glossary (Slide 18).",
     0.55,
     5.42,
     12.22,
     0.76,
-    10.4,
+    10.1,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -358,7 +358,7 @@ legend_bar(
 )
 footer(s, 2)
 
-# Slides 3, 4, 5, 6 — Populated by replace_management_slides.py from authoritative SVGs
+# Slides 3, 4, 5, 6 — Populated by replace_engineering_reference_slides.py from authoritative SVGs
 for _placeholder_title in (
     "Slide 3 placeholder — replaced by EnterpriseWAF_Architecture_Planes.svg",
     "Slide 4 placeholder — replaced by EnterpriseWAF_End_to_End_Topology.svg",
@@ -520,7 +520,7 @@ legend_bar(
 )
 footer(s, 8)
 
-# Slide 9 — Populated by replace_management_slides.py from EnterpriseWAF_Topology_Options.svg (visual diagrams for W1-W4, S1-S2, F5OS!)
+# Slide 9 — Populated by replace_engineering_reference_slides.py from EnterpriseWAF_Topology_Options.svg (visual diagrams for W1-W4, S1-S2, F5OS!)
 s = slide()
 add_text(
     s,
@@ -950,24 +950,24 @@ fd_rows = [
     ),
     (
         "5. Internal FW & CFW\n(H4 / T9)",
-        "CFW: TBD (T9)\nDNS move: conditional",
+        "Int FW: ~3–10s\nCFW: TBD (T9, S17)",
         "Auto HA / R3\n(unbounded if green!)",
-        "Separate int-VIP (H4) from ext-VIP (H3); L7 probes MUST cross CFW→ELB→App (no T9C false-green); note X2A cannot bypass local CFW",
-        "T6b: expose lightweight /health/ready behind CFW so CFW outage triggers automatic steering; tolerate site failover on CFW loss",
+        "Separate int-VIP (H4) from ext-VIP (H3); L7 probes MUST cross logical CFW→ELB→App (no T9C false-green); X2A cannot bypass CFW",
+        "T6b: expose lightweight /health/ready behind CFW so local CFW outage triggers automatic steering; tolerate site failover on CFW loss",
     ),
     (
-        "6. Cloud ELB / Ingress\n(H2)",
-        "Node: 0–10s+T6a/b\nWhole ELB: ~46–150s",
-        "Automated\n(R0/R1 / R3)",
+        "6. Cloud ELB / Ingress\n(H2 / T10)",
+        "Target/HA: TBD (T10)\nFull ELB: ~46–150s",
+        "Automated\n(measure T10a/b/c)",
         "Own single AT2 app-node sticky cookie; inject/append own XFF if terminating TLS (preserve upstream XFF); Slow Start + graceful drain",
         "T6b: implement Pod/VM readiness & preStop drain hooks (Receive Disable / HTTP 503) so rolling app updates stay R0/R1",
     ),
     (
-        "7. App & Shared Deps\n(App A/D→B→C, H5)",
-        "Node: 0–10s (R0/R1)\nApp B1: ~5–16s XD1",
-        "Auto (R0–R2)\nManual T5 DB fix",
-        "Stable App B service VIP (H5) with Action=Reject (K15095) + pre-approved B1→B2 cross-site routing/FW rules (XD1)",
-        "T6b: split critical vs optional deps in /health/ready, circuit breakers, external session store (AT2), rolling DB updates (avoid T5)",
+        "7. K8s / VM & Deps\n(App A/D→B→C, T11–12)",
+        "Pod/Node/VM: TBD\nApp B1: ~5–16s XD1",
+        "Auto (T11/12 / XD1)\nManual T5 DB/Storage",
+        "Enforce K8s worker & VM host anti-affinity; stable App B VIP (H5) with Action=Reject (K15095) + pre-approved B1→B2 rules (XD1)",
+        "T6b: PDB + preStop; split critical vs optional deps in /health/ready, circuit breakers, external session store (AT2), rolling DB updates",
     ),
     (
         "8. Whole Site / DR\n(X2C)",
@@ -1012,7 +1012,7 @@ add_text(
 )
 legend_bar(
     s,
-    "Key:  H1–H5 = Health layers (HA/Pool/Ext/Int/Dep)  •  T1/T5/T9 = HA/Manual/CFW  •  T6a/T6b = Client/Server app recovery  •  X2A/X2B/XD1/X2C = Cross-site patterns  •  R0–R4 = Recovery classes",
+    "Key:  H1–H5 = Health layers  •  T1/T5 = HA/Manual  •  T6a/T6b = Client/Server app recovery  •  T9–T12 = Huawei Cloud CFW/ELB/K8s/VM (TBD, Slide 17)  •  X2A/X2B/XD1/X2C = Cross-site patterns  •  R0–R4 = Recovery classes",
 )
 footer(s, 14)
 
@@ -1081,8 +1081,8 @@ s = slide()
 title(
     s,
     "Appendix A — recovery timing shorthand (T1–T12, incl. T6a / T6b)",
-    "Planning categories, not vendor SLAs. Measure end-to-end RTO = Infra/DNS detection + T6b (server) + T6a (client) to first successful transaction.",
-    tsize=20.0,
+    "Planning categories, not vendor SLAs. Measure RTO = Infra/DNS + T6b (server) + T6a (client). Detailed Huawei Cloud T9–T12 placeholders on Slide 17.",
+    tsize=19.8,
 )
 rows = [
     ("T1", "BIG-IP HA peer / device failover", "~3s+ detection (Failover.NetTimeoutSec=3) + HA convergence (automated R1)"),
@@ -1090,36 +1090,36 @@ rows = [
     ("T3", "GTM health observation", "monitor / config specific (direct default 30s / 120s; LTM-assisted faster via iQuery)"),
     ("T4", "GTM state + DNS convergence", "state learning/sync + answer + DNS TTL (30s default) / client re-lookup"),
     ("T5", "Manual server / operational recovery", "minutes to hours — passive-site app startup, manual DB failover/promotion, hung-pool clear, manual rollback (R4)"),
-    ("T6a", "Client-side application recovery", "Auto (seconds): retry/backoff, DNS re-lookup, silent re-auth, WS reconnect/replay  |  Poorly architected (minutes+): manual user refresh, re-login, restart"),
-    ("T6b", "Server-side app & state recovery", "Auto (seconds–~2 min): externalized session lookup, DB/service pool reset, app/state readiness, idempotent reconcile (vs. T5 manual startup/DB)"),
+    ("T6a", "Client-side application recovery", "Auto (seconds): retry/backoff/jitter, DNS re-lookup, silent re-auth, WS reconnect  |  Poorly architected (mins+): manual user refresh/re-login"),
+    ("T6b", "Server-side app & state recovery", "Auto (seconds–~2 min): externalized session lookup, DB/service pool reset, app/state readiness, idempotent reconcile (vs. T5 manual)"),
     ("T7", "Failback", "controlled return to primary (auto-failback default 60s if enabled; prefer controlled failback)"),
     ("T8", "DNS / cache / existing sockets", "behavior modifier (existing TCP sockets stay pinned until reset/timeout), not a duration"),
-    ("T9", "Cloud firewall recovery", "TBD: site-local HA, alternate path and two-site common-mode failure"),
-    ("T10", "Cloud ELB recovery", "TBD: member withdrawal, HA/VIP takeover, entire service loss"),
-    ("T11", "Kubernetes recovery", "TBD: readiness, endpoint withdrawal, worker loss, reschedule"),
-    ("T12", "VM / hypervisor recovery", "TBD: member withdrawal, host HA, restart, storage and readiness"),
+    ("T9", "Cloud firewall (CFW) recovery", "TBD (Huawei Cloud — Slide 17): T9A local HA, T9B local path loss, T9C false-green & 2-site common-mode"),
+    ("T10", "Cloud ELB / Ingress recovery", "TBD (Huawei Cloud — Slide 17): T10a backend eject, T10b ELB HA/VIP takeover, T10c entire ELB service loss"),
+    ("T11", "Kubernetes Pod & worker recovery", "TBD (Huawei Cloud — Slide 17): T11a Pod readiness/eject, T11b worker-node eviction/reschedule, T11c CNI/Ingress/CP"),
+    ("T12", "VM / hypervisor recovery", "TBD (Huawei Cloud — Slide 17): T12a VM eject, T12b host HA restart/boot/storage, T12c shared cluster/manual rebuild"),
 ]
-# y=1.12, headh=0.38, 10 rows * 0.47 = 4.70 => ends at y=6.20 (clean gap before banner at y=6.32!)
+# y=1.10, headh=0.36, 13 rows * 0.37 = 4.81 => ends at y=6.27 (clean gap before banner at y=6.36!)
 simple_table(
     s,
     ["Code", "Meaning", "Expected timing & management interpretation"],
     rows,
-    0.50,
-    1.12,
-    [0.90, 3.65, 7.80],
-    rowh=0.36,
-    fs=8.0,
-    headh=0.38,
+    0.45,
+    1.10,
+    [0.88, 3.52, 8.05],
+    rowh=0.37,
+    fs=7.9,
+    headh=0.36,
     aligns=[PP_ALIGN.CENTER, PP_ALIGN.LEFT, PP_ALIGN.LEFT],
 )
 add_text(
     s,
-    "Key distinction: Infra can deliver seconds-scale T1/T2/T4, but poorly architected clients (manual T6a user refresh/re-login) or manual server startup/DB failover (T5) turn seconds-scale infra failovers into minutes-to-hours user outages.",
-    0.50,
-    6.32,
-    12.35,
-    0.62,
-    9.4,
+    "Key distinction: Do NOT reuse F5 timers (T1–T4) for Huawei private-cloud tiers (T9–T12). Poor client recovery (manual T6a refresh/re-login) or manual server/DB DR (T5) turns seconds-scale failovers into minutes-to-hours outages.",
+    0.45,
+    6.36,
+    12.45,
+    0.58,
+    9.1,
     True,
     NAVY,
     PP_ALIGN.CENTER,
@@ -1128,12 +1128,89 @@ add_text(
 )
 footer(s, 16)
 
-# Slide 17 — Appendix B: Executive Glossary of Acronyms & Shorthand Codes
+# Slide 17 — Appendix B: Private-Cloud Platform Recovery Placeholders (CFW, ELB, Kubernetes & VM — T9-T12)
 s = slide()
 title(
     s,
-    "Appendix B — executive glossary of acronyms & codes",
-    "Plain-English definitions of every F5, infrastructure, health-layer, timing, topology, and cross-site code used in this deck.",
+    "Appendix B — private-cloud platform recovery placeholders (T9–T12)",
+    "Huawei on-premises private-cloud timings remain TBD until measured in Phase 0 (§5). Record expected behaviour & p50/p95/p99 separately from F5.",
+    tsize=19.6,
+)
+cloud_ref_rows = [
+    (
+        "T9: Logical CFW Edge\n(T9A / T9B / T9C)",
+        "T9A: 1 HA member\nT9B: Local CFW path\nT9C: False-green / 2-site",
+        "TBD — measure\n(p50/p95/p99)\nHuawei Cloud",
+        "T9A (Auto HA): new flows continue; validate TCP/WS state sync vs. reset (+T6a). T9B: local app unreachable (X2A cannot bypass CFW) → GTM R3 site move. T9C: unbounded outage if L7 probes stop at WAF; validate 2-site control-plane common-mode risk.",
+        "Map physical HA pairs, tenant contexts, NAT/state sync & shared control-plane blast radius across Site 1 & Site 2.",
+    ),
+    (
+        "T10: Cloud ELB / Ingress\n(T10a / T10b / T10c)",
+        "T10a: Backend target\nT10b: ELB HA / VIP\nT10c: Full ELB loss",
+        "TBD — measure\n(p50/p95/p99)\nHuawei Cloud",
+        "T10a (Auto R0/R1): target withdrawn (no DNS change); in-flight resets (+T6a), sticky cookie re-pins to healthy node. T10b (Auto R1): VIP stays up; verify TCP/WS persistence vs. reset. T10c: triggers GTM R3 site move only if H3/H4 L7 probes cross ELB.",
+        "Record probe interval × threshold, withdrawal propagation, sticky/WS HA behaviour, XFF injection & Slow Start drain.",
+    ),
+    (
+        "T11: Kubernetes Platform\n(T11a / T11b / T11c)",
+        "T11a: Pod crash / roll\nT11b: Worker-node loss\nT11c: Ingress / CNI / CP",
+        "TBD — measure\nService vs.\nRedundancy",
+        "T11a (Auto R0/R1): surviving Pods serve traffic (preStop + PDB keeps rolling deploys zero-drop). T11b: service restores on Endpoint/ELB eject (anti-affinity required!); redundancy restores after node-not-ready + eviction + image pull + PVC attach + warmup. T11c: distinguish CP vs. data-plane loss.",
+        "Measure Endpoint→ELB propagation, node-eviction timer, PVC detach/attach & warmup; verify anti-affinity & PDBs.",
+    ),
+    (
+        "T12: VM & Hypervisor\n(T12a / T12b / T12c)",
+        "T12a: Guest / VM crash\nT12b: Host HA restart\nT12c: Cluster / storage",
+        "TBD — measure\nService vs.\nRedundancy",
+        "T12a (Auto R0/R1): ELB ejects dead VM while peer VMs on separate hosts absorb traffic. T12b (Auto R1 service / mins replace): HA restarts VM on healthy host (OS boot + storage attach + warmup + Slow Start). T12c: GTM R3 site move (Tier 1) or manual T5 rebuild/DR (Tier 2).",
+        "Verify VM anti-affinity across physical hosts; measure host HA detection, OS boot, storage re-attach & readiness.",
+    ),
+]
+# y=1.10, headh=0.38, 4 rows * 1.12 = 4.48 => ends at y=5.96 (clean gap before banner at y=6.04!)
+simple_table(
+    s,
+    [
+        "Platform Tier & Codes",
+        "Sub-Scenarios",
+        "Measured Timing",
+        "Expected Behaviour (New vs. In-Flight, Service vs. Redundancy & Auto/Manual)",
+        "Phase 0 Sign-Off Gate (§5)",
+    ],
+    cloud_ref_rows,
+    0.38,
+    1.10,
+    [1.68, 1.88, 1.28, 4.78, 2.95],
+    rowh=1.12,
+    fs=7.6,
+    headh=0.38,
+    aligns=[PP_ALIGN.CENTER, PP_ALIGN.LEFT, PP_ALIGN.CENTER, PP_ALIGN.LEFT, PP_ALIGN.LEFT],
+)
+add_text(
+    s,
+    "Composition Rule: Report SERVICE restoration (surviving peers absorb load) separately from REDUNDANCY restoration (new Pod/VM ready). Compose only critical-path stages without double-counting overlapping timers, then add T6a & T6b.",
+    0.38,
+    6.04,
+    12.57,
+    0.66,
+    8.5,
+    True,
+    NAVY,
+    PP_ALIGN.CENTER,
+    PALEYELLOW,
+    GOLD,
+)
+legend_bar(
+    s,
+    "Key:  TBD = Measure on Huawei Private Cloud (phase0_discovery_and_signoff_checklist.md §5)  •  PDB = PodDisruptionBudget  •  PVC = Persistent Volume Claim  •  CP = K8s Control Plane  •  X2A = Remote WAF borrow",
+)
+footer(s, 17)
+
+# Slide 18 — Appendix C: Executive Glossary of Acronyms & Shorthand Codes
+s = slide()
+title(
+    s,
+    "Appendix C — executive glossary of acronyms & codes",
+    "Plain-English definitions of every F5, private-cloud, health-layer, timing, topology, and cross-site code used in this deck.",
 )
 left_terms = [
     ("GTM / BIG-IP DNS", "Global Traffic Manager — F5 DNS control plane for site selection"),
@@ -1145,8 +1222,8 @@ left_terms = [
     ("STP / LACP LAG", "Spanning Tree Protocol (unsupported on r2800; use dual-homed LACP LAG)"),
     ("SNAT / OneConnect", "Source NAT (multi-IP SNAT Pool avoids 65k port cap) • HTTP TCP reuse"),
     ("iQuery / big3d", "F5 protocol & agent sharing LTM/VS health metrics with GTM"),
-    ("CFW / ELB / XFF", "Cloud FW / Cloud Load Balancer / X-Forwarded-For client IP header"),
-    ("T1–T4 / T7–T12", "Infra timings: HA (T1), pool (T2), GTM/DNS (T3/T4), failback/cache/cloud platform"),
+    ("CFW / ELB / XFF", "Logical Cloud FW / Cloud Load Balancer / X-Forwarded-For client IP header"),
+    ("T1–T4 / T7–T12", "Infra timings: HA (T1), pool (T2), GTM/DNS (T3/T4), Cloud CFW/ELB/K8s/VM (T9–12)"),
 ]
 right_terms = [
     ("H1 / H2", "Health layers: H1 = Device HA failover • H2 = Local LTM/ELB pool member"),
@@ -1158,7 +1235,7 @@ right_terms = [
     ("W1-3 / W1-2 / W2–4", "Dedicated WAFs: W1-3 (3/site, N-2) vs W1-2 (2/site, N-1); W2 DSC; W3/W4"),
     ("S1 / S1+2 / S2", "Shared WAFs: S1 (4/site), S1+2 (+2 for rolling/outage/canary), S2 (OOS)"),
     ("X2A / X2B / X2C / XD1", "Cross-site: remote WAF (X2A), remote FE (X2B), full DR (X2C), App B (XD1)"),
-    ("CARP / FastL4", "Stateless consistent hash persistence • Low-overhead L4 forwarding"),
+    ("CARP / FastL4 / PDB", "Stateless hash persistence • L4 forwarding • K8s PodDisruptionBudget"),
     ("AT1 – AT4 / SLO", "App types (stateless, stateful, WebSocket, L4) • Service Level Objective"),
 ]
 # y=1.14, headh=0.38, 11 rows * 0.44 = 4.84 => ends at y=6.36 (clean gap before note at y=6.48!)
@@ -1200,7 +1277,7 @@ add_text(
     LIGHT,
     MID,
 )
-footer(s, 17)
+footer(s, 18)
 
 prs.save(OUT)
 print(OUT)
