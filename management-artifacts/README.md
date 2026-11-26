@@ -4,8 +4,8 @@ This directory contains the current, version-controlled management outputs deriv
 
 # Stable filenames
 
-- **Primary Presentation Deck:** [EnterpriseWAF_Executive_Briefing.pptx](./EnterpriseWAF_Executive_Briefing.pptx) ([PDF](./EnterpriseWAF_Executive_Briefing.pdf)) — **9-slide Executive Briefing & Tech-Lead Discussion** written in plain English (3 executive theme slides + 6 tech-lead discussion slides; `r2800` specs, F5 KBs, RACI, and `T1`–`T12` details in PowerPoint Speaker Notes)
-- **Engineering Reference Appendix:** [EnterpriseWAF_Engineering_Reference.pptx](./EnterpriseWAF_Engineering_Reference.pptx) ([PDF](./EnterpriseWAF_Engineering_Reference.pdf)) — **17-slide Engineering Reference Appendix** (full on-slide technical tables, architecture planes, GTM convergence, App B cascade, cross-site patterns, `T1`–`T12` timing shorthand, and acronym glossary)
+- **Primary Presentation Deck:** [EnterpriseWAF_Executive_Briefing.pptx](./EnterpriseWAF_Executive_Briefing.pptx) ([PDF](./EnterpriseWAF_Executive_Briefing.pdf)) — **10-slide Executive Briefing & Tech-Lead Discussion** written in plain English (3 executive theme slides + 7 tech-lead discussion slides including private-cloud CFW/ELB/Kubernetes/VM recovery placeholders; `r2800` specs, F5 KBs, RACI, and `T1`–`T12` details in PowerPoint Speaker Notes)
+- **Engineering Reference Appendix:** [EnterpriseWAF_Engineering_Reference.pptx](./EnterpriseWAF_Engineering_Reference.pptx) ([PDF](./EnterpriseWAF_Engineering_Reference.pdf)) — **18-slide Engineering Reference Appendix** (full on-slide technical tables, architecture planes, GTM convergence, App B cascade, cross-site patterns, `T1`–`T12` timing shorthand, Appendix B private-cloud recovery placeholders `T9`–`T12`, and Appendix C acronym glossary)
 - [diagrams/EnterpriseWAF_Architecture_Planes.svg](./diagrams/EnterpriseWAF_Architecture_Planes.svg) — architecture planes / parallel-path model
 - [diagrams/EnterpriseWAF_End_to_End_Topology.svg](./diagrams/EnterpriseWAF_End_to_End_Topology.svg) — **current-state** editable topology
 - [diagrams/EnterpriseWAF_Target_Health_Monitoring.svg](./diagrams/EnterpriseWAF_Target_Health_Monitoring.svg) — **target-state** editable health-monitoring topology
@@ -34,8 +34,8 @@ The decks must keep current-state and target-state diagrams on different slides.
 
 # Reproducible generation
 
-- `source/build_executive_briefing.py` generates the primary **9-slide Executive Briefing & Tech-Lead Discussion** (`EnterpriseWAF_Executive_Briefing.pptx`) in plain English with full Speaker Notes and embeds the 3 core authoritative SVGs directly.
-- `source/build_engineering_reference.py` generates the base **17-slide Engineering Reference Appendix** (`EnterpriseWAF_Engineering_Reference.pptx`).
+- `source/build_executive_briefing.py` generates the primary **10-slide Executive Briefing & Tech-Lead Discussion** (`EnterpriseWAF_Executive_Briefing.pptx`) in plain English with full Speaker Notes and embeds the 3 core authoritative SVGs directly.
+- `source/build_engineering_reference.py` generates the base **18-slide Engineering Reference Appendix** (`EnterpriseWAF_Engineering_Reference.pptx`).
 - `source/replace_engineering_reference_slides.py` inserts Slides 3, 4, 5, 6, and 9 of the engineering reference appendix from the five authoritative SVG diagrams (`EnterpriseWAF_Architecture_Planes.svg`, `EnterpriseWAF_End_to_End_Topology.svg`, `EnterpriseWAF_Target_Health_Monitoring.svg`, `EnterpriseWAF_Health_Check_Placement.svg`, and `EnterpriseWAF_Topology_Options.svg`).
 - `.github/workflows/build-management-artifacts.yml` regenerates both PowerPoint decks, both PDFs, and the PNG diagrams when the architecture source changes on `main`.
 
@@ -45,29 +45,30 @@ The automated generated-artifact commit uses the same stable filenames.
 
 Do **not** present the architecture as one linear L0-L7 stack. External and internal access are parallel paths that converge at the private-cloud service tier, while DNS/GTM and health/observability are control planes.
 
-## Primary Presentation: Executive Briefing & Tech-Lead Discussion (9 slides + Speaker Notes)
+## Primary Presentation: Executive Briefing & Tech-Lead Discussion (10 slides + Speaker Notes)
 
 Designed as the **single live presentation deck** for mixed **Technical Leadership + Tech Lead** discussions, using full plain-English names rather than cryptic shorthand codes (all `r2800` upgrade/hardware details, F5 KBs, RACI, and `T1`–`T12` formulas live in PowerPoint Speaker Notes):
 
 1. **Theme 1 (Executive):** Joint responsibility for 99.95% availability (Tier 1 eligible), ≤ 25% blast radius & 4 changes/yr;
 2. **Theme 2 (Executive):** Layered health checks, proportional recovery & operational guardrails (certs, WAF-as-code, retry jitter, observability);
 3. **Theme 3 (Executive):** Shortlist decision (Shared 6-WAF Pool vs. Dedicated 3-WAF Pool — both 20 `r2800`s) & 90-day decisions + parallel cutover;
-4. **Discussion 1 (Tech Leads):** Current-state end-to-end topology (SVG);
-5. **Discussion 2 (Tech Leads):** Target layered health monitoring (SVG);
+4. **Discussion 1 (Tech Leads):** Current-state end-to-end topology (SVG, showing the spanning logical Private-Cloud CFW edge across Site 1 & Site 2);
+5. **Discussion 2 (Tech Leads):** Target layered health monitoring (SVG, showing the spanning logical Private-Cloud CFW edge);
 6. **Discussion 3 (Tech Leads):** Visual WAF topology options (SVG);
 7. **Discussion 4 (Tech Leads):** Plain-English topology variant scorecard (≤ 25% impact, 99.95%, longest outage, auto/manual, trade-offs);
 8. **Discussion 5 (Tech Leads):** End-to-end sticky sessions, client-IP headers, SNAT & throughput by application class;
-9. **Discussion 6 (Tech Leads):** Joint responsibility matrix by fault domain (Infra vs. App obligations + client/server recovery risk).
+9. **Discussion 6 (Tech Leads):** Joint responsibility matrix by fault domain (Infra vs. App obligations + client/server recovery risk);
+10. **Discussion 7 (Tech Leads):** Private-cloud platform recovery placeholders: CFW, Cloud ELB, Kubernetes (Pod & Worker Node) and VM / Hypervisor (`TBD` timings & expected behaviour).
 
-## Engineering Reference Appendix (`EnterpriseWAF_Engineering_Reference`, 17 slides)
+## Engineering Reference Appendix (`EnterpriseWAF_Engineering_Reference`, 18 slides)
 
 Use as the detailed **Engineering Reference Appendix** for architecture deep-dives and code lookups (not a separate executive pitch):
 
 1. engineering reference overview — joint responsibility & end-to-end application delivery (Phase 1 focus: WAF tier);
 2. **baseline invariants versus target layer controls** (with team ownership boundaries);
 3. **architecture planes and parallel paths** (with H1–H6 health layers explained);
-4. current-state end-to-end application delivery topology (BIG-IP 17.5.x);
-5. target layered health-monitoring topology (H2, H3, H4, H6 explained);
+4. current-state end-to-end application delivery topology (BIG-IP 17.5.x, spanning logical CFW edge);
+5. target layered health-monitoring topology (H2, H3, H4, H6 explained, spanning logical CFW edge);
 6. health-check placement decision table & team ownership (H1–H6);
 7. BIG-IP DNS (GTM) probe-source, synchronization and convergence model;
 8. App A/B/C/D dependency cascade vs. dependency-local recovery (XD1);
@@ -79,7 +80,8 @@ Use as the detailed **Engineering Reference Appendix** for architecture deep-div
 14. **joint responsibility & fault-domain recovery matrix (Infra vs. App per layer)**;
 15. end-to-end implementation sequence, six operational guardrails & cross-team acceptance gates;
 16. Appendix A — recovery timing shorthand (`T1`–`T12`, including `T6a` client vs. `T6b` server split);
-17. **Appendix B — executive glossary of acronyms and shorthand codes**.
+17. **Appendix B — private-cloud platform recovery placeholders (`T9` CFW, `T10` ELB, `T11` Kubernetes Pod/Worker, `T12` VM/Hypervisor)**;
+18. **Appendix C — executive glossary of acronyms and shorthand codes**.
 
 # Health-check management rule
 

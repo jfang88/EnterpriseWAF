@@ -20,7 +20,7 @@
 
 <!-- Title & Legend -->
 <text x="48" y="48" class="t" font-size="30" font-weight="bold" fill="#073b64">End-to-end application delivery — current state (BIG-IP 17.5.x)</text>
-<text x="50" y="76" class="sub" font-size="15.5">DNS control plane is separate from application data; CFW = Cloud Firewall, ELB = Cloud Load Balancer; target probes &amp; cross-site paths not shown.</text>
+<text x="50" y="76" class="sub" font-size="15.5">DNS control plane is separate from application data; one logical private-cloud CFW spans Site 1 &amp; Site 2 above site-local ELBs.</text>
 
 <rect x="1030" y="22" width="530" height="38" rx="9" fill="#ffffff" stroke="#d9e6ef" stroke-width="1.5"/>
 <line x1="1048" y1="41" x2="1084" y2="41" stroke="#073b64" stroke-width="2.8" marker-end="url(#arrow)"/>
@@ -104,50 +104,43 @@
 <rect x="568" y="272" width="196" height="56" fill="#dcf5f8" class="b"/>
 <text x="666" y="306" text-anchor="middle" class="t" font-size="16" font-weight="bold">Tenant LTM HA</text>
 
-<rect x="568" y="348" width="196" height="52" fill="#ccefed" class="b"/>
-<text x="666" y="380" text-anchor="middle" class="t" font-size="16" font-weight="bold">WAF tier</text>
+<rect x="568" y="346" width="196" height="50" fill="#ccefed" class="b"/>
+<text x="666" y="377" text-anchor="middle" class="t" font-size="16" font-weight="bold">WAF tier</text>
 
 <rect x="802" y="272" width="190" height="56" fill="#dff5c1" class="b"/>
 <text x="897" y="306" text-anchor="middle" class="t" font-size="16" font-weight="bold">GTM / DNS cluster</text>
 
 <!-- Edge FW -> LTM -> WAF and Edge FW -.-> GTM -->
 <path d="M666 246 V269" class="f"/>
-<path d="M666 328 V345" class="f"/>
+<path d="M666 328 V343" class="f"/>
 <path d="M897 246 V269" class="d"/>
 
-<!-- Site 1 Private Cloud -->
-<rect x="566" y="454" width="428" height="274" rx="18" fill="#ede8ff" stroke="#5c4cd2" stroke-width="2.5"/>
-<rect x="752" y="462" width="228" height="32" rx="8" fill="#5c4cd2"/>
-<text x="866" y="484" text-anchor="middle" class="h" font-size="15">Private cloud — Site 1</text>
+<!-- Site 1 Private Cloud (Workloads & Local ELB underneath logical CFW) -->
+<rect x="566" y="524" width="428" height="210" rx="16" fill="#ede8ff" stroke="#5c4cd2" stroke-width="2.2"/>
+<rect x="784" y="532" width="198" height="28" rx="8" fill="#5c4cd2"/>
+<text x="883" y="551" text-anchor="middle" class="h" font-size="14">Private cloud — Site 1</text>
 
-<rect x="586" y="514" width="114" height="54" fill="#dcf5f8" class="b"/>
-<text x="643" y="547" text-anchor="middle" class="t" font-size="17" font-weight="bold">CFW edge</text>
+<rect x="584" y="538" width="160" height="44" fill="#dcf5f8" class="b"/>
+<text x="664" y="566" text-anchor="middle" class="t" font-size="15.5" font-weight="bold">ELB / service</text>
 
-<rect x="748" y="514" width="190" height="54" fill="#dcf5f8" class="b"/>
-<text x="843" y="547" text-anchor="middle" class="t" font-size="16" font-weight="bold">ELB / service</text>
-<path d="M700 541 H745" class="f"/>
+<rect x="584" y="610" width="88" height="42" fill="#dff5c1" class="b"/>
+<text x="628" y="636" text-anchor="middle" class="t" font-size="14.5" font-weight="bold">App A</text>
 
-<rect x="586" y="600" width="90" height="44" fill="#dff5c1" class="b"/>
-<text x="631" y="628" text-anchor="middle" class="t" font-size="15" font-weight="bold">App A</text>
+<rect x="698" y="610" width="88" height="42" fill="#dff5c1" class="b"/>
+<text x="742" y="636" text-anchor="middle" class="t" font-size="14.5" font-weight="bold">App D</text>
 
-<rect x="706" y="600" width="90" height="44" fill="#dff5c1" class="b"/>
-<text x="751" y="628" text-anchor="middle" class="t" font-size="15" font-weight="bold">App D</text>
+<rect x="832" y="610" width="96" height="42" fill="#dff5c1" class="b"/>
+<text x="880" y="636" text-anchor="middle" class="t" font-size="14.5" font-weight="bold">App B</text>
 
-<rect x="836" y="600" width="96" height="44" fill="#dff5c1" class="b"/>
-<text x="884" y="628" text-anchor="middle" class="t" font-size="15" font-weight="bold">App B</text>
+<rect x="832" y="680" width="96" height="42" fill="#dff5c1" class="b"/>
+<text x="880" y="706" text-anchor="middle" class="t" font-size="14.5" font-weight="bold">App C</text>
 
-<rect x="836" y="672" width="96" height="44" fill="#dff5c1" class="b"/>
-<text x="884" y="700" text-anchor="middle" class="t" font-size="15" font-weight="bold">App C</text>
-
-<!-- Site 1 Private Cloud Internal Arrows (including App A -> App B!) -->
-<path d="M843 568 L636 598" class="f"/>
-<path d="M843 568 L754 598" class="f"/>
-<path d="M796 622 H833" class="f"/>
-<path d="M631 644 V662 H814 V634 H833" class="f"/>
-<path d="M884 644 V669" class="f"/>
-
-<!-- Site 1 WAF -> CFW (clean straight drop on left, ZERO crossing of Private cloud banner!) -->
-<path d="M643 400 V511" class="f"/>
+<!-- Site 1 Private Cloud Internal Arrows (orthogonal, zero overlap!) -->
+<path d="M664 582 V596 H628 V607" class="f"/>
+<path d="M664 596 H742 V607" class="f"/>
+<path d="M786 631 H829" class="f"/>
+<path d="M628 652 V668 H810 V642 H829" class="f"/>
+<path d="M880 652 V677" class="f"/>
 
 <!-- ================= SITE 2 — DR / SECONDARY ================= -->
 <rect x="1100" y="132" width="464" height="614" rx="16" fill="#ffffff" stroke="#073b64" stroke-width="2"/>
@@ -167,47 +160,59 @@
 <rect x="1348" y="272" width="196" height="56" fill="#dcf5f8" class="b"/>
 <text x="1446" y="306" text-anchor="middle" class="t" font-size="16" font-weight="bold">Tenant LTM HA</text>
 
-<rect x="1348" y="348" width="196" height="52" fill="#ccefed" class="b"/>
-<text x="1446" y="380" text-anchor="middle" class="t" font-size="16" font-weight="bold">WAF tier</text>
+<rect x="1348" y="346" width="196" height="50" fill="#ccefed" class="b"/>
+<text x="1446" y="377" text-anchor="middle" class="t" font-size="16" font-weight="bold">WAF tier</text>
 
 <!-- Edge FW -> LTM -> WAF and Edge FW -.-> GTM -->
 <path d="M1215 246 V269" class="d"/>
 <path d="M1446 246 V269" class="f"/>
-<path d="M1446 328 V345" class="f"/>
+<path d="M1446 328 V343" class="f"/>
 
-<!-- Site 2 Private Cloud -->
-<rect x="1118" y="454" width="428" height="274" rx="18" fill="#ede8ff" stroke="#5c4cd2" stroke-width="2.5"/>
-<rect x="1132" y="462" width="228" height="32" rx="8" fill="#5c4cd2"/>
-<text x="1246" y="484" text-anchor="middle" class="h" font-size="15">Private cloud — Site 2</text>
+<!-- Site 2 Private Cloud (Workloads & Local ELB underneath logical CFW) -->
+<rect x="1118" y="524" width="428" height="210" rx="16" fill="#ede8ff" stroke="#5c4cd2" stroke-width="2.2"/>
+<rect x="1132" y="532" width="198" height="28" rx="8" fill="#5c4cd2"/>
+<text x="1231" y="551" text-anchor="middle" class="h" font-size="14">Private cloud — Site 2</text>
 
-<rect x="1392" y="514" width="134" height="54" fill="#dcf5f8" class="b"/>
-<text x="1459" y="547" text-anchor="middle" class="t" font-size="17" font-weight="bold">CFW edge</text>
+<rect x="1368" y="538" width="160" height="44" fill="#dcf5f8" class="b"/>
+<text x="1448" y="566" text-anchor="middle" class="t" font-size="15.5" font-weight="bold">ELB / service</text>
 
-<rect x="1142" y="514" width="196" height="54" fill="#dcf5f8" class="b"/>
-<text x="1240" y="547" text-anchor="middle" class="t" font-size="16" font-weight="bold">ELB / service</text>
-<path d="M1392 541 H1341" class="f"/>
+<rect x="1136" y="610" width="88" height="42" fill="#dff5c1" class="b"/>
+<text x="1180" y="636" text-anchor="middle" class="t" font-size="14.5" font-weight="bold">App A</text>
 
-<rect x="1138" y="600" width="90" height="44" fill="#dff5c1" class="b"/>
-<text x="1183" y="628" text-anchor="middle" class="t" font-size="15" font-weight="bold">App A</text>
+<rect x="1250" y="610" width="88" height="42" fill="#dff5c1" class="b"/>
+<text x="1294" y="636" text-anchor="middle" class="t" font-size="14.5" font-weight="bold">App D</text>
 
-<rect x="1258" y="600" width="90" height="44" fill="#dff5c1" class="b"/>
-<text x="1303" y="628" text-anchor="middle" class="t" font-size="15" font-weight="bold">App D</text>
+<rect x="1384" y="610" width="96" height="42" fill="#dff5c1" class="b"/>
+<text x="1432" y="636" text-anchor="middle" class="t" font-size="14.5" font-weight="bold">App B</text>
 
-<rect x="1388" y="600" width="96" height="44" fill="#dff5c1" class="b"/>
-<text x="1436" y="628" text-anchor="middle" class="t" font-size="15" font-weight="bold">App B</text>
+<rect x="1384" y="680" width="96" height="42" fill="#dff5c1" class="b"/>
+<text x="1432" y="706" text-anchor="middle" class="t" font-size="14.5" font-weight="bold">App C</text>
 
-<rect x="1388" y="672" width="96" height="44" fill="#dff5c1" class="b"/>
-<text x="1436" y="700" text-anchor="middle" class="t" font-size="15" font-weight="bold">App C</text>
+<!-- Site 2 Private Cloud Internal Arrows (orthogonal, zero overlap!) -->
+<path d="M1448 582 V596 H1180 V607" class="f"/>
+<path d="M1294 596 V607" class="f"/>
+<path d="M1338 631 H1381" class="f"/>
+<path d="M1180 652 V668 H1362 V642 H1381" class="f"/>
+<path d="M1432 652 V677" class="f"/>
 
-<!-- Site 2 Private Cloud Internal Arrows (including App A -> App B!) -->
-<path d="M1240 568 L1186 598" class="f"/>
-<path d="M1240 568 L1299 598" class="f"/>
-<path d="M1348 622 H1385" class="f"/>
-<path d="M1183 644 V662 H1366 V634 H1385" class="f"/>
-<path d="M1436 644 V669" class="f"/>
+<!-- ================= SPANNING LOGICAL PRIVATE-CLOUD CFW EDGE (BRIDGES SITE 1 & SITE 2!) ================= -->
+<rect x="566" y="448" width="980" height="62" rx="14" fill="#d8f2f7" stroke="#5c4cd2" stroke-width="2.6" stroke-dasharray="9 5"/>
+<rect x="780" y="434" width="552" height="25" rx="8" fill="#5c4cd2"/>
+<text x="1056" y="451" text-anchor="middle" class="h" font-size="13.5">Logical Private-Cloud CFW Edge (Available Across Site 1 &amp; Site 2)</text>
 
-<!-- Site 2 WAF -> CFW (clean straight drop on right, ZERO crossing of Private cloud banner!) -->
-<path d="M1459 400 V511" class="f"/>
+<rect x="584" y="465" width="160" height="36" fill="#ffffff" class="b"/>
+<text x="664" y="489" text-anchor="middle" class="t" font-size="14.5" font-weight="bold">Site 1 CFW entry</text>
+
+<text x="1056" y="488" text-anchor="middle" class="t" font-size="12.5" font-weight="bold" fill="#3f358c">One logical CFW boundary  •  Physical HA, state sync &amp; common-mode risk: TBD (T9)</text>
+
+<rect x="1368" y="465" width="160" height="36" fill="#ffffff" class="b"/>
+<text x="1448" y="489" text-anchor="middle" class="t" font-size="14.5" font-weight="bold">Site 2 CFW entry</text>
+
+<!-- WAF -> Spanning CFW -> Site-local ELB drops (clean straight verticals!) -->
+<path d="M664 396 V462" class="f"/>
+<path d="M664 501 V535" class="f"/>
+<path d="M1448 396 V462" class="f"/>
+<path d="M1448 501 V535" class="f"/>
 
 <!-- ================= CROSS-DOMAIN CONNECTORS (CLEAN CORRIDORS) ================= -->
 <!-- External leased line -> Site 1 Edge FW -->
@@ -216,14 +221,14 @@
 <path d="M518 219 V104 H1056 V217 H1117" class="fdr"/>
 <text x="790" y="96" text-anchor="middle" class="sub" font-size="13" font-weight="bold">DR / alternate leased-line &amp; DNS path to Site 2</text>
 
-<!-- Internal Firewall -> Site 1 CFW (straight horizontal!) -->
-<path d="M484 544 H583" class="f"/>
-<!-- Internal Firewall -> Site 2 CFW (bottom corridor y=764, zero overlaps!) -->
-<path d="M424 574 V764 H1576 V541 H1529" class="fdr"/>
+<!-- Internal Firewall -> Site 1 CFW entry (clean step at x=536, separated from Internal DNS at x=524) -->
+<path d="M484 544 H536 V483 H581" class="f"/>
+<!-- Internal Firewall -> Site 2 CFW entry (bottom corridor y=764, zero overlaps!) -->
+<path d="M424 574 V764 H1576 V483 H1531" class="fdr"/>
 
-<!-- Internal DNS -> Site 1 & Site 2 GTM (clean orthogonal route through open corridor x=524, y=424) -->
-<path d="M220 676 H524 V424 H897 V331" class="d"/>
-<path d="M897 424 H1215 V331" class="d"/>
+<!-- Internal DNS -> Site 1 & Site 2 GTM (clean orthogonal route through open corridor x=524, y=420) -->
+<path d="M220 676 H524 V420 H897 V331" class="d"/>
+<path d="M897 420 H1215 V331" class="d"/>
 <text x="320" y="644" text-anchor="middle" class="t" font-size="13" font-weight="bold" fill="#d17714">selected internal names may</text>
 <text x="320" y="661" text-anchor="middle" class="t" font-size="13" font-weight="bold" fill="#d17714">delegate to same edge GTM</text>
 
@@ -233,10 +238,10 @@
 
 <!-- Bottom Yellow Callout -->
 <rect x="35" y="786" width="1530" height="58" rx="12" fill="#fff7dc" stroke="#e2bf50" stroke-width="2"/>
-<text x="800" y="811" text-anchor="middle" class="t" font-size="14" font-weight="bold" fill="#073b64">Current-state unknown to validate: TCP/port vs L7 monitor depth • external/internal VIP checks • iQuery • cross-site probing • intervals/timeouts • app readiness</text>
-<text x="800" y="833" text-anchor="middle" class="sub" font-size="13">CFW is one logical cloud edge across both sites; local paths shown separately. Cross-site routing and state continuity are not implied.</text>
+<text x="800" y="811" text-anchor="middle" class="t" font-size="14" font-weight="bold" fill="#073b64">Current-state unknown to validate: GTM monitor depth • external/internal VIP checks • iQuery • CFW (T9), ELB (T10), K8s (T11) &amp; VM (T12) timings</text>
+<text x="800" y="833" text-anchor="middle" class="sub" font-size="13">Logical CFW spans both sites visually; ELBs &amp; workloads remain site-local. Stretched physical firewall, state continuity &amp; cross-site route-back are NOT assumed.</text>
 
 <!-- Consistent Deck Footer -->
-<text x="48" y="876" class="sub" font-size="13">End-to-end application delivery summary</text>
+<text x="48" y="876" class="sub" font-size="13">End-to-end application delivery — architecture diagram</text>
 <text x="1555" y="876" text-anchor="end" class="sub" font-size="13">Nov 2026  •  4</text>
 </svg>

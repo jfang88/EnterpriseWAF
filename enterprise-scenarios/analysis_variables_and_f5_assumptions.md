@@ -798,27 +798,31 @@ Recommendation:
 - application/site readiness must prove reachability through the CFW to the ELB/application, or otherwise consume an authoritative signal that represents that full path;
 - internal service health must also include CFW reachability where internal App A -> B/C traffic traverses the same CFW.
 
-## T10 — private-cloud ELB recovery (Huawei on-premises platform: TBD / measure)
+## T10 — private-cloud ELB / Ingress recovery (Huawei on-premises platform: TBD / measure)
 
-| Scenario | Timing placeholder | Recovery boundary |
-|---|---|---|
-| ELB backend member failure | T10a = detection + member withdrawal + routing convergence: TBD | Same service VIP; no DNS change if healthy capacity remains |
-| ELB instance/HA failure | T10b = HA detection + takeover + VIP/state convergence: TBD | Validate existing connections and NAT/session continuity |
-| Entire ELB service/VIP failure | T10c = service recovery or alternate endpoint readiness: TBD | Add T3/T4 only if published DNS/site selection changes |
- 
-## T11 — Kubernetes workload/platform recovery (Huawei on-premises platform: TBD / measure)
+| Sub-Code | Failure Scenario | Timing Placeholder | Expected Behaviour (New vs. In-Flight & Auto/Manual) |
+|---|---|---|---|
+| **T10a** | **Backend member / target failure** | `TBD` (probe interval × unhealthy threshold + target removal propagation) | **Automated (`R0`/`R1`):** ELB stops sending new traffic to failed target while VIP stays unchanged (no DNS TTL). In-flight requests on failed target reset/error (`T6a` client retry + `T6b` externalized session). Sticky cookie sessions re-pin to healthy node. |
+| **T10b** | **ELB instance / HA pair failover** | `TBD` (HA detection + VIP/route takeover + state convergence) | **Automated (`R1`):** VIP remains stable (no DNS change). Validate whether existing TCP/WebSocket connections & sticky tables survive HA failover or reset (if reset, add `T6a` reconnect + jitter). |
+| **T10c** | **Entire local ELB / Ingress service loss** | `TBD` (service recovery or GTM `T3`/`T4` site move) | **Automated (`R3`) ONLY if `H3`/`H4` L7 probes traverse CFW→ELB→App** (otherwise unbounded false-green!). Add `T5` if Site 2 app is passive. |
 
-- T11a: readiness failure, endpoint withdrawal and ingress/ELB propagation — TBD.
-- T11b: worker loss detection, eviction/rescheduling, image pull, storage attach and pod readiness — TBD; these may overlap.
-- T11c: ingress/controller, control-plane or shared storage/network failure — TBD; distinguish surviving data plane from impaired scheduling and total service loss.
+## T11 — Kubernetes Pod, worker-node & platform recovery (Huawei on-premises platform: TBD / measure)
 
-## T12 — VM / hypervisor recovery (Huawei on-premises platform: TBD / measure)
+| Sub-Code | Failure Scenario | Timing Placeholder | Expected Behaviour (New vs. In-Flight & Auto/Manual) |
+|---|---|---|---|
+| **T11a** | **Single Pod crash / readiness failure / rolling deploy** | `TBD` (readiness probe failure + kube-proxy/Endpoints/ELB deregistration) | **Automated (`R0`/`R1`):** Surviving replicas absorb new traffic immediately once Endpoints/ELB update. Planned rollouts stay `R0` when `preStop` sleep + `HTTP 503` drain + `PodDisruptionBudget` (`PDB`) are configured; unplanned crash resets in-flight requests (`T6a`). |
+| **T11b** | **Worker node failure / taint eviction / reschedule** | `TBD` (node-not-ready timeout + pod eviction + scheduler placement + image pull + volume detach/attach + pod readiness warmup) | **Automated (`R1` service / `R1`–`T6b` redundancy):** Service restores as soon as ELB/Ingress ejects dead-node Pods (if replicas exist on surviving nodes — anti-affinity required!). Full redundancy restores only after rescheduled Pods pull images, re-attach PVCs, and pass `/health/ready`. |
+| **T11c** | **Ingress controller, CNI, control-plane or shared storage failure** | `TBD` (control-plane recovery vs. GTM `T3`/`T4` site move or manual `T5`) | **Distinguish control-plane vs. data-plane:** Control-plane loss may leave running Pods serving traffic while blocking deploys/scaling; CNI/Ingress/storage loss causes local service outage requiring GTM `R3` site failover (or `T5` manual recovery). |
 
-- T12a: guest/app failure detection and backend withdrawal — TBD.
-- T12b: host failure detection, HA restart/placement, boot, storage/network and service readiness — TBD.
-- T12c: shared compute/storage/network domain failure and alternate capacity — TBD.
+## T12 — VM & hypervisor host recovery (Huawei on-premises platform: TBD / measure)
 
-For T9–T12, Cloud Platform and application owners must record configured monitors, actual detection and convergence, surviving capacity, state/session loss, and p50/p95/p99 fault-to-first-success under load. Do not substitute F5 timers for Huawei private-cloud timings. A healthy alternate member may restore service before failed workload replacement; report service restoration separately from redundancy restoration. Compose only stages on the critical recovery path (avoid double-counting overlapping detection, readiness, T6b or DNS). Add T6a for client retry/reconnect/replay and T6b only for additional application/state recovery. A logical two-site CFW boundary does not prove route-back or cross-site state continuity; test local and shared/common-mode failures separately.
+| Sub-Code | Failure Scenario | Timing Placeholder | Expected Behaviour (New vs. In-Flight & Auto/Manual) |
+|---|---|---|---|
+| **T12a** | **Single VM guest / app crash behind ELB** | `TBD` (ELB/LTM health check detection + member withdrawal) | **Automated (`R0`/`R1`):** Surviving VMs behind ELB carry new traffic (no DNS TTL). In-flight connections on failed VM reset (`T6a` client retry + `T6b` externalized state). |
+| **T12b** | **Hypervisor host failure & VM HA restart** | `TBD` (host-loss detection + HA placement + OS boot + storage/network attach + app warmup + ELB `Slow Start`) | **Automated (`R1` service if multi-host spread; minutes-scale VM replacement):** Service stays up if peer VMs run on separate physical hosts (anti-affinity mandatory!). Restarting affected VMs on a surviving host takes minutes (OS boot + storage + app warmup) — separate **service restoration** from **redundancy restoration**. |
+| **T12c** | **Shared compute cluster, storage array or manual VM rebuild** | `TBD` (minutes–hours; escalates to `T5` if manual rebuild/DR) | **Automated (`R3`) site move** if Tier-1 Active/Active app + L7 GTM health; **Manual (`R4`/`T5`)** if passive-site startup or manual VM/storage rebuild is required. |
+
+**Mandatory Huawei Private-Cloud measurement rule (`T9`–`T12`):** Cloud Platform and application owners must record configured monitors, actual detection and convergence, surviving capacity, state/session loss, and p50/p95/p99 fault-to-first-success under load. **Do not substitute F5 timers for Huawei private-cloud timings.** A healthy alternate member may restore service before failed workload replacement; report **service restoration** separately from **redundancy restoration**. Compose only stages on the critical recovery path (avoid double-counting overlapping detection, readiness, `T6b` or DNS). Add `T6a` for client retry/reconnect/replay and `T6b` only for additional application/state recovery. A logical two-site CFW boundary does **not** prove route-back or cross-site state continuity; test local and shared/common-mode failures separately.
 
 # 6. F5 connection mirroring implications
 
